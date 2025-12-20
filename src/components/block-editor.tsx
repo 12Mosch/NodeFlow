@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronsRight, Circle } from 'lucide-react'
 import { useRef } from 'react'
 import { useMutation, useQuery } from 'convex/react'
+import { Link } from '@tanstack/react-router'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 
@@ -23,10 +24,29 @@ interface BlockItemProps {
 }
 
 export function BlockTree({ rootId }: { rootId?: Id<'blocks'> }) {
+  const rootBlock = useQuery(
+    api.blocks.getOne,
+    rootId ? { id: rootId } : 'skip',
+  )
+
+  if (rootId && rootBlock === null) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 text-center">
+        <h1 className="text-3xl font-bold mb-4">Block not found</h1>
+        <p className="text-muted-foreground mb-6">
+          This block doesn't exist or you don't have access to it.
+        </p>
+        <Link to="/" className="text-primary hover:underline">
+          Go back home
+        </Link>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-8 font-sans">
       <h1 className="text-3xl font-bold mb-6 text-foreground">
-        {rootId ? 'Sub-Page' : 'Notes'}
+        {rootBlock ? rootBlock.text || 'Untitled' : 'Notes'}
       </h1>
       <BlockList parentId={rootId} level={0} />
     </div>
@@ -104,7 +124,13 @@ function BlockItem({
         localStore.setQuery(
           api.blocks.get,
           { parentId },
-          existing.map((b) => (b._id === args.id ? { ...b, ...args } : b)),
+          existing.map((b) => {
+            if (b._id === args.id) {
+              const { id, ...updates } = args
+              return { ...b, ...updates }
+            }
+            return b
+          }),
         )
       }
     },
