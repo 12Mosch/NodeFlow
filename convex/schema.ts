@@ -18,14 +18,12 @@ export default defineSchema({
   blocks: defineTable({
     userId: v.id('users'),
     parentId: v.optional(v.id('blocks')),
-    content: v.string(),
-    type: v.string(), // 'text', 'heading', 'bullet', etc.
-    order: v.number(),
-    collapsed: v.optional(v.boolean()),
+    text: v.string(), // Content of the block
+    isCollapsed: v.boolean(),
+    rank: v.number(), // Lexical or simple sorting order
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index('userId', ['userId'])
-    .index('parentId', ['parentId'])
-    .index('userParent', ['userId', 'parentId']),
+    .index('by_user', ['userId'])
+    .index('by_user_parent_rank', ['userId', 'parentId', 'rank']),
 })
