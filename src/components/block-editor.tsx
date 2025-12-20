@@ -102,7 +102,7 @@ function CreateFirstBlockButton() {
   return (
     <button
       className="bg-primary text-primary-foreground px-4 py-2 rounded shadow hover:opacity-90 transition-opacity"
-      onClick={() => create({ text: '', rank: 0 })}
+      onClick={() => create({ text: '' })}
     >
       Create first block
     </button>
@@ -147,14 +147,10 @@ function BlockItem({
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      const newRank = nextBlock
-        ? (block.rank + nextBlock.rank) / 2
-        : block.rank + 1
-
       await create({
         parentId: block.parentId,
         text: '',
-        rank: newRank,
+        afterId: block._id,
       })
     } else if (e.key === 'Tab') {
       e.preventDefault()
@@ -164,7 +160,7 @@ function BlockItem({
           await move({
             id: block._id,
             parentId: parentBlock.parentId,
-            rank: parentBlock.rank + 0.1,
+            afterId: parentBlock._id,
           })
         }
       } else {
@@ -173,7 +169,6 @@ function BlockItem({
           await move({
             id: block._id,
             parentId: previousBlock._id,
-            rank: 999999,
           })
           update({ id: previousBlock._id, isCollapsed: false })
         }
