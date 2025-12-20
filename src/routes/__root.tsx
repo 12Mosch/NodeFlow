@@ -2,9 +2,14 @@ import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
+  useLocation,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { useEffect } from 'react'
+import { useAuth } from '@workos-inc/authkit-react'
+import { useConvexAuth, useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 import WorkOSProvider from '../integrations/workos/provider'
 
@@ -31,7 +36,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'NodeFlow',
       },
     ],
     links: [
@@ -45,6 +50,41 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   shellComponent: RootDocument,
 })
 
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, signIn } = useAuth()
+  const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth()
+  const storeUser = useMutation(api.users.getOrCreateUser)
+
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    if (!isLoading && !user && pathname !== '/callback') {
+      signIn()
+    }
+  }, [isLoading, user, signIn, pathname])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void storeUser()
+    }
+  }, [isAuthenticated, storeUser])
+
+  if (
+    (isLoading || isConvexLoading || !user || !isAuthenticated) &&
+    pathname !== '/callback'
+  ) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-pulse text-foreground font-medium text-lg">
+          Loading NodeFlow...
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -54,7 +94,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <WorkOSProvider>
           <ConvexProvider>
-            {children}
+            <AuthGuard>{children}</AuthGuard>
             <TanStackDevtools
               config={{
                 position: 'bottom-right',
