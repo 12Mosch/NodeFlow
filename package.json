@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"NODE_OPTIONS='--import ./instrument.server.mjs' vite dev --port 3000\" \"bunx convex dev\"",
+    "dev": "concurrently \"cross-env NODE_OPTIONS=--import=./instrument.server.mjs vite dev --port 3000\" \"bunx convex dev\"",
     "build": "vite build && cp instrument.server.mjs .output/server",
     "preview": "vite preview",
     "test": "vitest run",
@@ -56,6 +56,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "jsdom": "^27.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.7.2",
