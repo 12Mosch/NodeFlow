@@ -4,48 +4,46 @@ A highly interactive, local-first, block-based note-taking and Spaced Repetition
 
 ## 2. Core Tech Stack
 
-* **Framework:** `TanStack Start` (Full-stack React framework with deep type safety).
-* **Database & Backend:** `Convex` (Real-time sync, document-based, ACID transactions).
-* **Deployment/Server:** `Nitro` (Underlying server engine for TanStack Start).
-* **Authentication:** `WorkOS` (Enterprise-grade auth and user management).
-* **Data Fetching:** `TanStack Query` (Integrated with Convex for prefetching and caching).
-* **State & Forms:** `TanStack Form` (Type-safe form management for settings and metadata).
-* **UI Components:** `Shadcn UI` (Radix UI + Tailwind CSS).
-* **Monitoring:** `Sentry` (Error tracking and performance monitoring).
-* **Optimization:** `React Compiler` (Enabled for automatic memoization).
+- **Framework:** `TanStack Start` (Full-stack React framework with deep type safety).
+- **Database & Backend:** `Convex` (Real-time sync, document-based, ACID transactions).
+- **Deployment/Server:** `Nitro` (Underlying server engine for TanStack Start).
+- **Authentication:** `WorkOS` (Enterprise-grade auth and user management).
+- **Data Fetching:** `TanStack Query` (Integrated with Convex for prefetching and caching).
+- **State & Forms:** `TanStack Form` (Type-safe form management for settings and metadata).
+- **UI Components:** `Shadcn UI` (Radix UI + Tailwind CSS).
+- **Monitoring:** `Sentry` (Error tracking and performance monitoring).
+- **Optimization:** `React Compiler` (Enabled for automatic memoization).
 
 ## 3. Architecture & Data Flow
 
 ### **Data Layer (Convex)**
 
-* **Real-time:** Every query is a subscription. Changes in the DB reflect instantly in the UI.
-* **Schema:** Defined in `convex/schema.ts`. Primarily hierarchical "Rem" blocks.
-* **Logic:** Mutations handled via Convex functions to ensure atomic updates for nested structures.
+- **Real-time:** Every query is a subscription. Changes in the DB reflect instantly in the UI.
+- **Schema:** Defined in `convex/schema.ts`. Primarily hierarchical "Rem" blocks.
+- **Logic:** Mutations handled via Convex functions to ensure atomic updates for nested structures.
 
 ### **Routing & Prefetching (TanStack Start)**
 
-* Uses **TanStack Query** to prefetch data on the server (SSR) to ensure fast initial page loads.
-* **Loaders** in TanStack Start should trigger Convex queries to populate the cache.
+- Uses **TanStack Query** to prefetch data on the server (SSR) to ensure fast initial page loads.
+- **Loaders** in TanStack Start should trigger Convex queries to populate the cache.
 
 ### **Auth (WorkOS)**
 
-* Integrated via middleware to protect routes.
-* User identity is synced/linked within Convex to manage personal data ownership.
+- Integrated via middleware to protect routes.
+- User identity is synced/linked within Convex to manage personal data ownership.
 
 ## 4. Engineering Standards
 
-* **Type Safety:** Strict TypeScript everywhere. Use `zod` for validation in forms and API boundaries.
-* **Performance:**
-* Leverage the **React Compiler** to avoid manual `useMemo` and `useCallback`.
-* Use **Optimistic Updates** in Convex/Query for a "zero-latency" feel during typing.
+- **Type Safety:** Strict TypeScript everywhere. Use `zod` for validation in forms and API boundaries.
+- **Performance:**
+- Leverage the **React Compiler** to avoid manual `useMemo` and `useCallback`.
+- Use **Optimistic Updates** in Convex/Query for a "zero-latency" feel during typing.
 
+- **UI/UX:**
+- Follow the **Shadcn** design patterns for consistency.
+- Focus on keyboard-first navigation (essential for outliners).
 
-* **UI/UX:**
-* Follow the **Shadcn** design patterns for consistency.
-* Focus on keyboard-first navigation (essential for outliners).
-
-
-* **Linting:** ESLint with strict rules for React and TanStack hooks.
+- **Linting:** ESLint with strict rules for React and TanStack hooks.
 
 ## 5. Key Features to Implement
 
@@ -56,12 +54,12 @@ A highly interactive, local-first, block-based note-taking and Spaced Repetition
 
 ## 6. Development Commands
 
-* `dev`: Starts the TanStack Start and Convex dev servers.
-* `build`: Production build using Nitro.
-* `lint`: Run ESLint check.
+- `dev`: Starts the TanStack Start and Convex dev servers.
+- `build`: Production build using Nitro.
+- `lint`: Run ESLint check.
 
 ## 7. Instructions
 
-* **Context:** When generating code, always prioritize **Type-Safe** solutions.
-* **TanStack Start:** Use the latest file-based routing conventions.
-* **Shadcn:** When asked for new UI, prefer using existing Shadcn components or creating new ones in the `@/components/ui` pattern.
+- **Context:** When generating code, always prioritize **Type-Safe** solutions.
+- **TanStack Start:** Use the latest file-based routing conventions.
+- **Shadcn:** When asked for new UI, prefer using existing Shadcn components or creating new ones in the `@/components/ui` pattern.
