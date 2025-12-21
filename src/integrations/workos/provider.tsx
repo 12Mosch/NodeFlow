@@ -19,7 +19,7 @@ export default function AppWorkOSProvider({
     <AuthKitProvider
       clientId={VITE_WORKOS_CLIENT_ID}
       apiHostname={VITE_WORKOS_API_HOSTNAME}
-      devMode={import.meta.env.DEV}
+      devMode={import.meta.env.MODE === 'development'}
       redirectUri={
         import.meta.env.VITE_WORKOS_REDIRECT_URI ||
         (typeof window !== 'undefined'
