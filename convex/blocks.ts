@@ -47,12 +47,13 @@ export const get = query({
 
 export const getOne = query({
   args: {
-    id: v.id('blocks'),
+    id: v.optional(v.id('blocks')),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
       { name: 'blocks.getOne', op: 'convex.query' },
       async () => {
+        if (!args.id) return null
         const userId = await requireUser(ctx)
         const block = await ctx.db.get(args.id)
 

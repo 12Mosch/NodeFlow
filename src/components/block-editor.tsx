@@ -28,7 +28,7 @@ interface BlockItemProps {
 
 function BlockTreeBase({ rootId }: { rootId?: Id<'blocks'> }) {
   const { data: rootBlock } = useQuery({
-    ...convexQuery(api.blocks.getOne, { id: rootId as Id<'blocks'> }),
+    ...convexQuery(api.blocks.getOne, { id: rootId }),
     enabled: !!rootId,
   })
 
