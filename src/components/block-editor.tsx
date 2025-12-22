@@ -244,14 +244,6 @@ const BlockItem = Sentry.withProfiler(
               e.target.style.height = `${e.target.scrollHeight}px`
               update({ id: block._id, text: e.target.value })
             }}
-            onBlur={() => {
-              Sentry.startSpan(
-                { name: 'BlockItem.editFinished', op: 'ui.interaction' },
-                () => {
-                  // Log completion of edit session
-                },
-              )
-            }}
             onKeyDown={handleKeyDown}
             placeholder="Type something..."
           />
