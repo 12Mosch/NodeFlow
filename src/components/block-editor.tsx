@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronsRight, Circle } from 'lucide-react'
 import { useRef } from 'react'
 import { useMutation } from 'convex/react'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { Link } from '@tanstack/react-router'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -27,7 +27,7 @@ interface BlockItemProps {
 }
 
 function BlockTreeBase({ rootId }: { rootId?: Id<'blocks'> }) {
-  const { data: rootBlock } = useSuspenseQuery(
+  const { data: rootBlock } = useQuery(
     convexQuery(api.blocks.getOne, rootId ? { id: rootId } : 'skip'),
   )
 
