@@ -10,7 +10,16 @@ export function getContext() {
       },
     },
   })
-  convexQueryClient.connect(queryClient)
+  try {
+    convexQueryClient.connect(queryClient)
+  } catch (error) {
+    // If already connected, that's fine - hashFn and queryFn work without active connection
+    if (error instanceof Error && error.message === 'already subscribed!') {
+      // Already connected, which is fine - continue without error
+    } else {
+      throw error;
+    }
+  }
 
   return {
     queryClient,
