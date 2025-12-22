@@ -1,4 +1,5 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { useEffect } from 'react'
+import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
@@ -28,36 +29,19 @@ interface TiptapEditorProps {
   documentId: string
 }
 
+const EMPTY_DOC = { type: 'doc', content: [] }
+
 export function TiptapEditor({ documentId }: TiptapEditorProps) {
-  const { isLoading, initialContent, extension } = useTiptapSync(
-    api.prosemirrorSync,
-    documentId,
-  )
+  const sync = useTiptapSync(api.prosemirrorSync, documentId)
 
-  const editor = useEditor(
-    {
-      extensions: [
-        StarterKit.configure({
-          heading: {
-            levels: [1, 2, 3],
-          },
-        }),
-        Placeholder.configure({
-          placeholder: 'Start writing...',
-        }),
-        TaskList,
-        TaskItem.configure({
-          nested: true,
-        }),
-        ...(extension ? [extension] : []),
-      ],
-      content: initialContent,
-      immediatelyRender: false,
-    },
-    [initialContent, extension],
-  )
+  // Auto-create the document in prosemirror-sync if it doesn't exist yet
+  useEffect(() => {
+    if (!sync.isLoading && sync.initialContent === null) {
+      sync.create(EMPTY_DOC)
+    }
+  }, [sync.isLoading, sync.initialContent, sync])
 
-  if (isLoading) {
+  if (sync.isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">
@@ -67,22 +51,57 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     )
   }
 
-  if (!editor) {
-    return null
+  // Still waiting for document to be created
+  if (sync.initialContent === null) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">
+          Initializing document...
+        </div>
+      </div>
+    )
   }
+
+  const extensions = [
+    StarterKit.configure({
+      heading: {
+        levels: [1, 2, 3],
+      },
+    }),
+    Placeholder.configure({
+      placeholder: 'Start writing...',
+    }),
+    TaskList,
+    TaskItem.configure({
+      nested: true,
+    }),
+    sync.extension,
+  ]
 
   return (
     <div className="w-full">
-      <EditorToolbar editor={editor} />
-      <EditorContent
-        editor={editor}
-        className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
-      />
+      <EditorProvider
+        content={sync.initialContent}
+        extensions={extensions}
+        immediatelyRender={false}
+        slotBefore={<EditorToolbarSlot />}
+      >
+        <EditorContent
+          editor={null}
+          className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+        />
+      </EditorProvider>
     </div>
   )
 }
 
-function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+function EditorToolbarSlot() {
+  const { editor } = useCurrentEditor()
+
+  if (!editor) {
+    return null
+  }
+
   return (
     <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-muted/30 rounded-t-lg sticky top-0 z-10">
       {/* Text formatting */}
