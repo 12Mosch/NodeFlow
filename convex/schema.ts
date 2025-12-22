@@ -23,4 +23,18 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_updated', ['userId', 'updatedAt']),
+
+  // Individual blocks within documents (for block-level tracking)
+  blocks: defineTable({
+    documentId: v.id('documents'),
+    nodeId: v.string(), // Unique ID per block
+    type: v.string(), // 'paragraph', 'heading', 'bulletList', etc.
+    content: v.any(), // JSON content of the ProseMirror node
+    textContent: v.string(), // Plain text for search/indexing
+    position: v.number(), // Order in document
+    attrs: v.optional(v.any()), // Node attributes (heading level, etc.)
+  })
+    .index('by_document', ['documentId'])
+    .index('by_document_position', ['documentId', 'position'])
+    .index('by_nodeId', ['documentId', 'nodeId']),
 })

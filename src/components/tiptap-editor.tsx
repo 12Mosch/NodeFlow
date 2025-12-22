@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
+import { useMutation } from 'convex/react'
+import * as Sentry from '@sentry/tanstackstart-react'
 import {
   Bold,
   Code,
@@ -23,16 +25,83 @@ import {
   Undo,
 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
+import type { BlockData } from '@/extensions/block-sync'
 import { Button } from '@/components/ui/button'
+import { BlockSync } from '@/extensions/block-sync'
+import { TOP_LEVEL_BLOCK_TYPES, UniqueID } from '@/extensions/unique-id'
 
 interface TiptapEditorProps {
-  documentId: string
+  documentId: Id<'documents'>
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
 export function TiptapEditor({ documentId }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
+
+  // Mutations for block-level sync
+  const upsertBlock = useMutation(api.blocks.upsertBlock)
+  const deleteBlocks = useMutation(api.blocks.deleteBlocks)
+  const syncBlocks = useMutation(api.blocks.syncBlocks)
+
+  // Callbacks for block sync extension
+  const handleBlockUpdate = useCallback(
+    (docId: Id<'documents'>, block: BlockData) => {
+      Sentry.startSpan(
+        { name: 'BlockSync.upsertBlock', op: 'convex.mutation' },
+        () => {
+          upsertBlock({
+            documentId: docId,
+            nodeId: block.nodeId,
+            type: block.type,
+            content: block.content,
+            textContent: block.textContent,
+            position: block.position,
+            attrs: block.attrs,
+          })
+        },
+      )
+    },
+    [upsertBlock],
+  )
+
+  const handleBlocksDelete = useCallback(
+    (docId: Id<'documents'>, nodeIds: Array<string>) => {
+      Sentry.startSpan(
+        { name: 'BlockSync.deleteBlocks', op: 'convex.mutation' },
+        () => {
+          deleteBlocks({
+            documentId: docId,
+            nodeIds,
+          })
+        },
+      )
+    },
+    [deleteBlocks],
+  )
+
+  const handleInitialSync = useCallback(
+    (docId: Id<'documents'>, blocks: Array<BlockData>) => {
+      Sentry.startSpan(
+        { name: 'BlockSync.syncBlocks', op: 'convex.mutation' },
+        () => {
+          syncBlocks({
+            documentId: docId,
+            blocks: blocks.map((b) => ({
+              nodeId: b.nodeId,
+              type: b.type,
+              content: b.content,
+              textContent: b.textContent,
+              position: b.position,
+              attrs: b.attrs,
+            })),
+          })
+        },
+      )
+    },
+    [syncBlocks],
+  )
 
   // Auto-create the document in prosemirror-sync if it doesn't exist yet
   useEffect(() => {
@@ -74,6 +143,20 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     TaskList,
     TaskItem.configure({
       nested: true,
+    }),
+    // UniqueID extension to assign block IDs to top-level nodes
+    UniqueID.configure({
+      attributeName: 'blockId',
+      types: TOP_LEVEL_BLOCK_TYPES,
+    }),
+    // BlockSync extension to track and persist block changes
+    BlockSync.configure({
+      documentId,
+      attributeName: 'blockId',
+      debounceMs: 300,
+      onBlockUpdate: handleBlockUpdate,
+      onBlocksDelete: handleBlocksDelete,
+      onInitialSync: handleInitialSync,
     }),
     sync.extension,
   ]
