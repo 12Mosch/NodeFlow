@@ -113,10 +113,56 @@ export default defineSchema(
 ```
 
 Sourced from: https://github.com/PatrickJS/awesome-cursorrules/blob/main/rules/convex-cursorrules-prompt-file/.cursorrules
+
+## Using Convex with TanStack Query (@convex-dev/react-query)
+
+We use `@convex-dev/react-query` to integrate Convex queries with TanStack Query for SSR prefetching and caching.
+
+### Queries
+
+For Convex queries, use the `convexQuery` helper from `@convex-dev/react-query` with TanStack Query hooks:
+
+```tsx
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
+import { api } from '../../convex/_generated/api'
+
+// Regular query
+const { data } = useQuery({
+  ...convexQuery(api.blocks.get, { parentId }),
+  enabled: !!parentId,
+})
+
+// Suspense query (for SSR)
+const { data } = useSuspenseQuery(
+  convexQuery(api.blocks.get, { parentId })
+)
+```
+
+### Mutations
+
+For Convex mutations, continue using `useMutation` from `convex/react` (not from react-query):
+
+```tsx
+import { useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
+
+const create = useMutation(api.blocks.create)
+const update = useMutation(api.blocks.update).withOptimisticUpdate(
+  (localStore, args) => {
+    // Optimistic update logic
+  }
+)
+```
+
+### Setup
+
+The `ConvexQueryClient` is already configured in `src/integrations/convex/provider.tsx` and connected to the TanStack QueryClient in `src/integrations/tanstack-query/root-provider.tsx`. No additional setup needed when using queries.
+
 # shadcn instructions
 
 Use the latest version of Shadcn to install new components, like this command to add a button component:
 
 ```bash
-pnpm dlx shadcn@latest add button
+bun dlx shadcn@latest add button
 ```
