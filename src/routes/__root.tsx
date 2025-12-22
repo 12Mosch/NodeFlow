@@ -12,9 +12,8 @@ import { useConvexAuth, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
 import WorkOSProvider from '../integrations/workos/provider'
-
 import ConvexProvider from '../integrations/convex/provider'
-
+import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
 import appCss from '../styles.css?url'
@@ -86,6 +85,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const { queryClient } = Route.useRouteContext()
+
   return (
     <html lang="en">
       <head>
@@ -94,19 +95,21 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <WorkOSProvider>
           <ConvexProvider>
-            <AuthGuard>{children}</AuthGuard>
-            <TanStackDevtools
-              config={{
-                position: 'bottom-right',
-              }}
-              plugins={[
-                {
-                  name: 'Tanstack Router',
-                  render: <TanStackRouterDevtoolsPanel />,
-                },
-                TanStackQueryDevtools,
-              ]}
-            />
+            <TanStackQuery.Provider queryClient={queryClient}>
+              <AuthGuard>{children}</AuthGuard>
+              <TanStackDevtools
+                config={{
+                  position: 'bottom-right',
+                }}
+                plugins={[
+                  {
+                    name: 'Tanstack Router',
+                    render: <TanStackRouterDevtoolsPanel />,
+                  },
+                  TanStackQueryDevtools,
+                ]}
+              />
+            </TanStackQuery.Provider>
           </ConvexProvider>
         </WorkOSProvider>
         <Scripts />

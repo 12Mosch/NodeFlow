@@ -1,7 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { convexQueryClient } from '../convex/provider'
 
 export function getContext() {
-  const queryClient = new QueryClient()
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        queryKeyHashFn: convexQueryClient.hashFn(),
+        queryFn: convexQueryClient.queryFn(),
+      },
+    },
+  })
+  convexQueryClient.connect(queryClient)
+
   return {
     queryClient,
   }
