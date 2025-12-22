@@ -17,7 +17,7 @@ export function getContext() {
     if (error instanceof Error && error.message === 'already subscribed!') {
       // Already connected, which is fine - continue without error
     } else {
-      throw error;
+      throw error
     }
   }
 

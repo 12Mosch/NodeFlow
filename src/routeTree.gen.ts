@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RemRemIdRouteImport } from './routes/rem.$remId'
+import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
 
 const CallbackRoute = CallbackRouteImport.update({
   id: '/callback',
@@ -23,40 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RemRemIdRoute = RemRemIdRouteImport.update({
-  id: '/rem/$remId',
-  path: '/rem/$remId',
+const DocDocIdRoute = DocDocIdRouteImport.update({
+  id: '/doc/$docId',
+  path: '/doc/$docId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
-  '/rem/$remId': typeof RemRemIdRoute
+  '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
-  '/rem/$remId': typeof RemRemIdRoute
+  '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
-  '/rem/$remId': typeof RemRemIdRoute
+  '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/callback' | '/rem/$remId'
+  fullPaths: '/' | '/callback' | '/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/callback' | '/rem/$remId'
-  id: '__root__' | '/' | '/callback' | '/rem/$remId'
+  to: '/' | '/callback' | '/doc/$docId'
+  id: '__root__' | '/' | '/callback' | '/doc/$docId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CallbackRoute: typeof CallbackRoute
-  RemRemIdRoute: typeof RemRemIdRoute
+  DocDocIdRoute: typeof DocDocIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/rem/$remId': {
-      id: '/rem/$remId'
-      path: '/rem/$remId'
-      fullPath: '/rem/$remId'
-      preLoaderRoute: typeof RemRemIdRouteImport
+    '/doc/$docId': {
+      id: '/doc/$docId'
+      path: '/doc/$docId'
+      fullPath: '/doc/$docId'
+      preLoaderRoute: typeof DocDocIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -88,7 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CallbackRoute: CallbackRoute,
-  RemRemIdRoute: RemRemIdRoute,
+  DocDocIdRoute: DocDocIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

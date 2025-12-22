@@ -14,16 +14,13 @@ export default defineSchema({
     .index('workosId', ['workosId'])
     .index('email', ['email']),
 
-  // Hierarchical blocks for notes
-  blocks: defineTable({
+  // Rich text documents with Tiptap/ProseMirror
+  documents: defineTable({
     userId: v.id('users'),
-    parentId: v.optional(v.id('blocks')),
-    text: v.string(), // Content of the block
-    isCollapsed: v.boolean(),
-    rank: v.number(), // Lexical or simple sorting order
+    title: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
-    .index('by_user_parent_rank', ['userId', 'parentId', 'rank']),
+    .index('by_user_updated', ['userId', 'updatedAt']),
 })

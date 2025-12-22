@@ -4,7 +4,13 @@ import { tanstackConfig } from '@tanstack/eslint-config'
 
 export default [
   {
-    ignores: ['convex/_generated/**', '.output/**', 'src/routeTree.gen.ts', 'eslint.config.js', 'prettier.config.js'],
+    ignores: [
+      'convex/_generated/**',
+      '.output/**',
+      'src/routeTree.gen.ts',
+      'eslint.config.js',
+      'prettier.config.js',
+    ],
   },
   ...tanstackConfig,
 ]
