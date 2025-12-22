@@ -242,10 +242,13 @@ const BlockItem = Sentry.withProfiler(
             onChange={(e) => {
               e.target.style.height = 'inherit'
               e.target.style.height = `${e.target.scrollHeight}px`
+              update({ id: block._id, text: e.target.value })
+            }}
+            onBlur={() => {
               Sentry.startSpan(
-                { name: 'BlockItem.updateText', op: 'ui.interaction' },
+                { name: 'BlockItem.editFinished', op: 'ui.interaction' },
                 () => {
-                  update({ id: block._id, text: e.target.value })
+                  // Log completion of edit session
                 },
               )
             }}
