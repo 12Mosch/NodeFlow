@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronsRight, Circle } from 'lucide-react'
 import { useRef } from 'react'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import { Link } from '@tanstack/react-router'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -24,9 +26,8 @@ interface BlockItemProps {
 }
 
 export function BlockTree({ rootId }: { rootId?: Id<'blocks'> }) {
-  const rootBlock = useQuery(
-    api.blocks.getOne,
-    rootId ? { id: rootId } : 'skip',
+  const { data: rootBlock } = useSuspenseQuery(
+    convexQuery(api.blocks.getOne, rootId ? { id: rootId } : 'skip'),
   )
 
   if (rootId && rootBlock === null) {
@@ -62,11 +63,9 @@ function BlockList({
   parentBlock?: { _id: Id<'blocks'>; parentId?: Id<'blocks'>; rank: number }
   level: number
 }) {
-  const blocks = useQuery(api.blocks.get, { parentId })
-
-  if (blocks === undefined) {
-    return <div className="pl-4 py-2 text-muted-foreground">Loading...</div>
-  }
+  const { data: blocks } = useSuspenseQuery(
+    convexQuery(api.blocks.get, { parentId }),
+  )
 
   return (
     <div className="flex flex-col relative group">
@@ -139,8 +138,10 @@ function BlockItem({
   const move = useMutation(api.blocks.move)
   const deleteBlock = useMutation(api.blocks.deleteBlock)
 
-  const children = useQuery(api.blocks.get, { parentId: block._id })
-  const hasChildren = children && children.length > 0
+  const { data: children } = useSuspenseQuery(
+    convexQuery(api.blocks.get, { parentId: block._id }),
+  )
+  const hasChildren = children.length > 0
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
