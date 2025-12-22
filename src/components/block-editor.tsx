@@ -26,47 +26,49 @@ interface BlockItemProps {
   level: number
 }
 
-export function BlockTree({ rootId }: { rootId?: Id<'blocks'> }) {
-  return Sentry.startSpan({ name: 'BlockTree', op: 'ui.render' }, () => {
-    const { data: rootBlock } = useSuspenseQuery(
-      convexQuery(api.blocks.getOne, rootId ? { id: rootId } : 'skip'),
-    )
+function BlockTreeBase({ rootId }: { rootId?: Id<'blocks'> }) {
+  const { data: rootBlock } = useSuspenseQuery(
+    convexQuery(api.blocks.getOne, rootId ? { id: rootId } : 'skip'),
+  )
 
-    if (rootId && rootBlock === null) {
-      return (
-        <div className="max-w-4xl mx-auto p-8 text-center">
-          <h1 className="text-3xl font-bold mb-4">Block not found</h1>
-          <p className="text-muted-foreground mb-6">
-            This block doesn't exist or you don't have access to it.
-          </p>
-          <Link to="/" className="text-primary hover:underline">
-            Go back home
-          </Link>
-        </div>
-      )
-    }
-
+  if (rootId && rootBlock === null) {
     return (
-      <div className="max-w-4xl mx-auto p-8 font-sans">
-        <h1 className="text-3xl font-bold mb-6 text-foreground">
-          {rootBlock ? rootBlock.text || 'Untitled' : 'Notes'}
-        </h1>
-        <BlockList parentId={rootId} level={0} />
+      <div className="max-w-4xl mx-auto p-8 text-center">
+        <h1 className="text-3xl font-bold mb-4">Block not found</h1>
+        <p className="text-muted-foreground mb-6">
+          This block doesn't exist or you don't have access to it.
+        </p>
+        <Link to="/" className="text-primary hover:underline">
+          Go back home
+        </Link>
       </div>
     )
-  })
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-8 font-sans">
+      <h1 className="text-3xl font-bold mb-6 text-foreground">
+        {rootBlock ? rootBlock.text || 'Untitled' : 'Notes'}
+      </h1>
+      <BlockList parentId={rootId} level={0} />
+    </div>
+  )
 }
 
-function BlockList({
-  parentId,
-  parentBlock,
-  level = 0,
-}: {
-  parentId?: Id<'blocks'>
-  parentBlock?: { _id: Id<'blocks'>; parentId?: Id<'blocks'>; rank: number }
-  level: number
-}) {
-  return Sentry.startSpan({ name: 'BlockList', op: 'ui.render' }, () => {
+export const BlockTree = Sentry.withProfiler(BlockTreeBase, {
+  name: 'BlockTree',
+})
+
+const BlockList = Sentry.withProfiler(
+  ({
+    parentId,
+    parentBlock,
+    level = 0,
+  }: {
+    parentId?: Id<'blocks'>
+    parentBlock?: { _id: Id<'blocks'>; parentId?: Id<'blocks'>; rank: number }
+    level: number
+  }) => {
     const { data: blocks } = useSuspenseQuery(
       convexQuery(api.blocks.get, { parentId }),
     )
@@ -98,8 +100,9 @@ function BlockList({
         )}
       </div>
     )
-  })
-}
+  },
+  { name: 'BlockList' },
+)
 
 function CreateFirstBlockButton() {
   const create = useMutation(api.blocks.create)
@@ -113,14 +116,8 @@ function CreateFirstBlockButton() {
   )
 }
 
-function BlockItem({
-  block,
-  parentBlock,
-  previousBlock,
-  nextBlock,
-  level,
-}: BlockItemProps) {
-  return Sentry.startSpan({ name: 'BlockItem', op: 'ui.render' }, () => {
+const BlockItem = Sentry.withProfiler(
+  ({ block, parentBlock, previousBlock, nextBlock, level }: BlockItemProps) => {
     const update = useMutation(api.blocks.update).withOptimisticUpdate(
       (localStore, args) => {
         const parentId = block.parentId
@@ -154,35 +151,55 @@ function BlockItem({
     const handleKeyDown = async (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        await create({
-          parentId: block.parentId,
-          text: '',
-          afterId: block._id,
-        })
+        await Sentry.startSpan(
+          { name: 'BlockItem.createSibling', op: 'ui.interaction' },
+          async () => {
+            await create({
+              parentId: block.parentId,
+              text: '',
+              afterId: block._id,
+            })
+          },
+        )
       } else if (e.key === 'Tab') {
         e.preventDefault()
         if (e.shiftKey) {
           // Outdent
           if (parentBlock) {
-            await move({
-              id: block._id,
-              parentId: parentBlock.parentId,
-              afterId: parentBlock._id,
-            })
+            await Sentry.startSpan(
+              { name: 'BlockItem.outdent', op: 'ui.interaction' },
+              async () => {
+                await move({
+                  id: block._id,
+                  parentId: parentBlock.parentId,
+                  afterId: parentBlock._id,
+                })
+              },
+            )
           }
         } else {
           // Indent
           if (previousBlock) {
-            await move({
-              id: block._id,
-              parentId: previousBlock._id,
-            })
-            update({ id: previousBlock._id, isCollapsed: false })
+            await Sentry.startSpan(
+              { name: 'BlockItem.indent', op: 'ui.interaction' },
+              async () => {
+                await move({
+                  id: block._id,
+                  parentId: previousBlock._id,
+                })
+                update({ id: previousBlock._id, isCollapsed: false })
+              },
+            )
           }
         }
       } else if (e.key === 'Backspace' && block.text === '') {
         e.preventDefault()
-        await deleteBlock({ id: block._id })
+        await Sentry.startSpan(
+          { name: 'BlockItem.delete', op: 'ui.interaction' },
+          async () => {
+            await deleteBlock({ id: block._id })
+          },
+        )
       } else if (e.key === 'ArrowUp') {
         const prev = document.getElementById(`block-${previousBlock?._id}`)
         if (prev) prev.querySelector('textarea')?.focus()
@@ -198,7 +215,12 @@ function BlockItem({
           <div
             className="flex items-center justify-center w-6 h-6 mr-1 mt-0.5 shrink-0 hover:bg-muted rounded cursor-pointer select-none transition-colors"
             onClick={() =>
-              update({ id: block._id, isCollapsed: !block.isCollapsed })
+              Sentry.startSpan(
+                { name: 'BlockItem.toggleCollapse', op: 'ui.interaction' },
+                () => {
+                  update({ id: block._id, isCollapsed: !block.isCollapsed })
+                },
+              )
             }
           >
             {hasChildren ? (
@@ -220,7 +242,12 @@ function BlockItem({
             onChange={(e) => {
               e.target.style.height = 'inherit'
               e.target.style.height = `${e.target.scrollHeight}px`
-              update({ id: block._id, text: e.target.value })
+              Sentry.startSpan(
+                { name: 'BlockItem.updateText', op: 'ui.interaction' },
+                () => {
+                  update({ id: block._id, text: e.target.value })
+                },
+              )
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type something..."
@@ -238,5 +265,6 @@ function BlockItem({
         )}
       </div>
     )
-  })
-}
+  },
+  { name: 'BlockItem' },
+)

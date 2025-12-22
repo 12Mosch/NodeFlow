@@ -53,7 +53,7 @@ function RemPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Suspense fallback={<div className="p-8">Loading rem...</div>}>
+      <Suspense fallback={<div className="p-8">Loading block tree...</div>}>
         <BlockTree rootId={remId as Id<'blocks'>} />
       </Suspense>
     </div>
