@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { BlockTree } from '../components/block-editor'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -52,7 +53,9 @@ function RemPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <BlockTree rootId={remId as Id<'blocks'>} />
+      <Suspense fallback={<div className="p-8">Loading block tree...</div>}>
+        <BlockTree rootId={remId as Id<'blocks'>} />
+      </Suspense>
     </div>
   )
 }
