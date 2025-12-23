@@ -2,7 +2,8 @@ import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
-import type { MutationCtx, QueryCtx } from './_generated/server'
+import { requireDocumentAccess } from './helpers/documentAccess'
+import type { QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 
 /**
@@ -22,25 +23,6 @@ async function getDocumentWithAccess(
   }
 
   return document
-}
-
-/**
- * Requires document access. Throws an error if document doesn't exist or
- * user doesn't have access. Used for mutations where failures should be
- * explicit errors.
- */
-async function requireDocumentAccess(
-  ctx: MutationCtx,
-  documentId: Id<'documents'>,
-) {
-  const userId = await requireUser(ctx)
-  const document = await ctx.db.get(documentId)
-
-  if (!document || document.userId !== userId) {
-    throw new Error('Document not found or access denied')
-  }
-
-  return { document, userId }
 }
 
 export const list = query({

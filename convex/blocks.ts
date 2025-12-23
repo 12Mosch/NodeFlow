@@ -1,23 +1,7 @@
 import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
-import { requireUser } from './auth'
-import type { QueryCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
-
-async function requireDocumentAccess(
-  ctx: QueryCtx,
-  documentId: Id<'documents'>,
-) {
-  const userId = await requireUser(ctx)
-  const document = await ctx.db.get(documentId)
-
-  if (!document || document.userId !== userId) {
-    throw new Error('Document not found or access denied')
-  }
-
-  return userId
-}
+import { requireDocumentAccess } from './helpers/documentAccess'
 
 // Get all blocks for a document
 export const listByDocument = query({

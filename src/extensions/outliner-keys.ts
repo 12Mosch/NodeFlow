@@ -32,16 +32,22 @@ export const OutlinerKeys = Extension.create({
           const node = $from.node($from.depth)
           if (node.textContent === '') {
             // Empty list item - lift out of list
-            return (
-              editor.chain().liftListItem('listItem').run() ||
-              editor.chain().liftListItem('taskItem').run()
-            )
+            if (editor.isActive('listItem')) {
+              return editor.chain().liftListItem('listItem').run()
+            }
+            if (editor.isActive('taskItem')) {
+              return editor.chain().liftListItem('taskItem').run()
+            }
+            return false
           }
           // Non-empty list item - split it
-          return (
-            editor.chain().splitListItem('listItem').run() ||
-            editor.chain().splitListItem('taskItem').run()
-          )
+          if (editor.isActive('listItem')) {
+            return editor.chain().splitListItem('listItem').run()
+          }
+          if (editor.isActive('taskItem')) {
+            return editor.chain().splitListItem('taskItem').run()
+          }
+          return false
         }
 
         // For regular blocks (paragraphs, headings, etc.)

@@ -29,7 +29,7 @@ import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
 import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
-import { TOP_LEVEL_BLOCK_TYPES, UniqueID } from '@/extensions/unique-id'
+import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 
 interface TiptapEditorProps {
@@ -49,7 +49,7 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
   // Callbacks for block sync extension
   const handleBlockUpdate = useCallback(
     (docId: Id<'documents'>, block: BlockData) => {
-      Sentry.startSpan(
+      void Sentry.startSpan(
         { name: 'BlockSync.upsertBlock', op: 'convex.mutation' },
         async () => {
           await upsertBlock({
@@ -62,14 +62,17 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
             attrs: block.attrs,
           })
         },
-      )
+      ).catch((error) => {
+        // Errors are already captured by Sentry span, but we need to handle the rejection
+        console.error('Failed to upsert block:', error)
+      })
     },
     [upsertBlock],
   )
 
   const handleBlocksDelete = useCallback(
     (docId: Id<'documents'>, nodeIds: Array<string>) => {
-      Sentry.startSpan(
+      void Sentry.startSpan(
         { name: 'BlockSync.deleteBlocks', op: 'convex.mutation' },
         async () => {
           await deleteBlocks({
@@ -77,14 +80,17 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
             nodeIds,
           })
         },
-      )
+      ).catch((error) => {
+        // Errors are already captured by Sentry span, but we need to handle the rejection
+        console.error('Failed to delete blocks:', error)
+      })
     },
     [deleteBlocks],
   )
 
   const handleInitialSync = useCallback(
     (docId: Id<'documents'>, blocks: Array<BlockData>) => {
-      Sentry.startSpan(
+      void Sentry.startSpan(
         { name: 'BlockSync.syncBlocks', op: 'convex.mutation' },
         async () => {
           await syncBlocks({
@@ -99,7 +105,10 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
             })),
           })
         },
-      )
+      ).catch((error) => {
+        // Errors are already captured by Sentry span, but we need to handle the rejection
+        console.error('Failed to sync blocks:', error)
+      })
     },
     [syncBlocks],
   )
@@ -109,7 +118,7 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     if (!sync.isLoading && sync.initialContent === null) {
       sync.create(EMPTY_DOC)
     }
-  }, [sync.isLoading, sync.initialContent, sync])
+  }, [sync.isLoading, sync.initialContent, sync.create])
 
   if (sync.isLoading) {
     return (
@@ -147,10 +156,10 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     }),
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
     OutlinerKeys,
-    // UniqueID extension to assign block IDs to top-level nodes
+    // UniqueID extension to assign block IDs to block-level nodes
     UniqueID.configure({
       attributeName: 'blockId',
-      types: TOP_LEVEL_BLOCK_TYPES,
+      types: BLOCK_TYPES_WITH_IDS,
     }),
     // BlockSync extension to track and persist block changes
     BlockSync.configure({

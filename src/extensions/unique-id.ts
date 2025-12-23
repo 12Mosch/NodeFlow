@@ -102,7 +102,7 @@ export const UniqueID = Extension.create<UniqueIDOptions>({
 })
 
 // Get the list of block-level node types that should have IDs
-export const TOP_LEVEL_BLOCK_TYPES: Array<string> = [
+export const BLOCK_TYPES_WITH_IDS: Array<string> = [
   'paragraph',
   'heading',
   'listItem', // Individual list items (nested inside bulletList/orderedList)
