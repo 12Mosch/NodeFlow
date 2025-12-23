@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
@@ -113,6 +113,14 @@ function DocumentHeader({
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(document.title)
   const updateTitle = useMutation(api.documents.updateTitle)
+  const isSavingRef = useRef(false)
+
+  // Sync title state when document.title changes externally
+  useEffect(() => {
+    if (!isEditing) {
+      setTitle(document.title)
+    }
+  }, [document.title, isEditing])
 
   const handleSave = async () => {
     await Sentry.startSpan(
@@ -122,6 +130,8 @@ function DocumentHeader({
         setIsEditing(false)
       },
     )
+    // Reset ref after save completes so blur can work normally next time
+    isSavingRef.current = false
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -132,6 +142,22 @@ function DocumentHeader({
       setTitle(document.title)
       setIsEditing(false)
     }
+  }
+
+  const handleBlur = () => {
+    // Only save on blur if we're not already saving from button click
+    // onMouseDown fires before onBlur, so the ref will be set if button was clicked
+    if (!isSavingRef.current) {
+      handleSave()
+    }
+  }
+
+  const handleButtonMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    // Set ref before blur fires (onMouseDown fires before onBlur)
+    // This prevents handleBlur from also calling handleSave
+    isSavingRef.current = true
+    handleSave()
   }
 
   return (
@@ -150,17 +176,14 @@ function DocumentHeader({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={handleKeyDown}
-              onBlur={handleSave}
+              onBlur={handleBlur}
               autoFocus
               className="text-2xl font-bold bg-transparent border-b border-border focus:border-primary outline-none flex-1"
             />
             <Button
               variant="ghost"
               size="sm"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                handleSave()
-              }}
+              onMouseDown={handleButtonMouseDown}
             >
               <Check className="h-4 w-4" />
             </Button>

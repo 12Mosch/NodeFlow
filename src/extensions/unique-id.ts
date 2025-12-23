@@ -68,9 +68,8 @@ export const UniqueID = Extension.create<UniqueIDOptions>({
             attrs: Record<string, any>
           }> = []
 
-          // Go through all nodes and find those missing IDs
+          // Go through all nodes and find block-level nodes missing IDs
           newState.doc.descendants((node, pos) => {
-            // Only process top-level nodes (direct children of doc)
             // Check if node type is in our types list
             if (types.includes(node.type.name)) {
               const attrs = node.attrs
@@ -102,13 +101,12 @@ export const UniqueID = Extension.create<UniqueIDOptions>({
   },
 })
 
-// Get the list of common top-level block node types
+// Get the list of block-level node types that should have IDs
 export const TOP_LEVEL_BLOCK_TYPES: Array<string> = [
   'paragraph',
   'heading',
-  'bulletList',
-  'orderedList',
-  'taskList',
+  'listItem', // Individual list items (nested inside bulletList/orderedList)
+  'taskItem', // Individual task items (nested inside taskList)
   'blockquote',
   'codeBlock',
   'horizontalRule',

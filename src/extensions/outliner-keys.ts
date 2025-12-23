@@ -19,7 +19,7 @@ export const OutlinerKeys = Extension.create({
       Enter: ({ editor }) => {
         const { state, view } = editor
         const { selection } = state
-        const { $from, $to, empty } = selection
+        const { $from, $to } = selection
 
         // In a code block, allow default behavior (new line)
         if (editor.isActive('codeBlock')) {
@@ -47,8 +47,9 @@ export const OutlinerKeys = Extension.create({
         // For regular blocks (paragraphs, headings, etc.)
         // If cursor is at the end of the block, create a new paragraph after
         const isAtEnd = $to.parentOffset === $to.parent.content.size
+        const isBlockEmpty = $from.parent.textContent === ''
 
-        if (isAtEnd || empty) {
+        if (isAtEnd || isBlockEmpty) {
           // Create a new paragraph after the current block
           const { tr } = state
           const endOfBlock = $from.end($from.depth)

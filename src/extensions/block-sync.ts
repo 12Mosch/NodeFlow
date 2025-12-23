@@ -44,6 +44,7 @@ function extractBlockData(
 }
 
 // Get all blocks from a document
+// Traverse all nodes to find blocks with IDs (including nested blocks like list items)
 function getAllBlocks(
   doc: ProseMirrorNode,
   attributeName: string,
@@ -51,12 +52,12 @@ function getAllBlocks(
   const blocks = new Map<string, BlockData>()
   let position = 0
 
-  doc.forEach((node, _offset, index) => {
-    const blockData = extractBlockData(node, index, attributeName)
+  doc.descendants((node, _offset) => {
+    const blockData = extractBlockData(node, position, attributeName)
     if (blockData) {
       blocks.set(blockData.nodeId, blockData)
+      position++ // Only increment position for nodes that have IDs
     }
-    position++
   })
 
   return blocks
@@ -141,7 +142,7 @@ export const BlockSync = Extension.create<BlockSyncOptions>({
             const currentBlocks = getAllBlocks(view.state.doc, attributeName)
 
             // Initial sync - send all blocks
-            if (!initialSyncDone && currentBlocks.size > 0) {
+            if (!initialSyncDone) {
               initialSyncDone = true
               const allBlocks = Array.from(currentBlocks.values())
               onInitialSync(documentId, allBlocks)

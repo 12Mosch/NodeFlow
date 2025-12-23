@@ -131,6 +131,18 @@ export const deleteDocument = mutation({
       async () => {
         await requireDocumentAccess(ctx, args.id)
 
+        // Query for all blocks associated with this document
+        const blocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document', (q) => q.eq('documentId', args.id))
+          .collect()
+
+        // Delete all associated blocks
+        for (const block of blocks) {
+          await ctx.db.delete(block._id)
+        }
+
+        // Delete the document
         await ctx.db.delete(args.id)
       },
     )

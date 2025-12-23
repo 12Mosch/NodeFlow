@@ -51,8 +51,8 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     (docId: Id<'documents'>, block: BlockData) => {
       Sentry.startSpan(
         { name: 'BlockSync.upsertBlock', op: 'convex.mutation' },
-        () => {
-          upsertBlock({
+        async () => {
+          await upsertBlock({
             documentId: docId,
             nodeId: block.nodeId,
             type: block.type,
@@ -71,8 +71,8 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     (docId: Id<'documents'>, nodeIds: Array<string>) => {
       Sentry.startSpan(
         { name: 'BlockSync.deleteBlocks', op: 'convex.mutation' },
-        () => {
-          deleteBlocks({
+        async () => {
+          await deleteBlocks({
             documentId: docId,
             nodeIds,
           })
@@ -86,8 +86,8 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     (docId: Id<'documents'>, blocks: Array<BlockData>) => {
       Sentry.startSpan(
         { name: 'BlockSync.syncBlocks', op: 'convex.mutation' },
-        () => {
-          syncBlocks({
+        async () => {
+          await syncBlocks({
             documentId: docId,
             blocks: blocks.map((b) => ({
               nodeId: b.nodeId,
@@ -172,12 +172,24 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
         immediatelyRender={false}
         slotBefore={<EditorToolbarSlot />}
       >
-        <EditorContent
-          editor={null}
-          className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
-        />
+        <EditorContentWrapper />
       </EditorProvider>
     </div>
+  )
+}
+
+function EditorContentWrapper() {
+  const { editor } = useCurrentEditor()
+
+  if (!editor) {
+    return null
+  }
+
+  return (
+    <EditorContent
+      editor={editor}
+      className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+    />
   )
 }
 
