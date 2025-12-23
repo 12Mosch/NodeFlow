@@ -4,6 +4,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
+import { toast } from 'sonner'
 import { FileText, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -34,24 +35,34 @@ function DocumentList() {
   const navigate = useNavigate()
 
   const handleCreate = async () => {
-    await Sentry.startSpan(
-      { name: 'DocumentList.create', op: 'ui.interaction' },
-      async () => {
-        const id = await createDocument({})
-        navigate({ to: '/doc/$docId', params: { docId: id } })
-      },
-    )
+    try {
+      await Sentry.startSpan(
+        { name: 'DocumentList.create', op: 'ui.interaction' },
+        async () => {
+          const id = await createDocument({})
+          navigate({ to: '/doc/$docId', params: { docId: id } })
+        },
+      )
+    } catch (error) {
+      toast.error('Failed to create document. Please try again.')
+      console.error('Error creating document:', error)
+    }
   }
 
   const handleDelete = async (id: Id<'documents'>, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    await Sentry.startSpan(
-      { name: 'DocumentList.delete', op: 'ui.interaction' },
-      async () => {
-        await deleteDocument({ id })
-      },
-    )
+    try {
+      await Sentry.startSpan(
+        { name: 'DocumentList.delete', op: 'ui.interaction' },
+        async () => {
+          await deleteDocument({ id })
+        },
+      )
+    } catch (error) {
+      toast.error('Failed to delete document. Please try again.')
+      console.error('Error deleting document:', error)
+    }
   }
 
   return (
@@ -101,8 +112,9 @@ function DocumentList() {
                 size="sm"
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={(e) => handleDelete(doc._id, e)}
+                aria-label="Delete document"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
               </Button>
             </Link>
           ))}
