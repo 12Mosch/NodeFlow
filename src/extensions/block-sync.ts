@@ -96,6 +96,14 @@ export const BlockSync = Extension.create<BlockSyncOptions>({
       onInitialSync,
     } = this.options
 
+    // Validate that documentId is provided
+    if (!documentId || documentId === '') {
+      throw new Error(
+        'BlockSync extension requires a valid documentId to be configured. ' +
+          'Please provide documentId when configuring the extension.',
+      )
+    }
+
     let previousBlocks: Map<string, BlockData> = new Map()
     const pendingUpdates: Map<string, BlockData> = new Map()
     const pendingDeletes: Set<string> = new Set()

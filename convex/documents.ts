@@ -2,6 +2,46 @@ import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
+import type { MutationCtx, QueryCtx } from './_generated/server'
+import type { Id } from './_generated/dataModel'
+
+/**
+ * Gets a document with access check. Returns null if document doesn't exist
+ * or user doesn't have access. Used for queries where returning null is
+ * acceptable (e.g., for graceful UI handling).
+ */
+async function getDocumentWithAccess(
+  ctx: QueryCtx,
+  documentId: Id<'documents'>,
+) {
+  const userId = await requireUser(ctx)
+  const document = await ctx.db.get(documentId)
+
+  if (!document || document.userId !== userId) {
+    return null
+  }
+
+  return document
+}
+
+/**
+ * Requires document access. Throws an error if document doesn't exist or
+ * user doesn't have access. Used for mutations where failures should be
+ * explicit errors.
+ */
+async function requireDocumentAccess(
+  ctx: MutationCtx,
+  documentId: Id<'documents'>,
+) {
+  const userId = await requireUser(ctx)
+  const document = await ctx.db.get(documentId)
+
+  if (!document || document.userId !== userId) {
+    throw new Error('Document not found or access denied')
+  }
+
+  return { document, userId }
+}
 
 export const list = query({
   args: {},
@@ -31,14 +71,7 @@ export const get = query({
     return await Sentry.startSpan(
       { name: 'documents.get', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
-        const document = await ctx.db.get(args.id)
-
-        if (!document || document.userId !== userId) {
-          return null
-        }
-
-        return document
+        return await getDocumentWithAccess(ctx, args.id)
       },
     )
   },
@@ -77,12 +110,7 @@ export const updateTitle = mutation({
     return await Sentry.startSpan(
       { name: 'documents.updateTitle', op: 'convex.mutation' },
       async () => {
-        const userId = await requireUser(ctx)
-        const document = await ctx.db.get(args.id)
-
-        if (!document || document.userId !== userId) {
-          throw new Error('Document not found or access denied')
-        }
+        await requireDocumentAccess(ctx, args.id)
 
         await ctx.db.patch(args.id, {
           title: args.title,
@@ -101,12 +129,7 @@ export const deleteDocument = mutation({
     return await Sentry.startSpan(
       { name: 'documents.deleteDocument', op: 'convex.mutation' },
       async () => {
-        const userId = await requireUser(ctx)
-        const document = await ctx.db.get(args.id)
-
-        if (!document || document.userId !== userId) {
-          throw new Error('Document not found or access denied')
-        }
+        await requireDocumentAccess(ctx, args.id)
 
         await ctx.db.delete(args.id)
       },

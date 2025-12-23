@@ -104,18 +104,14 @@ export const OutlinerKeys = Extension.create({
           return editor.chain().sinkListItem('taskItem').run()
         }
 
-        // For non-list blocks, convert to a bullet list (indent effect)
-        // This creates a nested structure
-
-        // If we're in a paragraph or heading, wrap it in a bullet list
+        // For paragraphs or headings, wrap in blockquote for visual indentation
         if (editor.isActive('paragraph') || editor.isActive('heading')) {
-          return editor.chain().toggleBulletList().run()
+          return editor.chain().wrapIn('blockquote').run()
         }
 
-        // For blockquotes, try to sink if possible or do nothing
+        // For blockquotes, wrap in another blockquote to increase indentation
         if (editor.isActive('blockquote')) {
-          // Can't really indent a blockquote further in standard setup
-          return true // Prevent default tab behavior
+          return editor.chain().wrapIn('blockquote').run()
         }
 
         return true // Prevent default tab behavior (focus change)
@@ -137,29 +133,7 @@ export const OutlinerKeys = Extension.create({
           return editor.chain().liftListItem('taskItem').run()
         }
 
-        // For bullet/ordered lists at top level, convert back to paragraph
-        if (
-          editor.isActive('bulletList') ||
-          editor.isActive('orderedList') ||
-          editor.isActive('taskList')
-        ) {
-          // Try to lift, if can't, toggle off the list
-          const lifted = editor.chain().lift('listItem').run()
-          if (!lifted) {
-            if (editor.isActive('bulletList')) {
-              return editor.chain().toggleBulletList().run()
-            }
-            if (editor.isActive('orderedList')) {
-              return editor.chain().toggleOrderedList().run()
-            }
-            if (editor.isActive('taskList')) {
-              return editor.chain().toggleTaskList().run()
-            }
-          }
-          return true
-        }
-
-        // For blockquotes, lift out
+        // For blockquotes, lift out (remove one level of indentation)
         if (editor.isActive('blockquote')) {
           return editor.chain().lift('blockquote').run()
         }

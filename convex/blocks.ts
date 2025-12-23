@@ -136,14 +136,20 @@ export const deleteBlocks = mutation({
       async () => {
         await requireDocumentAccess(ctx, args.documentId)
 
-        for (const nodeId of args.nodeIds) {
-          const block = await ctx.db
-            .query('blocks')
-            .withIndex('by_nodeId', (q) =>
-              q.eq('documentId', args.documentId).eq('nodeId', nodeId),
-            )
-            .unique()
+        // Batch-fetch all document blocks once
+        const existingBlocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document', (q) => q.eq('documentId', args.documentId))
+          .collect()
 
+        // Create a Map for O(1) lookups by nodeId
+        const blocksByNodeId = new Map(
+          existingBlocks.map((block) => [block.nodeId, block]),
+        )
+
+        // Delete blocks that match the provided nodeIds
+        for (const nodeId of args.nodeIds) {
+          const block = blocksByNodeId.get(nodeId)
           if (block) {
             await ctx.db.delete(block._id)
           }
@@ -180,6 +186,11 @@ export const syncBlocks = mutation({
           .withIndex('by_document', (q) => q.eq('documentId', args.documentId))
           .collect()
 
+        // Create a Map for O(1) lookups by nodeId
+        const existingBlocksByNodeId = new Map(
+          existingBlocks.map((block) => [block.nodeId, block]),
+        )
+
         const newNodeIds = new Set(args.blocks.map((b) => b.nodeId))
 
         // Delete blocks that no longer exist
@@ -191,7 +202,7 @@ export const syncBlocks = mutation({
 
         // Upsert all blocks
         for (const block of args.blocks) {
-          const existing = existingBlocks.find((b) => b.nodeId === block.nodeId)
+          const existing = existingBlocksByNodeId.get(block.nodeId)
 
           if (existing) {
             await ctx.db.patch(existing._id, {

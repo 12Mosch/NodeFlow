@@ -154,7 +154,14 @@ function DocumentHeader({
               autoFocus
               className="text-2xl font-bold bg-transparent border-b border-border focus:border-primary outline-none flex-1"
             />
-            <Button variant="ghost" size="sm" onClick={handleSave}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                handleSave()
+              }}
+            >
               <Check className="h-4 w-4" />
             </Button>
           </>
