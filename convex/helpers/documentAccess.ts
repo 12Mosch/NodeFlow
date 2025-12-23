@@ -8,15 +8,22 @@ import type { Id } from '../_generated/dataModel'
  * should be explicit errors.
  *
  * @param ctx - Query or Mutation context
- * @param documentId - The document ID to check access for
+ * @param documentId - The document ID to check access for (string or Id<'documents'>)
  * @returns Object containing the document and userId
  */
 export async function requireDocumentAccess(
   ctx: QueryCtx | MutationCtx,
-  documentId: Id<'documents'>,
+  documentId: string | Id<'documents'>,
 ) {
   const userId = await requireUser(ctx)
-  const document = await ctx.db.get(documentId)
+
+  // Use Convex's built-in normalizeId for ID validation
+  const normalizedId = ctx.db.normalizeId('documents', documentId)
+  if (!normalizedId) {
+    throw new Error('Invalid document ID format')
+  }
+
+  const document = await ctx.db.get(normalizedId)
 
   if (!document || document.userId !== userId) {
     throw new Error('Document not found or access denied')
