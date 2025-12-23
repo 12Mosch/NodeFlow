@@ -1,42 +1,25 @@
 import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
-import type { Id } from './_generated/dataModel'
-import type { QueryCtx } from './_generated/server'
+import { requireDocumentAccess } from './helpers/documentAccess'
 
-async function requireUser(ctx: QueryCtx) {
-  return await Sentry.startSpan(
-    { name: 'requireUser', op: 'function' },
-    async () => {
-      const identity = await ctx.auth.getUserIdentity()
-      if (!identity) throw new Error('Not authenticated')
-      const user = await ctx.db
-        .query('users')
-        .withIndex('workosId', (q) => q.eq('workosId', identity.subject))
-        .unique()
-      if (!user) throw new Error('User not found')
-      return user._id
-    },
-  )
-}
-
-export const get = query({
+// Get all blocks for a document
+export const listByDocument = query({
   args: {
-    parentId: v.optional(v.id('blocks')),
+    documentId: v.id('documents'),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
-      { name: 'blocks.get', op: 'convex.query' },
+      { name: 'blocks.listByDocument', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        await requireDocumentAccess(ctx, args.documentId)
 
-        // If parentId is provided, get children of that block
-        // If not, get root blocks (where parentId is undefined/null)
         const blocks = await ctx.db
           .query('blocks')
-          .withIndex('by_user_parent_rank', (q) =>
-            q.eq('userId', userId).eq('parentId', args.parentId),
+          .withIndex('by_document_position', (q) =>
+            q.eq('documentId', args.documentId),
           )
+          .order('asc')
           .collect()
 
         return blocks
@@ -45,231 +28,186 @@ export const get = query({
   },
 })
 
-export const getOne = query({
+// Upsert a single block (create or update by nodeId)
+export const upsertBlock = mutation({
   args: {
-    id: v.optional(v.id('blocks')),
+    documentId: v.id('documents'),
+    nodeId: v.string(),
+    type: v.string(),
+    content: v.any(),
+    textContent: v.string(),
+    position: v.number(),
+    attrs: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
-      { name: 'blocks.getOne', op: 'convex.query' },
+      { name: 'blocks.upsertBlock', op: 'convex.mutation' },
       async () => {
-        if (!args.id) return null
-        const userId = await requireUser(ctx)
-        const block = await ctx.db.get(args.id)
+        await requireDocumentAccess(ctx, args.documentId)
 
-        if (!block || block.userId !== userId) {
-          return null
+        // Check if block exists
+        const existingBlock = await ctx.db
+          .query('blocks')
+          .withIndex('by_nodeId', (q) =>
+            q.eq('documentId', args.documentId).eq('nodeId', args.nodeId),
+          )
+          .unique()
+
+        if (existingBlock) {
+          // Update existing block
+          await ctx.db.patch(existingBlock._id, {
+            type: args.type,
+            content: args.content,
+            textContent: args.textContent,
+            position: args.position,
+            attrs: args.attrs,
+          })
+          return existingBlock._id
+        } else {
+          // Create new block
+          const id = await ctx.db.insert('blocks', {
+            documentId: args.documentId,
+            nodeId: args.nodeId,
+            type: args.type,
+            content: args.content,
+            textContent: args.textContent,
+            position: args.position,
+            attrs: args.attrs,
+          })
+          return id
         }
-
-        return block
       },
     )
   },
 })
 
-async function getNextRank(
-  ctx: QueryCtx,
-  userId: Id<'users'>,
-  parentId: Id<'blocks'> | undefined,
-  afterId?: Id<'blocks'>,
-  providedRank?: number,
-) {
-  if (providedRank !== undefined) return providedRank
-
-  if (afterId) {
-    const afterBlock = await ctx.db.get(afterId)
-    if (afterBlock) {
-      const nextBlock = await ctx.db
-        .query('blocks')
-        .withIndex('by_user_parent_rank', (q) =>
-          q
-            .eq('userId', userId)
-            .eq('parentId', parentId)
-            .gt('rank', afterBlock.rank),
-        )
-        .first()
-
-      if (nextBlock) {
-        return (afterBlock.rank + nextBlock.rank) / 2
-      } else {
-        return afterBlock.rank + 1
-      }
-    }
-  }
-
-  const lastBlock = await ctx.db
-    .query('blocks')
-    .withIndex('by_user_parent_rank', (q) =>
-      q.eq('userId', userId).eq('parentId', parentId),
-    )
-    .order('desc')
-    .first()
-  return (lastBlock?.rank ?? 0) + 1
-}
-
-export const create = mutation({
-  args: {
-    parentId: v.optional(v.id('blocks')),
-    text: v.string(),
-    rank: v.optional(v.number()),
-    afterId: v.optional(v.id('blocks')),
-    isCollapsed: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'blocks.create', op: 'convex.mutation' },
-      async () => {
-        const userId = await requireUser(ctx)
-
-        if (args.parentId) {
-          const parent = await ctx.db.get(args.parentId)
-          if (!parent || parent.userId !== userId) {
-            throw new Error('Parent block not found or access denied')
-          }
-        }
-
-        const rank = await getNextRank(
-          ctx,
-          userId,
-          args.parentId,
-          args.afterId,
-          args.rank,
-        )
-
-        return await ctx.db.insert('blocks', {
-          userId,
-          parentId: args.parentId,
-          text: args.text,
-          rank: rank,
-          isCollapsed: args.isCollapsed ?? false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        })
-      },
-    )
-  },
-})
-
-export const update = mutation({
-  args: {
-    id: v.id('blocks'),
-    text: v.optional(v.string()),
-    isCollapsed: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'blocks.update', op: 'convex.mutation' },
-      async () => {
-        const userId = await requireUser(ctx)
-        const block = await ctx.db.get(args.id)
-
-        if (!block || block.userId !== userId) {
-          throw new Error('Block not found or access denied')
-        }
-
-        await ctx.db.patch(args.id, {
-          ...(args.text !== undefined && { text: args.text }),
-          ...(args.isCollapsed !== undefined && {
-            isCollapsed: args.isCollapsed,
-          }),
-          updatedAt: Date.now(),
-        })
-      },
-    )
-  },
-})
-
-export const move = mutation({
-  args: {
-    id: v.id('blocks'),
-    parentId: v.optional(v.id('blocks')),
-    rank: v.optional(v.number()),
-    afterId: v.optional(v.id('blocks')),
-  },
-  handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'blocks.move', op: 'convex.mutation' },
-      async () => {
-        const userId = await requireUser(ctx)
-        const block = await ctx.db.get(args.id)
-
-        if (!block || block.userId !== userId) {
-          throw new Error('Block not found or access denied')
-        }
-
-        if (args.parentId) {
-          if (args.parentId === args.id) {
-            throw new Error('Cannot move block into itself')
-          }
-
-          const parent = await ctx.db.get(args.parentId)
-          if (!parent || parent.userId !== userId) {
-            throw new Error('Parent block not found or access denied')
-          }
-
-          // Check for cycles: ensure new parent is not a descendant of the block being moved
-          let ancestorId = parent.parentId
-          while (ancestorId) {
-            if (ancestorId === args.id) {
-              throw new Error('Cannot move block into its own descendant')
-            }
-            const ancestor = await ctx.db.get(ancestorId)
-            if (!ancestor) break
-            ancestorId = ancestor.parentId
-          }
-        }
-
-        const rank = await getNextRank(
-          ctx,
-          userId,
-          args.parentId,
-          args.afterId,
-          args.rank,
-        )
-
-        await ctx.db.patch(args.id, {
-          parentId: args.parentId,
-          rank: rank,
-          updatedAt: Date.now(),
-        })
-      },
-    )
-  },
-})
-
+// Delete a block by nodeId
 export const deleteBlock = mutation({
   args: {
-    id: v.id('blocks'),
+    documentId: v.id('documents'),
+    nodeId: v.string(),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
       { name: 'blocks.deleteBlock', op: 'convex.mutation' },
       async () => {
-        const userId = await requireUser(ctx)
-        const block = await ctx.db.get(args.id)
+        await requireDocumentAccess(ctx, args.documentId)
 
-        if (!block || block.userId !== userId) {
-          throw new Error('Block not found or access denied')
+        const block = await ctx.db
+          .query('blocks')
+          .withIndex('by_nodeId', (q) =>
+            q.eq('documentId', args.documentId).eq('nodeId', args.nodeId),
+          )
+          .unique()
+
+        if (block) {
+          await ctx.db.delete(block._id)
         }
+      },
+    )
+  },
+})
 
-        // Recursive delete helper
-        async function deleteRecursive(id: Id<'blocks'>) {
-          // Find children
-          const children = await ctx.db
-            .query('blocks')
-            .withIndex('by_user_parent_rank', (q) =>
-              q.eq('userId', userId).eq('parentId', id),
-            )
-            .collect()
+// Delete multiple blocks by nodeIds
+export const deleteBlocks = mutation({
+  args: {
+    documentId: v.id('documents'),
+    nodeIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'blocks.deleteBlocks', op: 'convex.mutation' },
+      async () => {
+        await requireDocumentAccess(ctx, args.documentId)
 
-          for (const child of children) {
-            await deleteRecursive(child._id)
+        // Batch-fetch all document blocks once
+        const existingBlocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document', (q) => q.eq('documentId', args.documentId))
+          .collect()
+
+        // Create a Map for O(1) lookups by nodeId
+        const blocksByNodeId = new Map(
+          existingBlocks.map((block) => [block.nodeId, block]),
+        )
+
+        // Delete blocks that match the provided nodeIds
+        for (const nodeId of args.nodeIds) {
+          const block = blocksByNodeId.get(nodeId)
+          if (block) {
+            await ctx.db.delete(block._id)
           }
+        }
+      },
+    )
+  },
+})
 
-          await ctx.db.delete(id)
+// Sync all blocks for a document (batch upsert + delete removed blocks)
+export const syncBlocks = mutation({
+  args: {
+    documentId: v.id('documents'),
+    blocks: v.array(
+      v.object({
+        nodeId: v.string(),
+        type: v.string(),
+        content: v.any(),
+        textContent: v.string(),
+        position: v.number(),
+        attrs: v.optional(v.any()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'blocks.syncBlocks', op: 'convex.mutation' },
+      async () => {
+        await requireDocumentAccess(ctx, args.documentId)
+
+        // Get existing blocks
+        const existingBlocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document', (q) => q.eq('documentId', args.documentId))
+          .collect()
+
+        // Create a Map for O(1) lookups by nodeId
+        const existingBlocksByNodeId = new Map(
+          existingBlocks.map((block) => [block.nodeId, block]),
+        )
+
+        const newNodeIds = new Set(args.blocks.map((b) => b.nodeId))
+
+        // Delete blocks that no longer exist
+        for (const block of existingBlocks) {
+          if (!newNodeIds.has(block.nodeId)) {
+            await ctx.db.delete(block._id)
+          }
         }
 
-        await deleteRecursive(args.id)
+        // Upsert all blocks
+        for (const block of args.blocks) {
+          const existing = existingBlocksByNodeId.get(block.nodeId)
+
+          if (existing) {
+            await ctx.db.patch(existing._id, {
+              type: block.type,
+              content: block.content,
+              textContent: block.textContent,
+              position: block.position,
+              attrs: block.attrs,
+            })
+          } else {
+            await ctx.db.insert('blocks', {
+              documentId: args.documentId,
+              nodeId: block.nodeId,
+              type: block.type,
+              content: block.content,
+              textContent: block.textContent,
+              position: block.position,
+              attrs: block.attrs,
+            })
+          }
+        }
       },
     )
   },

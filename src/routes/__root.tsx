@@ -15,6 +15,7 @@ import WorkOSProvider from '../integrations/workos/provider'
 import ConvexProvider from '../integrations/convex/provider'
 import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+import { Toaster } from '../components/ui/sonner'
 
 import appCss from '../styles.css?url'
 
@@ -97,6 +98,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <ConvexProvider>
             <TanStackQuery.Provider queryClient={queryClient}>
               <AuthGuard>{children}</AuthGuard>
+              <Toaster />
               <TanStackDevtools
                 config={{
                   position: 'bottom-right',

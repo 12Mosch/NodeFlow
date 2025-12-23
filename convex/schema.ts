@@ -14,16 +14,27 @@ export default defineSchema({
     .index('workosId', ['workosId'])
     .index('email', ['email']),
 
-  // Hierarchical blocks for notes
-  blocks: defineTable({
+  // Rich text documents with Tiptap/ProseMirror
+  documents: defineTable({
     userId: v.id('users'),
-    parentId: v.optional(v.id('blocks')),
-    text: v.string(), // Content of the block
-    isCollapsed: v.boolean(),
-    rank: v.number(), // Lexical or simple sorting order
+    title: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
-    .index('by_user_parent_rank', ['userId', 'parentId', 'rank']),
+    .index('by_user_updated', ['userId', 'updatedAt']),
+
+  // Individual blocks within documents (for block-level tracking)
+  blocks: defineTable({
+    documentId: v.id('documents'),
+    nodeId: v.string(), // Unique ID per block
+    type: v.string(), // 'paragraph', 'heading', 'bulletList', etc.
+    content: v.any(), // JSON content of the ProseMirror node
+    textContent: v.string(), // Plain text for search/indexing
+    position: v.number(), // Order in document
+    attrs: v.optional(v.any()), // Node attributes (heading level, etc.)
+  })
+    .index('by_document', ['documentId'])
+    .index('by_document_position', ['documentId', 'position'])
+    .index('by_nodeId', ['documentId', 'nodeId']),
 })
