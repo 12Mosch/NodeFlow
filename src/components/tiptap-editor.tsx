@@ -30,6 +30,7 @@ import type { BlockData } from '@/extensions/block-sync'
 import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
 import { TOP_LEVEL_BLOCK_TYPES, UniqueID } from '@/extensions/unique-id'
+import { OutlinerKeys } from '@/extensions/outliner-keys'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
@@ -144,6 +145,8 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     TaskItem.configure({
       nested: true,
     }),
+    // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
+    OutlinerKeys,
     // UniqueID extension to assign block IDs to top-level nodes
     UniqueID.configure({
       attributeName: 'blockId',
