@@ -1,24 +1,9 @@
 import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
+import { requireUser } from './auth'
 import type { QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
-
-async function requireUser(ctx: QueryCtx) {
-  return await Sentry.startSpan(
-    { name: 'requireUser', op: 'function' },
-    async () => {
-      const identity = await ctx.auth.getUserIdentity()
-      if (!identity) throw new Error('Not authenticated')
-      const user = await ctx.db
-        .query('users')
-        .withIndex('workosId', (q) => q.eq('workosId', identity.subject))
-        .unique()
-      if (!user) throw new Error('User not found')
-      return user._id
-    },
-  )
-}
 
 async function requireDocumentAccess(
   ctx: QueryCtx,

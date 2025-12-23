@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as blocks from "../blocks.js";
 import type * as documents from "../documents.js";
 import type * as prosemirrorSync from "../prosemirrorSync.js";
@@ -20,6 +21,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   blocks: typeof blocks;
   documents: typeof documents;
   prosemirrorSync: typeof prosemirrorSync;
