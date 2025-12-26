@@ -26,13 +26,13 @@ The foundation is already in place:
 2. Create a `SlashCommands` extension
 3. Build a React component for the suggestion dropdown
 4. Define available commands:
-   - [ ] Text / Paragraph
-   - [ ] Heading 1 / 2 / 3
-   - [ ] Bullet List / Numbered List
-   - [ ] To-do List
-   - [ ] Code Block
-   - [ ] Quote / Callout
-   - [ ] Divider
+   - [x] Text / Paragraph
+   - [x] Heading 1 / 2 / 3
+   - [x] Bullet List / Numbered List
+   - [x] To-do List
+   - [x] Code Block
+   - [x] Quote / Callout
+   - [x] Divider
    - [ ] Image (upload or embed URL)
 5. Style the dropdown to match Notion's minimal design
 

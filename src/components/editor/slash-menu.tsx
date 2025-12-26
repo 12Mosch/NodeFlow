@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import type { SlashCommand } from '@/extensions/slash-commands'
 
 export interface SlashMenuRef {
