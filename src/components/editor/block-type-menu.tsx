@@ -202,8 +202,22 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
       </button>
 
       {isOpen && (
-        <div className="block-type-dropdown" role="listbox">
-          <div className="block-type-dropdown-header">Turn into</div>
+        <div
+          className="block-type-dropdown"
+          role="listbox"
+          aria-labelledby="block-type-dropdown-header"
+          aria-activedescendant={
+            blockTypes[selectedIndex]
+              ? `block-type-option-${blockTypes[selectedIndex].id}`
+              : undefined
+          }
+        >
+          <div
+            id="block-type-dropdown-header"
+            className="block-type-dropdown-header"
+          >
+            Turn into
+          </div>
           {blockTypes.map((blockType, index) => {
             const Icon = blockType.icon
             const isActive = blockType.isActive(editor)
@@ -212,6 +226,7 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
             return (
               <button
                 key={blockType.id}
+                id={`block-type-option-${blockType.id}`}
                 type="button"
                 role="option"
                 aria-selected={isActive}

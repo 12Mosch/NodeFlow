@@ -42,6 +42,7 @@ export function EditorBubbleMenu() {
           className={`bubble-menu-button ${editor.isActive('bold') ? 'is-active' : ''}`}
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold"
+          aria-pressed={editor.isActive('bold')}
         >
           <Bold className="h-4 w-4" />
         </button>
@@ -50,6 +51,7 @@ export function EditorBubbleMenu() {
           className={`bubble-menu-button ${editor.isActive('italic') ? 'is-active' : ''}`}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italic"
+          aria-pressed={editor.isActive('italic')}
         >
           <Italic className="h-4 w-4" />
         </button>
@@ -58,6 +60,7 @@ export function EditorBubbleMenu() {
           className={`bubble-menu-button ${editor.isActive('strike') ? 'is-active' : ''}`}
           onClick={() => editor.chain().focus().toggleStrike().run()}
           title="Strikethrough"
+          aria-pressed={editor.isActive('strike')}
         >
           <Strikethrough className="h-4 w-4" />
         </button>
@@ -66,6 +69,7 @@ export function EditorBubbleMenu() {
           className={`bubble-menu-button ${editor.isActive('code') ? 'is-active' : ''}`}
           onClick={() => editor.chain().focus().toggleCode().run()}
           title="Code"
+          aria-pressed={editor.isActive('code')}
         >
           <Code className="h-4 w-4" />
         </button>
