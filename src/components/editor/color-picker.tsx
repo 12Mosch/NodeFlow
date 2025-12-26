@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, X } from 'lucide-react'
 import {
   Popover,
   PopoverContent,
@@ -40,6 +40,20 @@ interface ColorPickerProps {
   currentColor: string | null
   onSelectColor: (color: string | null) => void
   icon: React.ReactNode
+}
+
+// Helper function to determine if a color is light (for contrast purposes)
+function isLightColor(color: string): boolean {
+  if (!color) return false
+  // Remove # if present
+  const hex = color.replace('#', '')
+  // Convert to RGB
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.7
 }
 
 export function ColorPicker({
@@ -95,12 +109,13 @@ export function ColorPicker({
             const isSelected = isNone
               ? !currentColor
               : currentColor === color.value
+            const isLight = color.value ? isLightColor(color.value) : false
 
             return (
               <button
                 key={color.name}
                 type="button"
-                className={`color-swatch ${isSelected ? 'is-selected' : ''} ${isNone ? 'is-none' : ''}`}
+                className={`color-swatch ${isSelected ? 'is-selected' : ''} ${isNone ? 'is-none' : ''} ${isLight ? 'is-light' : ''}`}
                 style={{
                   backgroundColor:
                     type === 'highlight' && color.value
@@ -113,12 +128,20 @@ export function ColorPicker({
                 }}
                 onClick={() => handleSelectColor(color.value || null)}
                 title={color.name}
+                aria-label={`Select ${color.name} ${type === 'highlight' ? 'highlight' : 'text color'}`}
+                aria-pressed={isSelected}
               >
                 {type === 'text' && (
                   <span className="text-swatch-letter">A</span>
                 )}
                 {type === 'highlight' && isNone && (
                   <X className="h-3 w-3 text-muted-foreground" />
+                )}
+                {isSelected && !isNone && (
+                  <Check
+                    className={`h-3.5 w-3.5 checkmark-icon ${type === 'highlight' && isLight ? 'checkmark-dark' : 'checkmark-light'}`}
+                    strokeWidth={3}
+                  />
                 )}
               </button>
             )

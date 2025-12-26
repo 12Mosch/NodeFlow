@@ -75,12 +75,10 @@ export function EditorBubbleMenu() {
     [editor],
   )
 
-  if (!editor) {
-    return null
-  }
-
   // Keep selection-dependent UI reactive (Tiptap editor object itself is stable)
   useEffect(() => {
+    if (!editor) return
+
     const recompute = () => {
       setHasLinkInSelection(selectionContainsMark(editor, 'link'))
     }
@@ -94,6 +92,10 @@ export function EditorBubbleMenu() {
       editor.off('transaction', recompute)
     }
   }, [editor])
+
+  if (!editor) {
+    return null
+  }
 
   return (
     <BubbleMenu

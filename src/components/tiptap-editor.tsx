@@ -226,7 +226,6 @@ function EditorContentWrapper() {
   const { editor } = useCurrentEditor()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
   const pendingLinkUrl = useRef<string | null>(null)
-  const editorContentRef = useRef<HTMLDivElement>(null)
 
   const handleLinkClick = useCallback(
     (e: Event) => {
@@ -302,12 +301,10 @@ function EditorContentWrapper() {
         <GripVertical className="h-4 w-4" />
       </DragHandle>
       <EditorBubbleMenu />
-      <div ref={editorContentRef}>
-        <EditorContent
-          editor={editor}
-          className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
-        />
-      </div>
+      <EditorContent
+        editor={editor}
+        className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+      />
       <AlertDialog open={showLinkWarning} onOpenChange={setShowLinkWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
