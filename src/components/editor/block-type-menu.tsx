@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   Code2,
@@ -124,6 +124,15 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
     blockTypes.find((type) => type.isActive(editor)) ?? blockTypes[0]
   const ActiveIcon = activeBlockType.icon
 
+  // Stable handleSelect function
+  const handleSelect = useCallback(
+    (blockType: BlockType) => {
+      blockType.command(editor)
+      setIsOpen(false)
+    },
+    [editor],
+  )
+
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -171,7 +180,7 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
       document.addEventListener('keydown', handleKeyDown)
       return () => document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, selectedIndex])
+  }, [isOpen, selectedIndex, handleSelect])
 
   // Reset selected index when opening menu
   useEffect(() => {
@@ -180,11 +189,6 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
       setSelectedIndex(activeIndex >= 0 ? activeIndex : 0)
     }
   }, [isOpen, editor])
-
-  function handleSelect(blockType: BlockType) {
-    blockType.command(editor)
-    setIsOpen(false)
-  }
 
   return (
     <div ref={menuRef} className="block-type-menu">
