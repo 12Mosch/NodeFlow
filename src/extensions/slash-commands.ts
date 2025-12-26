@@ -167,6 +167,7 @@ export const SlashCommands = Extension.create({
   },
 
   addProseMirrorPlugins() {
+    const editor = this.editor
     return [
       Suggestion<SlashCommand>({
         editor: this.editor,
@@ -197,8 +198,8 @@ export const SlashCommands = Extension.create({
           return {
             onStart: (props) => {
               component = new ReactRenderer(SlashMenu, {
+                editor,
                 props,
-                editor: props.editor,
               })
 
               // Create a container div for the menu

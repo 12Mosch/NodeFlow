@@ -1,11 +1,9 @@
 import {
   forwardRef,
-  useCallback,
   useEffect,
   useImperativeHandle,
   useState,
 } from 'react'
-import type { Editor } from '@tiptap/core'
 import type { SlashCommand } from '@/extensions/slash-commands'
 
 export interface SlashMenuRef {
@@ -13,7 +11,6 @@ export interface SlashMenuRef {
 }
 
 interface SlashMenuProps {
-  editor: Editor
   items: Array<SlashCommand>
   command: (item: SlashCommand) => void
 }
@@ -27,13 +24,10 @@ export const SlashMenu = forwardRef<SlashMenuRef, SlashMenuProps>(
       setSelectedIndex(0)
     }, [items])
 
-    const selectItem = useCallback(
-      (index: number) => {
-        const item = items[index]
-        command(item)
-      },
-      [command, items],
-    )
+    const selectItem = (index: number) => {
+      const item = items[index]
+      command(item)
+    }
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event: KeyboardEvent) => {
