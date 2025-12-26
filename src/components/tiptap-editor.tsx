@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
+import { SlashCommands } from '@/extensions/slash-commands'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
@@ -156,6 +157,8 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     }),
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
     OutlinerKeys,
+    // Slash commands menu for quick block insertion
+    SlashCommands,
     // UniqueID extension to assign block IDs to block-level nodes
     UniqueID.configure({
       attributeName: 'blockId',
