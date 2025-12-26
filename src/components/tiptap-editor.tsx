@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -11,6 +12,7 @@ import {
   Bold,
   Code,
   Code2,
+  GripVertical,
   Heading1,
   Heading2,
   Heading3,
@@ -198,10 +200,15 @@ function EditorContentWrapper() {
   }
 
   return (
-    <EditorContent
-      editor={editor}
-      className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
-    />
+    <>
+      <DragHandle editor={editor} className="drag-handle">
+        <GripVertical className="h-4 w-4" />
+      </DragHandle>
+      <EditorContent
+        editor={editor}
+        className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+      />
+    </>
   )
 }
 

@@ -344,3 +344,41 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Drag Handle Styles */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: grab;
+  transition: background-color 0.15s ease;
+  z-index: 50;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+
+  &:active {
+    cursor: grabbing;
+    background: var(--accent);
+  }
+}
+
+/* Style for dragging state */
+.ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Drop cursor indicator */
+.ProseMirror .ProseMirror-dropcursor {
+  color: var(--primary);
+  border-left-width: 2px;
+}
