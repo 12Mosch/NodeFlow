@@ -34,6 +34,7 @@ import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { SlashCommands } from '@/extensions/slash-commands'
+import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
@@ -204,6 +205,7 @@ function EditorContentWrapper() {
       <DragHandle editor={editor} className="drag-handle">
         <GripVertical className="h-4 w-4" />
       </DragHandle>
+      <EditorBubbleMenu />
       <EditorContent
         editor={editor}
         className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
