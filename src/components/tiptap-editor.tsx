@@ -1,9 +1,13 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import Highlight from '@tiptap/extension-highlight'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import Link from '@tiptap/extension-link'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
@@ -29,10 +33,21 @@ import {
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
+import { LinkKeys } from '@/extensions/link-keys'
 import { SlashCommands } from '@/extensions/slash-commands'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 
@@ -158,8 +173,22 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
     TaskItem.configure({
       nested: true,
     }),
+    // Text styling extensions
+    Highlight.configure({
+      multicolor: true,
+    }),
+    TextStyle,
+    Color,
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: {
+        class: 'text-primary underline cursor-pointer',
+      },
+    }),
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
     OutlinerKeys,
+    // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
+    LinkKeys,
     // Slash commands menu for quick block insertion
     SlashCommands,
     // UniqueID extension to assign block IDs to block-level nodes
@@ -195,6 +224,73 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
 
 function EditorContentWrapper() {
   const { editor } = useCurrentEditor()
+  const [showLinkWarning, setShowLinkWarning] = useState(false)
+  const pendingLinkUrl = useRef<string | null>(null)
+  const editorContentRef = useRef<HTMLDivElement>(null)
+
+  const handleLinkClick = useCallback(
+    (e: Event) => {
+      if (!editor) return
+
+      const mouseEvent = e as MouseEvent
+      if (mouseEvent.button !== 0) return
+
+      const targetNode = mouseEvent.target
+      if (!(targetNode instanceof Node)) return
+      if (!editor.view.dom.contains(targetNode)) return
+
+      // Try to get the position of the click in the editor
+      const pos = editor.view.posAtCoords({
+        left: mouseEvent.clientX,
+        top: mouseEvent.clientY,
+      })
+
+      if (!pos) return
+
+      // Check if there's a link mark at this position (works even if the DOM target is a text node)
+      const $pos = editor.state.doc.resolve(pos.pos)
+      const linkMark = editor.schema.marks.link
+      const linkMarkInstance = $pos.marks().find((m) => m.type === linkMark)
+      const href = linkMarkInstance?.attrs.href as string | undefined
+      if (!href) return
+
+      // Prevent default navigation / other click handlers and show warning
+      mouseEvent.preventDefault()
+      // Ensure no other handlers get a chance to open the link (e.g. via window.open)
+      mouseEvent.stopImmediatePropagation()
+      mouseEvent.stopPropagation()
+      pendingLinkUrl.current = href
+      setShowLinkWarning(true)
+    },
+    [editor],
+  )
+
+  useEffect(() => {
+    if (!editor) return
+
+    // Attach at document level (capture phase) so we run before any other handlers that might open the link.
+    const doc = editor.view.dom.ownerDocument
+    doc.addEventListener('pointerdown', handleLinkClick, true)
+    doc.addEventListener('click', handleLinkClick, true)
+
+    return () => {
+      doc.removeEventListener('pointerdown', handleLinkClick, true)
+      doc.removeEventListener('click', handleLinkClick, true)
+    }
+  }, [editor, handleLinkClick])
+
+  const handleConfirmOpenLink = useCallback(() => {
+    if (pendingLinkUrl.current) {
+      window.open(pendingLinkUrl.current, '_blank', 'noopener,noreferrer')
+    }
+    setShowLinkWarning(false)
+    pendingLinkUrl.current = null
+  }, [])
+
+  const handleCancelOpenLink = useCallback(() => {
+    setShowLinkWarning(false)
+    pendingLinkUrl.current = null
+  }, [])
 
   if (!editor) {
     return null
@@ -206,10 +302,36 @@ function EditorContentWrapper() {
         <GripVertical className="h-4 w-4" />
       </DragHandle>
       <EditorBubbleMenu />
-      <EditorContent
-        editor={editor}
-        className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
-      />
+      <div ref={editorContentRef}>
+        <EditorContent
+          editor={editor}
+          className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+        />
+      </div>
+      <AlertDialog open={showLinkWarning} onOpenChange={setShowLinkWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave this site?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to visit an external website. This link will open in
+              a new tab.
+              {pendingLinkUrl.current && (
+                <span className="mt-2 block rounded bg-muted px-2 py-1 text-xs font-mono break-all">
+                  {pendingLinkUrl.current}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelOpenLink}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOpenLink}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
