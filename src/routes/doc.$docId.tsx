@@ -206,6 +206,13 @@ function DocumentTitle({
     setIsEditing(true)
   }
 
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLHeadingElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
   // Ref callback to focus input when mounted and store ref for blur handling
   const inputRefCallback = (node: HTMLInputElement | null) => {
     inputRef.current = node
@@ -228,7 +235,10 @@ function DocumentTitle({
       ) : (
         <h1
           onClick={handleClick}
-          className="text-3xl font-bold text-foreground cursor-text hover:bg-accent/50 rounded px-1 -mx-1 transition-colors"
+          onKeyDown={handleTitleKeyDown}
+          tabIndex={0}
+          role="button"
+          className="text-3xl font-bold text-foreground cursor-text hover:bg-accent/50 focus:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded px-1 -mx-1 transition-colors"
         >
           {document.title || 'Untitled'}
         </h1>

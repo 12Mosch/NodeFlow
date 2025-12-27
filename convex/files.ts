@@ -23,6 +23,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/svg+xml',
   'image/bmp',
   'image/tiff',
+  'image/heic',
+  'image/heif',
 ])
 
 // ============================================================================
@@ -146,6 +148,10 @@ export const storeFile = mutation({
         // ================================================================
         // 2. Validate file size
         // ================================================================
+        if (typeof metadata.size !== 'number') {
+          throw new Error('Unable to verify file size')
+        }
+
         if (metadata.size > MAX_FILE_SIZE_BYTES) {
           throw new Error(
             `File size (${formatBytes(metadata.size)}) exceeds maximum allowed size (${formatBytes(MAX_FILE_SIZE_BYTES)})`,
@@ -292,7 +298,7 @@ export const validateStorageId = internalQuery({
   args: {
     storageId: v.string(),
   },
-  handler: (ctx, args) => {
+  handler: (_ctx, args) => {
     return isValidStorageIdFormat(args.storageId)
   },
 })

@@ -208,6 +208,10 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         'image/gif',
         'image/webp',
         'image/svg+xml',
+        'image/bmp',
+        'image/tiff',
+        'image/heic',
+        'image/heif',
       ],
       onDrop: (_editor, files, pos) => {
         // Trigger upload via custom event (handled by EditorContentWrapper)
@@ -341,19 +345,22 @@ function EditorContentWrapper({
       const customEvent = e as CustomEvent<{ files: Array<File>; pos?: number }>
       const { files } = customEvent.detail
 
-      // Upload all dropped/pasted images
-      // The onUploadComplete callback handles inserting the image into the editor
-      for (const file of files) {
-        if (file.type.startsWith('image/')) {
-          try {
-            await uploadImage(file)
-          } catch (error) {
+      // Filter to only image files
+      const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+
+      // Upload all dropped/pasted images in parallel for better UX
+      // The onUploadComplete callback handles inserting each image into the editor
+      // Using Promise.allSettled to continue even if some uploads fail
+      await Promise.allSettled(
+        imageFiles.map((file) =>
+          uploadImage(file).catch((error) => {
             // Error is already handled by onUploadError callback in useImageUpload
             // This catch prevents unhandled promise rejection
             console.error('Failed to upload image:', error)
-          }
-        }
-      }
+            return null
+          }),
+        ),
+      )
     }
 
     window.addEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
@@ -443,7 +450,7 @@ function EditorContentWrapper({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/tiff,image/heic,image/heif"
         className="hidden"
         onChange={handleFileInputChange}
         disabled={isUploading}
