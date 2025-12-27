@@ -113,6 +113,35 @@ export const deleteDocument = mutation({
       async () => {
         await requireDocumentAccess(ctx, args.id)
 
+        // Query for all files associated with this document
+        const files = await ctx.db
+          .query('files')
+          .withIndex('by_document', (q) => q.eq('documentId', args.id))
+          .collect()
+
+        // Delete all associated files (both database records and storage)
+        for (const file of files) {
+          // Delete from database first to ensure atomicity
+          await ctx.db.delete(file._id)
+
+          // Delete from storage after database deletion succeeds
+          // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
+          try {
+            await ctx.storage.delete(file.storageId)
+          } catch (error) {
+            // Log storage deletion failure but don't fail the mutation
+            // The database record is already deleted, so orphaned storage is acceptable
+            console.error('Failed to delete file from storage:', error)
+            Sentry.captureException(error, {
+              tags: {
+                operation: 'storage.delete',
+                fileId: file._id,
+                documentId: args.id,
+              },
+            })
+          }
+        }
+
         // Query for all blocks associated with this document
         const blocks = await ctx.db
           .query('blocks')
