@@ -204,21 +204,24 @@ function DocumentTitle({
 
   const handleClick = () => {
     setIsEditing(true)
-    // Focus after state update
-    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  // Ref callback to focus input when mounted and store ref for blur handling
+  const inputRefCallback = (node: HTMLInputElement | null) => {
+    inputRef.current = node
+    node?.focus()
   }
 
   return (
     <div className="px-8 pt-8 pb-2">
       {isEditing ? (
         <input
-          ref={inputRef}
+          ref={inputRefCallback}
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          autoFocus
           className="w-full text-3xl font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
           placeholder="Untitled"
         />

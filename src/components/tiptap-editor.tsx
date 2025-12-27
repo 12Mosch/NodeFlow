@@ -271,6 +271,16 @@ function EditorContentWrapper({
   const [isUploading, setIsUploading] = useState(false)
   const pendingLinkUrl = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isMountedRef = useRef(true)
+  const editorRef = useRef<Editor | null>(null)
+
+  // Track editor instance and component mount status
+  useEffect(() => {
+    editorRef.current = editor
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [editor])
 
   const { uploadImage } = useImageUpload({
     documentId,
@@ -281,8 +291,10 @@ function EditorContentWrapper({
     onUploadComplete: (url) => {
       setIsUploading(false)
       toast.success('Image uploaded!', { id: 'image-upload' })
-      if (editor) {
-        editor.chain().focus().setImage({ src: url }).run()
+      // Check if component is still mounted and editor is valid
+      const currentEditor = editorRef.current
+      if (isMountedRef.current && currentEditor && !currentEditor.isDestroyed) {
+        currentEditor.chain().focus().setImage({ src: url }).run()
       }
     },
     onUploadError: (error) => {
@@ -294,17 +306,22 @@ function EditorContentWrapper({
   })
 
   // Handle file input change for slash command image upload
-  const handleFileInputChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) {
+  const handleFileInputChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      try {
         await uploadImage(file)
+      } catch (error) {
+        // Error is already handled by onUploadError callback in useImageUpload
+        // This catch prevents unhandled promise rejection
+        console.error('Failed to upload image:', error)
       }
-      // Reset the input so the same file can be selected again
-      e.target.value = ''
-    },
-    [uploadImage],
-  )
+    }
+    // Reset the input so the same file can be selected again
+    e.target.value = ''
+  }
 
   // Listen for image upload event from slash commands
   useEffect(() => {
@@ -328,7 +345,13 @@ function EditorContentWrapper({
       // The onUploadComplete callback handles inserting the image into the editor
       for (const file of files) {
         if (file.type.startsWith('image/')) {
-          await uploadImage(file)
+          try {
+            await uploadImage(file)
+          } catch (error) {
+            // Error is already handled by onUploadError callback in useImageUpload
+            // This catch prevents unhandled promise rejection
+            console.error('Failed to upload image:', error)
+          }
         }
       }
     }

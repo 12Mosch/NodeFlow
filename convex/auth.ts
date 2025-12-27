@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/tanstackstart-react'
-import type { MutationCtx, QueryCtx } from './_generated/server'
+import type { ActionCtx, MutationCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 
 /**
@@ -7,7 +7,7 @@ import type { Id } from './_generated/dataModel'
  * Throws an error if the user is not authenticated or not found.
  */
 export async function requireUser(
-  ctx: QueryCtx | MutationCtx,
+  ctx: QueryCtx | MutationCtx | ActionCtx,
 ): Promise<Id<'users'>> {
   return await Sentry.startSpan(
     { name: 'requireUser', op: 'function' },
