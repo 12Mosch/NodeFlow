@@ -5,7 +5,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  Image,
+  ImageIcon,
   Lightbulb,
   List,
   ListOrdered,
@@ -26,6 +26,22 @@ export interface SlashCommand {
   command: (editor: Editor) => void
   aliases?: Array<string>
   category: 'text' | 'headings' | 'lists' | 'media' | 'other'
+}
+
+// Custom events for image upload
+export const IMAGE_UPLOAD_EVENT = 'nodeflow:image-upload'
+export const IMAGE_DROP_PASTE_EVENT = 'nodeflow:image-drop-paste'
+
+export function triggerImageUpload() {
+  window.dispatchEvent(new CustomEvent(IMAGE_UPLOAD_EVENT))
+}
+
+export function triggerImageDropPaste(files: Array<File>, pos?: number) {
+  window.dispatchEvent(
+    new CustomEvent(IMAGE_DROP_PASTE_EVENT, {
+      detail: { files, pos },
+    }),
+  )
 }
 
 export const slashCommands: Array<SlashCommand> = [
@@ -149,15 +165,13 @@ export const slashCommands: Array<SlashCommand> = [
   },
   {
     title: 'Image',
-    description: 'Insert image from URL',
-    icon: Image,
+    description: 'Upload an image',
+    icon: ImageIcon,
     category: 'media',
-    aliases: ['img', 'picture', 'photo'],
-    command: (editor) => {
-      const url = window.prompt('Enter the image URL:')
-      if (url) {
-        editor.chain().focus().setImage({ src: url }).run()
-      }
+    aliases: ['img', 'picture', 'photo', 'upload'],
+    command: () => {
+      // Trigger the image upload dialog via custom event
+      triggerImageUpload()
     },
   },
 ]

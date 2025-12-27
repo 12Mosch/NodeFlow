@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
+import type { CommandProps } from '@tiptap/core'
 import { CalloutView } from '@/components/editor/callout-view'
 
 export interface CalloutOptions {
@@ -7,6 +8,7 @@ export interface CalloutOptions {
 }
 
 declare module '@tiptap/core' {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   interface Commands<ReturnType> {
     callout: {
       /**
@@ -74,13 +76,13 @@ export const Callout = Node.create<CalloutOptions>({
   addCommands() {
     return {
       setCallout:
-        (attributes) =>
-        ({ commands }) => {
+        (attributes?: { emoji?: string }) =>
+        ({ commands }: CommandProps) => {
           return commands.wrapIn(this.name, attributes)
         },
       toggleCallout:
-        (attributes) =>
-        ({ commands }) => {
+        (attributes?: { emoji?: string }) =>
+        ({ commands }: CommandProps) => {
           return commands.toggleWrap(this.name, attributes)
         },
     }

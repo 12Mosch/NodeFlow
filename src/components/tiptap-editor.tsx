@@ -16,11 +16,13 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
+import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -39,9 +41,15 @@ import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { LinkKeys } from '@/extensions/link-keys'
-import { SlashCommands } from '@/extensions/slash-commands'
+import {
+  IMAGE_DROP_PASTE_EVENT,
+  IMAGE_UPLOAD_EVENT,
+  SlashCommands,
+  triggerImageDropPaste,
+} from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
+import { useImageUpload } from '@/hooks/use-image-upload'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
@@ -185,10 +193,29 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         class: 'text-primary underline cursor-pointer',
       },
     }),
-    // Image extension for URL-based images
+    // Image extension for uploaded images
     Image.configure({
       HTMLAttributes: {
         class: 'editor-image',
+      },
+      allowBase64: false,
+    }),
+    // File handler for drag/drop and paste of images
+    FileHandler.configure({
+      allowedMimeTypes: [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+      ],
+      onDrop: (_editor, files, pos) => {
+        // Trigger upload via custom event (handled by EditorContentWrapper)
+        triggerImageDropPaste(files, pos)
+      },
+      onPaste: (_editor, files) => {
+        // Trigger upload via custom event (handled by EditorContentWrapper)
+        triggerImageDropPaste(files)
       },
     }),
     // Callout block extension
@@ -223,20 +250,94 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         extensions={extensions}
         immediatelyRender={false}
       >
-        <EditorContentWrapper onEditorReady={onEditorReady} />
+        <EditorContentWrapper
+          documentId={documentId}
+          onEditorReady={onEditorReady}
+        />
       </EditorProvider>
     </div>
   )
 }
 
 function EditorContentWrapper({
+  documentId,
   onEditorReady,
 }: {
+  documentId: Id<'documents'>
   onEditorReady?: (editor: Editor) => void
 }) {
   const { editor } = useCurrentEditor()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const pendingLinkUrl = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { uploadImage } = useImageUpload({
+    documentId,
+    onUploadStart: () => {
+      setIsUploading(true)
+      toast.loading('Uploading image...', { id: 'image-upload' })
+    },
+    onUploadComplete: (url) => {
+      setIsUploading(false)
+      toast.success('Image uploaded!', { id: 'image-upload' })
+      if (editor) {
+        editor.chain().focus().setImage({ src: url }).run()
+      }
+    },
+    onUploadError: (error) => {
+      setIsUploading(false)
+      toast.error(error.message || 'Failed to upload image', {
+        id: 'image-upload',
+      })
+    },
+  })
+
+  // Handle file input change for slash command image upload
+  const handleFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) {
+        await uploadImage(file)
+      }
+      // Reset the input so the same file can be selected again
+      e.target.value = ''
+    },
+    [uploadImage],
+  )
+
+  // Listen for image upload event from slash commands
+  useEffect(() => {
+    const handleImageUploadEvent = () => {
+      fileInputRef.current?.click()
+    }
+
+    window.addEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
+    return () => {
+      window.removeEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
+    }
+  }, [])
+
+  // Listen for image drop/paste events from FileHandler extension
+  useEffect(() => {
+    const handleImageDropPaste = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ files: Array<File>; pos?: number }>
+      const { files } = customEvent.detail
+
+      // Upload all dropped/pasted images
+      // The onUploadComplete callback handles inserting the image into the editor
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          await uploadImage(file)
+        }
+      }
+    }
+
+    window.addEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
+    return () => {
+      window.removeEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
+    }
+  }, [uploadImage])
 
   // Notify parent when editor is ready
   useEffect(() => {
@@ -315,6 +416,15 @@ function EditorContentWrapper({
 
   return (
     <>
+      {/* Hidden file input for image uploads triggered by slash commands */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileInputChange}
+        disabled={isUploading}
+      />
       <DragHandle editor={editor} className="drag-handle">
         <GripVertical className="h-4 w-4" />
       </DragHandle>
