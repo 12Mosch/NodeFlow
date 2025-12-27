@@ -9,6 +9,7 @@ import { FileText, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
+import { ModeToggle } from '@/components/mode-toggle'
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -69,10 +70,13 @@ function DocumentList() {
     <div className="max-w-4xl mx-auto p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Documents</h1>
-        <Button onClick={handleCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Document
-        </Button>
+        <div className="flex items-center gap-2">
+          <ModeToggle />
+          <Button onClick={handleCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Document
+          </Button>
+        </div>
       </div>
 
       {documents.length === 0 ? (

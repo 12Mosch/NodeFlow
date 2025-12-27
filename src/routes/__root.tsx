@@ -16,6 +16,7 @@ import ConvexProvider from '../integrations/convex/provider'
 import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { Toaster } from '../components/ui/sonner'
+import { ThemeProvider } from '../components/theme-provider'
 
 import appCss from '../styles.css?url'
 
@@ -94,26 +95,28 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <WorkOSProvider>
-          <ConvexProvider>
-            <TanStackQuery.Provider queryClient={queryClient}>
-              <AuthGuard>{children}</AuthGuard>
-              <Toaster />
-              <TanStackDevtools
-                config={{
-                  position: 'bottom-right',
-                }}
-                plugins={[
-                  {
-                    name: 'Tanstack Router',
-                    render: <TanStackRouterDevtoolsPanel />,
-                  },
-                  TanStackQueryDevtools,
-                ]}
-              />
-            </TanStackQuery.Provider>
-          </ConvexProvider>
-        </WorkOSProvider>
+        <ThemeProvider defaultTheme="system" storageKey="nodeflow-ui-theme">
+          <WorkOSProvider>
+            <ConvexProvider>
+              <TanStackQuery.Provider queryClient={queryClient}>
+                <AuthGuard>{children}</AuthGuard>
+                <Toaster />
+                <TanStackDevtools
+                  config={{
+                    position: 'bottom-right',
+                  }}
+                  plugins={[
+                    {
+                      name: 'Tanstack Router',
+                      render: <TanStackRouterDevtoolsPanel />,
+                    },
+                    TanStackQueryDevtools,
+                  ]}
+                />
+              </TanStackQuery.Provider>
+            </ConvexProvider>
+          </WorkOSProvider>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

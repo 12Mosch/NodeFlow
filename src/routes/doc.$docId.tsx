@@ -9,6 +9,7 @@ import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Button } from '@/components/ui/button'
+import { ModeToggle } from '@/components/mode-toggle'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -204,6 +205,7 @@ function DocumentHeader({
           </>
         )}
       </div>
+      <ModeToggle />
     </div>
   )
 }
