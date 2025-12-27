@@ -58,6 +58,7 @@ export const SlashMenu = forwardRef<SlashMenuRef, SlashMenuProps>(
       { key: 'text', label: 'Text' },
       { key: 'headings', label: 'Headings' },
       { key: 'lists', label: 'Lists' },
+      { key: 'media', label: 'Media' },
       { key: 'other', label: 'Other' },
     ] as const
 

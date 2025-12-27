@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
-import { ArrowLeft, Check, Pencil } from 'lucide-react'
+import { Redo, Share2, Undo } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Button } from '@/components/ui/button'
@@ -75,6 +76,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const { data: document, isLoading } = useQuery({
     ...convexQuery(api.documents.get, { id: docId }),
   })
+  const [editor, setEditor] = useState<Editor | null>(null)
 
   if (isLoading) {
     return <div className="p-8 text-muted-foreground">Loading document...</div>
@@ -96,17 +98,66 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <DocumentHeader document={document} />
+      {/* Minimal header */}
+      <MinimalHeader editor={editor} />
+
+      {/* Document title */}
+      <DocumentTitle document={document} />
+
+      {/* Editor without border wrapper */}
       <div className="px-8 pb-8">
-        <div className="border border-border rounded-lg overflow-hidden bg-card">
-          <TiptapEditor documentId={docId} />
-        </div>
+        <TiptapEditor documentId={docId} onEditorReady={setEditor} />
       </div>
     </div>
   )
 }
 
-function DocumentHeader({
+function MinimalHeader({ editor }: { editor: Editor | null }) {
+  return (
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
+      <div className="flex items-center justify-end gap-1 px-4 py-2">
+        {/* Undo/Redo */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={() => editor?.chain().focus().undo().run()}
+          disabled={!editor?.can().undo()}
+          title="Undo"
+        >
+          <Undo className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={() => editor?.chain().focus().redo().run()}
+          disabled={!editor?.can().redo()}
+          title="Redo"
+        >
+          <Redo className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
+        {/* Share button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          title="Share"
+        >
+          <Share2 className="h-4 w-4" />
+        </Button>
+
+        {/* Theme toggle */}
+        <ModeToggle />
+      </div>
+    </header>
+  )
+}
+
+function DocumentTitle({
   document,
 }: {
   document: { _id: Id<'documents'>; title: string }
@@ -115,6 +166,7 @@ function DocumentHeader({
   const [title, setTitle] = useState(document.title)
   const updateTitle = useMutation(api.documents.updateTitle)
   const isSavingRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Sync title state when document.title changes externally
   useEffect(() => {
@@ -125,13 +177,12 @@ function DocumentHeader({
 
   const handleSave = async () => {
     await Sentry.startSpan(
-      { name: 'DocumentHeader.updateTitle', op: 'ui.interaction' },
+      { name: 'DocumentTitle.updateTitle', op: 'ui.interaction' },
       async () => {
         await updateTitle({ id: document._id, title: title || 'Untitled' })
         setIsEditing(false)
       },
     )
-    // Reset ref after save completes so blur can work normally next time
     isSavingRef.current = false
   }
 
@@ -146,66 +197,39 @@ function DocumentHeader({
   }
 
   const handleBlur = () => {
-    // Only save on blur if we're not already saving from button click
-    // onMouseDown fires before onBlur, so the ref will be set if button was clicked
     if (!isSavingRef.current) {
       handleSave()
     }
   }
 
-  const handleButtonMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    // Set ref before blur fires (onMouseDown fires before onBlur)
-    // This prevents handleBlur from also calling handleSave
-    isSavingRef.current = true
-    handleSave()
+  const handleClick = () => {
+    setIsEditing(true)
+    // Focus after state update
+    setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   return (
-    <div className="flex items-center gap-4 p-8 pb-4">
-      <Link to="/">
-        <Button variant="ghost" size="sm" className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-      </Link>
-      <div className="flex-1 flex items-center gap-2">
-        {isEditing ? (
-          <>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={handleBlur}
-              autoFocus
-              className="text-2xl font-bold bg-transparent border-b border-border focus:border-primary outline-none flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onMouseDown={handleButtonMouseDown}
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold">
-              {document.title || 'Untitled'}
-            </h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="opacity-50 hover:opacity-100"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-      </div>
-      <ModeToggle />
+    <div className="px-8 pt-8 pb-2">
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          autoFocus
+          className="w-full text-3xl font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+          placeholder="Untitled"
+        />
+      ) : (
+        <h1
+          onClick={handleClick}
+          className="text-3xl font-bold text-foreground cursor-text hover:bg-accent/50 rounded px-1 -mx-1 transition-colors"
+        >
+          {document.title || 'Untitled'}
+        </h1>
+      )}
     </div>
   )
 }

@@ -5,6 +5,8 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image,
+  Lightbulb,
   List,
   ListOrdered,
   ListTodo,
@@ -23,7 +25,7 @@ export interface SlashCommand {
   icon: React.ComponentType<{ className?: string }>
   command: (editor: Editor) => void
   aliases?: Array<string>
-  category: 'text' | 'headings' | 'lists' | 'other'
+  category: 'text' | 'headings' | 'lists' | 'media' | 'other'
 }
 
 export const slashCommands: Array<SlashCommand> = [
@@ -125,6 +127,37 @@ export const slashCommands: Array<SlashCommand> = [
     aliases: ['hr', 'rule', 'separator', 'line'],
     command: (editor) => {
       editor.chain().focus().setHorizontalRule().run()
+    },
+  },
+  {
+    title: 'Callout',
+    description: 'Highlight important info',
+    icon: Lightbulb,
+    category: 'media',
+    aliases: ['info', 'note', 'tip', 'warning', 'alert'],
+    command: (editor) => {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'callout',
+          attrs: { emoji: '💡' },
+          content: [{ type: 'paragraph' }],
+        })
+        .run()
+    },
+  },
+  {
+    title: 'Image',
+    description: 'Insert image from URL',
+    icon: Image,
+    category: 'media',
+    aliases: ['img', 'picture', 'photo'],
+    command: (editor) => {
+      const url = window.prompt('Enter the image URL:')
+      if (url) {
+        editor.chain().focus().setImage({ src: url }).run()
+      }
     },
   },
 ]

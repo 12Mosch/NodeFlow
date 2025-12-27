@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -8,29 +15,14 @@ import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
-import {
-  Bold,
-  Code,
-  Code2,
-  GripVertical,
-  Heading1,
-  Heading2,
-  Heading3,
-  Italic,
-  List,
-  ListOrdered,
-  ListTodo,
-  Minus,
-  Quote,
-  Redo,
-  Strikethrough,
-  Undo,
-} from 'lucide-react'
+import { GripVertical } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
 import {
@@ -43,21 +35,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { LinkKeys } from '@/extensions/link-keys'
 import { SlashCommands } from '@/extensions/slash-commands'
+import { Callout } from '@/extensions/callout'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
+  onEditorReady?: (editor: Editor) => void
+}
+
+// Context to share editor instance with parent components
+const EditorContext = createContext<Editor | null>(null)
+
+export function useEditorRef() {
+  return useContext(EditorContext)
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
-export function TiptapEditor({ documentId }: TiptapEditorProps) {
+export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
 
   // Mutations for block-level sync
@@ -185,6 +185,14 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
         class: 'text-primary underline cursor-pointer',
       },
     }),
+    // Image extension for URL-based images
+    Image.configure({
+      HTMLAttributes: {
+        class: 'editor-image',
+      },
+    }),
+    // Callout block extension
+    Callout,
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
     OutlinerKeys,
     // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
@@ -214,18 +222,28 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
         content={sync.initialContent}
         extensions={extensions}
         immediatelyRender={false}
-        slotBefore={<EditorToolbarSlot />}
       >
-        <EditorContentWrapper />
+        <EditorContentWrapper onEditorReady={onEditorReady} />
       </EditorProvider>
     </div>
   )
 }
 
-function EditorContentWrapper() {
+function EditorContentWrapper({
+  onEditorReady,
+}: {
+  onEditorReady?: (editor: Editor) => void
+}) {
   const { editor } = useCurrentEditor()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
   const pendingLinkUrl = useRef<string | null>(null)
+
+  // Notify parent when editor is ready
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor)
+    }
+  }, [editor, onEditorReady])
 
   const handleLinkClick = useCallback(
     (e: Event) => {
@@ -330,175 +348,5 @@ function EditorContentWrapper() {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
-}
-
-function EditorToolbarSlot() {
-  const { editor } = useCurrentEditor()
-
-  if (!editor) {
-    return null
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-muted/30 rounded-t-lg sticky top-0 z-10">
-      {/* Text formatting */}
-      <div className="flex gap-0.5 pr-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive('bold')}
-          title="Bold"
-        >
-          <Bold className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive('italic')}
-          title="Italic"
-        >
-          <Italic className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive('strike')}
-          title="Strikethrough"
-        >
-          <Strikethrough className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          active={editor.isActive('code')}
-          title="Inline code"
-        >
-          <Code className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Headings */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          active={editor.isActive('heading', { level: 1 })}
-          title="Heading 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          active={editor.isActive('heading', { level: 2 })}
-          title="Heading 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          active={editor.isActive('heading', { level: 3 })}
-          title="Heading 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Lists */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive('bulletList')}
-          title="Bullet list"
-        >
-          <List className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive('orderedList')}
-          title="Numbered list"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          active={editor.isActive('taskList')}
-          title="Task list"
-        >
-          <ListTodo className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Blocks */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive('blockquote')}
-          title="Quote"
-        >
-          <Quote className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          active={editor.isActive('codeBlock')}
-          title="Code block"
-        >
-          <Code2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="Horizontal rule"
-        >
-          <Minus className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* History */}
-      <div className="flex gap-0.5 pl-2">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          title="Undo"
-        >
-          <Undo className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          title="Redo"
-        >
-          <Redo className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-    </div>
-  )
-}
-
-function ToolbarButton({
-  onClick,
-  active,
-  disabled,
-  title,
-  children,
-}: {
-  onClick: () => void
-  active?: boolean
-  disabled?: boolean
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <Button
-      type="button"
-      variant={active ? 'secondary' : 'ghost'}
-      size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="h-8 w-8 p-0"
-    >
-      {children}
-    </Button>
   )
 }
