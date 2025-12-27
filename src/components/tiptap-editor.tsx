@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -54,13 +47,6 @@ import { useImageUpload } from '@/hooks/use-image-upload'
 interface TiptapEditorProps {
   documentId: Id<'documents'>
   onEditorReady?: (editor: Editor) => void
-}
-
-// Context to share editor instance with parent components
-const EditorContext = createContext<Editor | null>(null)
-
-export function useEditorRef() {
-  return useContext(EditorContext)
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
@@ -344,6 +330,11 @@ function EditorContentWrapper({
     const handleImageDropPaste = async (e: Event) => {
       const customEvent = e as CustomEvent<{ files: Array<File>; pos?: number }>
       const { files } = customEvent.detail
+      // Note: pos parameter is available but not used. Images are inserted at the
+      // current cursor position (via editor.chain().focus()) rather than the original
+      // drop position. This is intentional: during async uploads, the user may have
+      // moved the cursor, and tracking the original position would add complexity
+      // without significant UX benefit.
 
       // Filter to only image files
       const imageFiles = files.filter((file) => file.type.startsWith('image/'))
