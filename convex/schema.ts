@@ -37,4 +37,17 @@ export default defineSchema({
     .index('by_document', ['documentId'])
     .index('by_document_position', ['documentId', 'position'])
     .index('by_nodeId', ['documentId', 'nodeId']),
+
+  // Files uploaded to documents (images, attachments, etc.)
+  files: defineTable({
+    storageId: v.id('_storage'), // Convex storage ID
+    documentId: v.id('documents'), // Document this file belongs to
+    userId: v.id('users'), // User who uploaded the file
+    fileName: v.optional(v.string()), // Original file name
+    mimeType: v.optional(v.string()), // MIME type of the file
+    createdAt: v.number(),
+  })
+    .index('by_document', ['documentId'])
+    .index('by_user', ['userId'])
+    .index('by_storage', ['storageId']),
 })

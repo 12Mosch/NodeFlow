@@ -5,6 +5,8 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  ImageIcon,
+  Lightbulb,
   List,
   ListOrdered,
   ListTodo,
@@ -23,7 +25,23 @@ export interface SlashCommand {
   icon: React.ComponentType<{ className?: string }>
   command: (editor: Editor) => void
   aliases?: Array<string>
-  category: 'text' | 'headings' | 'lists' | 'other'
+  category: 'text' | 'headings' | 'lists' | 'media' | 'other'
+}
+
+// Custom events for image upload
+export const IMAGE_UPLOAD_EVENT = 'nodeflow:image-upload'
+export const IMAGE_DROP_PASTE_EVENT = 'nodeflow:image-drop-paste'
+
+export function triggerImageUpload() {
+  window.dispatchEvent(new CustomEvent(IMAGE_UPLOAD_EVENT))
+}
+
+export function triggerImageDropPaste(files: Array<File>, pos?: number) {
+  window.dispatchEvent(
+    new CustomEvent(IMAGE_DROP_PASTE_EVENT, {
+      detail: { files, pos },
+    }),
+  )
 }
 
 export const slashCommands: Array<SlashCommand> = [
@@ -125,6 +143,35 @@ export const slashCommands: Array<SlashCommand> = [
     aliases: ['hr', 'rule', 'separator', 'line'],
     command: (editor) => {
       editor.chain().focus().setHorizontalRule().run()
+    },
+  },
+  {
+    title: 'Callout',
+    description: 'Highlight important info',
+    icon: Lightbulb,
+    category: 'media',
+    aliases: ['info', 'note', 'tip', 'warning', 'alert'],
+    command: (editor) => {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'callout',
+          attrs: { emoji: '💡' },
+          content: [{ type: 'paragraph' }],
+        })
+        .run()
+    },
+  },
+  {
+    title: 'Image',
+    description: 'Upload an image',
+    icon: ImageIcon,
+    category: 'media',
+    aliases: ['img', 'picture', 'photo', 'upload'],
+    command: () => {
+      // Trigger the image upload dialog via custom event
+      triggerImageUpload()
     },
   },
 ]

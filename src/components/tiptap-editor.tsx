@@ -8,29 +8,16 @@ import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
-import {
-  Bold,
-  Code,
-  Code2,
-  GripVertical,
-  Heading1,
-  Heading2,
-  Heading3,
-  Italic,
-  List,
-  ListOrdered,
-  ListTodo,
-  Minus,
-  Quote,
-  Redo,
-  Strikethrough,
-  Undo,
-} from 'lucide-react'
+import { GripVertical } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
 import {
@@ -43,21 +30,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { LinkKeys } from '@/extensions/link-keys'
-import { SlashCommands } from '@/extensions/slash-commands'
+import {
+  IMAGE_DROP_PASTE_EVENT,
+  IMAGE_UPLOAD_EVENT,
+  SlashCommands,
+  triggerImageDropPaste,
+} from '@/extensions/slash-commands'
+import { Callout } from '@/extensions/callout'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
+import { useImageUpload } from '@/hooks/use-image-upload'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
+  onEditorReady?: (editor: Editor) => void
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
-export function TiptapEditor({ documentId }: TiptapEditorProps) {
+export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
 
   // Mutations for block-level sync
@@ -185,6 +179,37 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
         class: 'text-primary underline cursor-pointer',
       },
     }),
+    // Image extension for uploaded images
+    Image.configure({
+      HTMLAttributes: {
+        class: 'editor-image',
+      },
+      allowBase64: false,
+    }),
+    // File handler for drag/drop and paste of images
+    FileHandler.configure({
+      allowedMimeTypes: [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'image/bmp',
+        'image/tiff',
+        'image/heic',
+        'image/heif',
+      ],
+      onDrop: (_editor, files, pos) => {
+        // Trigger upload via custom event (handled by EditorContentWrapper)
+        triggerImageDropPaste(files, pos)
+      },
+      onPaste: (_editor, files) => {
+        // Trigger upload via custom event (handled by EditorContentWrapper)
+        triggerImageDropPaste(files)
+      },
+    }),
+    // Callout block extension
+    Callout,
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
     OutlinerKeys,
     // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
@@ -214,18 +239,133 @@ export function TiptapEditor({ documentId }: TiptapEditorProps) {
         content={sync.initialContent}
         extensions={extensions}
         immediatelyRender={false}
-        slotBefore={<EditorToolbarSlot />}
       >
-        <EditorContentWrapper />
+        <EditorContentWrapper
+          documentId={documentId}
+          onEditorReady={onEditorReady}
+        />
       </EditorProvider>
     </div>
   )
 }
 
-function EditorContentWrapper() {
+function EditorContentWrapper({
+  documentId,
+  onEditorReady,
+}: {
+  documentId: Id<'documents'>
+  onEditorReady?: (editor: Editor) => void
+}) {
   const { editor } = useCurrentEditor()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const pendingLinkUrl = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const isMountedRef = useRef(true)
+  const editorRef = useRef<Editor | null>(null)
+
+  // Track editor instance and component mount status
+  useEffect(() => {
+    editorRef.current = editor
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [editor])
+
+  const { uploadImage } = useImageUpload({
+    documentId,
+    onUploadStart: () => {
+      setIsUploading(true)
+      toast.loading('Uploading image...', { id: 'image-upload' })
+    },
+    onUploadComplete: (url) => {
+      setIsUploading(false)
+      toast.success('Image uploaded!', { id: 'image-upload' })
+      // Check if component is still mounted and editor is valid
+      const currentEditor = editorRef.current
+      if (isMountedRef.current && currentEditor && !currentEditor.isDestroyed) {
+        currentEditor.chain().focus().setImage({ src: url }).run()
+      }
+    },
+    onUploadError: (error) => {
+      setIsUploading(false)
+      toast.error(error.message || 'Failed to upload image', {
+        id: 'image-upload',
+      })
+    },
+  })
+
+  // Handle file input change for slash command image upload
+  const handleFileInputChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      try {
+        await uploadImage(file)
+      } catch (error) {
+        // Error is already handled by onUploadError callback in useImageUpload
+        // This catch prevents unhandled promise rejection
+        console.error('Failed to upload image:', error)
+      }
+    }
+    // Reset the input so the same file can be selected again
+    e.target.value = ''
+  }
+
+  // Listen for image upload event from slash commands
+  useEffect(() => {
+    const handleImageUploadEvent = () => {
+      fileInputRef.current?.click()
+    }
+
+    window.addEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
+    return () => {
+      window.removeEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
+    }
+  }, [])
+
+  // Listen for image drop/paste events from FileHandler extension
+  useEffect(() => {
+    const handleImageDropPaste = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ files: Array<File>; pos?: number }>
+      const { files } = customEvent.detail
+      // Note: pos parameter is available but not used. Images are inserted at the
+      // current cursor position (via editor.chain().focus()) rather than the original
+      // drop position. This is intentional: during async uploads, the user may have
+      // moved the cursor, and tracking the original position would add complexity
+      // without significant UX benefit.
+
+      // Filter to only image files
+      const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+
+      // Upload all dropped/pasted images in parallel for better UX
+      // The onUploadComplete callback handles inserting each image into the editor
+      // Using Promise.allSettled to continue even if some uploads fail
+      await Promise.allSettled(
+        imageFiles.map((file) =>
+          uploadImage(file).catch((error) => {
+            // Error is already handled by onUploadError callback in useImageUpload
+            // This catch prevents unhandled promise rejection
+            console.error('Failed to upload image:', error)
+            return null
+          }),
+        ),
+      )
+    }
+
+    window.addEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
+    return () => {
+      window.removeEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
+    }
+  }, [uploadImage])
+
+  // Notify parent when editor is ready
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor)
+    }
+  }, [editor, onEditorReady])
 
   const handleLinkClick = useCallback(
     (e: Event) => {
@@ -297,6 +437,15 @@ function EditorContentWrapper() {
 
   return (
     <>
+      {/* Hidden file input for image uploads triggered by slash commands */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/tiff,image/heic,image/heif"
+        className="hidden"
+        onChange={handleFileInputChange}
+        disabled={isUploading}
+      />
       <DragHandle editor={editor} className="drag-handle">
         <GripVertical className="h-4 w-4" />
       </DragHandle>
@@ -330,175 +479,5 @@ function EditorContentWrapper() {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
-}
-
-function EditorToolbarSlot() {
-  const { editor } = useCurrentEditor()
-
-  if (!editor) {
-    return null
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-muted/30 rounded-t-lg sticky top-0 z-10">
-      {/* Text formatting */}
-      <div className="flex gap-0.5 pr-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive('bold')}
-          title="Bold"
-        >
-          <Bold className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive('italic')}
-          title="Italic"
-        >
-          <Italic className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive('strike')}
-          title="Strikethrough"
-        >
-          <Strikethrough className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          active={editor.isActive('code')}
-          title="Inline code"
-        >
-          <Code className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Headings */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          active={editor.isActive('heading', { level: 1 })}
-          title="Heading 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          active={editor.isActive('heading', { level: 2 })}
-          title="Heading 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          active={editor.isActive('heading', { level: 3 })}
-          title="Heading 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Lists */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive('bulletList')}
-          title="Bullet list"
-        >
-          <List className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive('orderedList')}
-          title="Numbered list"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          active={editor.isActive('taskList')}
-          title="Task list"
-        >
-          <ListTodo className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Blocks */}
-      <div className="flex gap-0.5 px-2 border-r border-border">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive('blockquote')}
-          title="Quote"
-        >
-          <Quote className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          active={editor.isActive('codeBlock')}
-          title="Code block"
-        >
-          <Code2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="Horizontal rule"
-        >
-          <Minus className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* History */}
-      <div className="flex gap-0.5 pl-2">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          title="Undo"
-        >
-          <Undo className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          title="Redo"
-        >
-          <Redo className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-    </div>
-  )
-}
-
-function ToolbarButton({
-  onClick,
-  active,
-  disabled,
-  title,
-  children,
-}: {
-  onClick: () => void
-  active?: boolean
-  disabled?: boolean
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <Button
-      type="button"
-      variant={active ? 'secondary' : 'ghost'}
-      size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="h-8 w-8 p-0"
-    >
-      {children}
-    </Button>
   )
 }

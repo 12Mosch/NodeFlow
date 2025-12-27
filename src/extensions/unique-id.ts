@@ -110,4 +110,6 @@ export const BLOCK_TYPES_WITH_IDS: Array<string> = [
   'blockquote',
   'codeBlock',
   'horizontalRule',
+  'callout',
+  'image',
 ]
