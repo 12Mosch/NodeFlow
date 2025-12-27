@@ -55,6 +55,26 @@ export function ThemeProvider({
     root.classList.add(theme)
   }, [theme])
 
+  // Listen for system theme changes when theme is set to "system"
+  useEffect(() => {
+    if (theme !== 'system') {
+      return
+    }
+
+    const root = window.document.documentElement
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      root.classList.remove('light', 'dark')
+      root.classList.add(e.matches ? 'dark' : 'light')
+    }
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange)
+    }
+  }, [theme])
+
   const value = {
     theme,
     setTheme: (newTheme: Theme) => {
