@@ -27,6 +27,7 @@ export default defineSchema({
   // Individual blocks within documents (for block-level tracking)
   blocks: defineTable({
     documentId: v.id('documents'),
+    userId: v.id('users'), // Denormalized for efficient querying (matches document.userId)
     nodeId: v.string(), // Unique ID per block
     type: v.string(), // 'paragraph', 'heading', 'bulletList', etc.
     content: v.any(), // JSON content of the ProseMirror node
@@ -59,7 +60,8 @@ export default defineSchema({
     .index('by_document_position', ['documentId', 'position'])
     .index('by_nodeId', ['documentId', 'nodeId'])
     .index('by_document_isCard', ['documentId', 'isCard'])
-    .index('by_document_cardType', ['documentId', 'cardType']),
+    .index('by_document_cardType', ['documentId', 'cardType'])
+    .index('by_user_isCard', ['userId', 'isCard']), // Optimized index for listAllFlashcards
 
   // Files uploaded to documents (images, attachments, etc.)
   files: defineTable({

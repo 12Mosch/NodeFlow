@@ -40,7 +40,7 @@ export function DocumentSelector({
 
   const totalCards = documents
     .filter((d) => selectedDocIds.has(d.document._id))
-    .reduce((sum, d) => sum + d.count, 0)
+    .reduce((sum, d) => sum + d.flashcards.length, 0)
 
   if (documents.length === 0) {
     return (
@@ -79,8 +79,9 @@ export function DocumentSelector({
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y">
-          {documents.map(({ document, count }) => {
+          {documents.map(({ document, flashcards }) => {
             const isSelected = selectedDocIds.has(document._id)
+            const count = flashcards.length
             return (
               <label
                 key={document._id}

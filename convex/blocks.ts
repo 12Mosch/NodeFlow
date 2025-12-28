@@ -3,6 +3,15 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
 import { requireDocumentAccess } from './helpers/documentAccess'
 import { requireUser } from './auth'
+import type { Doc, Id } from './_generated/dataModel'
+
+export type FlashcardWithDocument = {
+  document: {
+    _id: Id<'documents'>
+    title: string
+  }
+  flashcards: Array<Doc<'blocks'>>
+}
 
 // Flashcard validators (matching schema.ts)
 const cardTypeValidator = v.optional(
@@ -70,7 +79,7 @@ export const upsertBlock = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.upsertBlock', op: 'convex.mutation' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        const { userId } = await requireDocumentAccess(ctx, args.documentId)
 
         // Check if block exists
         const existingBlock = await ctx.db
@@ -88,6 +97,7 @@ export const upsertBlock = mutation({
             textContent: args.textContent,
             position: args.position,
             attrs: args.attrs,
+            userId, // Ensure userId is set (in case it was missing)
             // Flashcard fields
             isCard: args.isCard,
             cardType: args.cardType,
@@ -101,6 +111,7 @@ export const upsertBlock = mutation({
           // Create new block
           const id = await ctx.db.insert('blocks', {
             documentId: args.documentId,
+            userId,
             nodeId: args.nodeId,
             type: args.type,
             content: args.content,
@@ -210,7 +221,7 @@ export const syncBlocks = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.syncBlocks', op: 'convex.mutation' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        const { userId } = await requireDocumentAccess(ctx, args.documentId)
 
         // Get existing blocks
         const existingBlocks = await ctx.db
@@ -243,6 +254,7 @@ export const syncBlocks = mutation({
               textContent: block.textContent,
               position: block.position,
               attrs: block.attrs,
+              userId, // Ensure userId is set (in case it was missing)
               // Flashcard fields
               isCard: block.isCard,
               cardType: block.cardType,
@@ -254,6 +266,7 @@ export const syncBlocks = mutation({
           } else {
             await ctx.db.insert('blocks', {
               documentId: args.documentId,
+              userId,
               nodeId: block.nodeId,
               type: block.type,
               content: block.content,
@@ -329,45 +342,64 @@ export const countFlashcards = query({
 // Get all flashcards across all user documents (for study page)
 export const listAllFlashcards = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<Array<FlashcardWithDocument>> => {
     return await Sentry.startSpan(
       { name: 'blocks.listAllFlashcards', op: 'convex.query' },
       async () => {
         const userId = await requireUser(ctx)
 
-        // Get all user's documents
+        // Get all flashcards for the user in a single query using the optimized index
+        const allFlashcardBlocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_user_isCard', (q) =>
+            q.eq('userId', userId).eq('isCard', true),
+          )
+          .collect()
+
+        // Filter out disabled cards
+        const flashcards: Array<Doc<'blocks'>> = allFlashcardBlocks.filter(
+          (block) => block.cardDirection !== 'disabled',
+        )
+
+        // Get all user's documents to map flashcards to documents
         const documents = await ctx.db
           .query('documents')
           .withIndex('by_user', (q) => q.eq('userId', userId))
           .collect()
 
-        // Get flashcards for each document
-        const flashcardsByDocument = await Promise.all(
-          documents.map(async (doc) => {
-            const blocks = await ctx.db
-              .query('blocks')
-              .withIndex('by_document_isCard', (q) =>
-                q.eq('documentId', doc._id).eq('isCard', true),
-              )
-              .collect()
+        // Create a map of documentId -> document for quick lookup
+        const documentsMap = new Map(documents.map((doc) => [doc._id, doc]))
 
-            const flashcards = blocks.filter(
-              (block) => block.cardDirection !== 'disabled',
-            )
+        // Group flashcards by document
+        const flashcardsByDocumentId = new Map<
+          Id<'documents'>,
+          Array<Doc<'blocks'>>
+        >()
+        for (const flashcard of flashcards) {
+          const docId = flashcard.documentId
+          if (!flashcardsByDocumentId.has(docId)) {
+            flashcardsByDocumentId.set(docId, [])
+          }
+          flashcardsByDocumentId.get(docId)!.push(flashcard)
+        }
 
-            return {
-              document: {
-                _id: doc._id,
-                title: doc.title,
-              },
-              flashcards,
-              count: flashcards.length,
-            }
-          }),
-        )
+        // Build the result array (avoid nulls so the return type is precise)
+        const result: Array<FlashcardWithDocument> = []
+        for (const [documentId, flashcardList] of flashcardsByDocumentId) {
+          if (flashcardList.length === 0) continue
+          const document = documentsMap.get(documentId)
+          if (!document) continue
 
-        // Only return documents that have flashcards
-        return flashcardsByDocument.filter((item) => item.count > 0)
+          result.push({
+            document: {
+              _id: document._id,
+              title: document.title,
+            },
+            flashcards: flashcardList,
+          })
+        }
+
+        return result
       },
     )
   },

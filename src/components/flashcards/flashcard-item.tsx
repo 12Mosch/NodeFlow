@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronDown, X } from 'lucide-react'
+import { renderClozeText } from './utils'
 import type { QuizCard } from './types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,14 +11,22 @@ interface FlashcardItemProps {
   card: QuizCard
   onAnswer: (knew: boolean) => void
   showButtons?: boolean
+  isExpanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
 }
 
 export function FlashcardItem({
   card,
   onAnswer,
   showButtons = true,
+  isExpanded: controlledExpanded,
+  onExpandedChange,
 }: FlashcardItemProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [internalExpanded, setInternalExpanded] = useState(false)
+  const isExpanded =
+    controlledExpanded !== undefined ? controlledExpanded : internalExpanded
+  const setIsExpanded =
+    onExpandedChange !== undefined ? onExpandedChange : setInternalExpanded
 
   const { block, documentTitle, direction } = card
 
@@ -101,46 +110,11 @@ export function FlashcardItem({
   const renderClozeAnswer = () => {
     if (!isCloze) return null
 
-    const text = block.textContent
-    const parts: Array<{ text: string; isAnswer: boolean }> = []
-    let lastIndex = 0
-    const regex = /\{\{([^}]+)\}\}/g
-    let match
-
-    while ((match = regex.exec(text)) !== null) {
-      // Add text before the match
-      if (match.index > lastIndex) {
-        parts.push({
-          text: text.slice(lastIndex, match.index),
-          isAnswer: false,
-        })
-      }
-      // Add the answer (without braces)
-      parts.push({ text: match[1], isAnswer: true })
-      lastIndex = regex.lastIndex
-    }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-      parts.push({ text: text.slice(lastIndex), isAnswer: false })
-    }
-
-    return (
-      <p className="text-lg leading-relaxed whitespace-pre-line">
-        {parts.map((part, i) =>
-          part.isAnswer ? (
-            <mark
-              key={i}
-              className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1 py-0.5 rounded font-medium"
-            >
-              {part.text}
-            </mark>
-          ) : (
-            <span key={i}>{part.text}</span>
-          ),
-        )}
-      </p>
-    )
+    return renderClozeText(block.textContent, {
+      wrapperClassName: 'text-lg leading-relaxed whitespace-pre-line',
+      markClassName:
+        'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1 py-0.5 rounded font-medium',
+    })
   }
 
   const { front, back } = getFrontBack()
@@ -206,6 +180,8 @@ export function FlashcardItem({
         {/* Accordion trigger */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+          aria-controls="flashcard-answer"
           className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-muted/50 hover:bg-muted transition-colors border-t"
         >
           <span className="text-sm text-muted-foreground">
@@ -221,6 +197,7 @@ export function FlashcardItem({
 
         {/* Back of card - collapsible */}
         <div
+          id="flashcard-answer"
           className={cn(
             'grid transition-all duration-300 ease-out',
             isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
@@ -232,8 +209,6 @@ export function FlashcardItem({
                 renderClozeAnswer()
               ) : answerListKind ? (
                 renderList(answerListKind, back)
-              ) : questionListKind ? (
-                renderList(questionListKind, back)
               ) : (
                 <p className="text-lg leading-relaxed whitespace-pre-line">
                   {back}

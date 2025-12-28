@@ -1,4 +1,5 @@
 import { Check, Home, RotateCcw, Trophy, X } from 'lucide-react'
+import { renderClozeText } from './utils'
 import type { QuizResult } from './types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,43 +11,6 @@ interface QuizResultsProps {
   onRestart: () => void
   onSelectNew: () => void
   onGoHome: () => void
-}
-
-// Render cloze text with highlighted answers inline
-function renderClozeWithAnswers(text: string) {
-  const parts: Array<{ text: string; isAnswer: boolean }> = []
-  let lastIndex = 0
-  const regex = /\{\{([^}]+)\}\}/g
-  let match
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push({ text: text.slice(lastIndex, match.index), isAnswer: false })
-    }
-    parts.push({ text: match[1], isAnswer: true })
-    lastIndex = regex.lastIndex
-  }
-
-  if (lastIndex < text.length) {
-    parts.push({ text: text.slice(lastIndex), isAnswer: false })
-  }
-
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.isAnswer ? (
-          <mark
-            key={i}
-            className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-0.5 rounded font-medium"
-          >
-            {part.text}
-          </mark>
-        ) : (
-          <span key={i}>{part.text}</span>
-        ),
-      )}
-    </>
-  )
 }
 
 export function QuizResults({
@@ -177,7 +141,10 @@ export function QuizResults({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm line-clamp-4 whitespace-pre-line">
                       {result.card.block.cardType === 'cloze'
-                        ? renderClozeWithAnswers(result.card.block.textContent)
+                        ? renderClozeText(result.card.block.textContent, {
+                            markClassName:
+                              'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-0.5 rounded font-medium',
+                          })
                         : result.card.direction === 'reverse'
                           ? result.card.block.cardBack
                           : result.card.block.cardFront}

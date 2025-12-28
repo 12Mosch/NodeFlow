@@ -8,7 +8,6 @@ export interface FlashcardWithDocument {
     title: string
   }
   flashcards: Array<FlashcardBlock>
-  count: number
 }
 
 export interface QuizCard {

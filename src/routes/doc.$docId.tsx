@@ -113,7 +113,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       {
         document: { _id: docId, title: document.title },
         flashcards,
-        count: flashcards.length,
       },
     ]
 

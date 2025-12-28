@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Shuffle } from 'lucide-react'
 import { FlashcardItem } from './flashcard-item'
 import { QuizResults } from './quiz-results'
@@ -38,6 +38,17 @@ export function FlashcardQuiz({
       if (!selectedDocIds.has(docData.document._id)) continue
 
       for (const block of docData.flashcards) {
+        // Cloze cards have no direction concept — add exactly once.
+        if (block.cardType === 'cloze') {
+          cards.push({
+            block,
+            documentTitle: docData.document.title || 'Untitled',
+            // `QuizCard` requires a direction; treat cloze as a single (forward) prompt.
+            direction: 'forward',
+          })
+          continue
+        }
+
         // Add forward direction
         if (
           block.cardDirection === 'forward' ||
@@ -67,15 +78,6 @@ export function FlashcardQuiz({
             direction: 'reverse',
           })
         }
-
-        // Cloze cards (no direction concept)
-        if (block.cardType === 'cloze') {
-          cards.push({
-            block,
-            documentTitle: docData.document.title || 'Untitled',
-            direction: 'forward',
-          })
-        }
       }
     }
 
@@ -88,6 +90,7 @@ export function FlashcardQuiz({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [results, setResults] = useState<Array<QuizResult>>([])
   const [isComplete, setIsComplete] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const currentCard = shuffledCards[currentIndex]
   const progress =
@@ -105,12 +108,57 @@ export function FlashcardQuiz({
 
       if (currentIndex < shuffledCards.length - 1) {
         setCurrentIndex((prev) => prev + 1)
+        setIsExpanded(false) // Reset expanded state for next card
       } else {
         setIsComplete(true)
       }
     },
     [currentCard, currentIndex, shuffledCards.length],
   )
+
+  // Reset expanded state when card changes
+  useEffect(() => {
+    setIsExpanded(false)
+  }, [currentIndex])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (isComplete) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      // Ignore if user is typing in an input/textarea
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      switch (event.key) {
+        case ' ': // Space to toggle answer
+          event.preventDefault()
+          setIsExpanded((prev) => !prev)
+          break
+        case '1': // Didn't know
+          if (isExpanded) {
+            event.preventDefault()
+            handleAnswer(false)
+          }
+          break
+        case '2': // Knew it
+          if (isExpanded) {
+            event.preventDefault()
+            handleAnswer(true)
+          }
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isComplete, isExpanded, handleAnswer])
 
   const handleRestart = useCallback(() => {
     setShuffledCards(shuffleArray(allCards))
@@ -181,11 +229,28 @@ export function FlashcardQuiz({
       </div>
 
       {/* Current card */}
-      <FlashcardItem card={currentCard} onAnswer={handleAnswer} />
+      <FlashcardItem
+        card={currentCard}
+        onAnswer={handleAnswer}
+        isExpanded={isExpanded}
+        onExpandedChange={setIsExpanded}
+      />
 
       {/* Keyboard shortcuts hint */}
       <p className="text-xs text-center text-muted-foreground">
-        Click &quot;Show answer&quot; to reveal, then mark if you knew it
+        Press{' '}
+        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+          Space
+        </kbd>{' '}
+        to reveal answer, then{' '}
+        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+          1
+        </kbd>{' '}
+        or{' '}
+        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+          2
+        </kbd>{' '}
+        to answer
       </p>
     </div>
   )

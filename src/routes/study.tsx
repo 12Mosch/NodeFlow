@@ -5,12 +5,17 @@ import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import type { FlashcardWithDocument, QuizState } from '@/components/flashcards'
+import type { QuizState } from '@/components/flashcards'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
 import { DocumentSelector, FlashcardQuiz } from '@/components/flashcards'
 
 export const Route = createFileRoute('/study')({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(
+      convexQuery(api.blocks.listAllFlashcards, {}),
+    )
+  },
   component: StudyPage,
 })
 
@@ -39,8 +44,7 @@ function StudyContent() {
     new Set(),
   )
 
-  // Type cast the data to ensure proper typing
-  const documents = flashcardData as Array<FlashcardWithDocument>
+  const documents = flashcardData
 
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {
