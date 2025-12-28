@@ -141,27 +141,26 @@ export const deleteDocument = mutation({
         // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
         // This is acceptable since the database records are already deleted
         const storageDeletionResults = await Promise.allSettled(
-          files.map((file) =>
-            ctx.storage.delete(file.storageId).catch((error) => {
-              // Log storage deletion failure but don't fail the mutation
-              // The database record is already deleted, so orphaned storage is acceptable
-              console.error('Failed to delete file from storage:', error)
-              Sentry.captureException(error, {
-                tags: {
-                  operation: 'storage.delete',
-                  fileId: file._id,
-                  documentId: args.id,
-                },
-              })
-              throw error // Re-throw to mark as rejected in Promise.allSettled
-            }),
-          ),
+          files.map((file) => ctx.storage.delete(file.storageId)),
         )
 
-        // Log any failures for monitoring (already logged above, but useful for aggregation)
-        const failures = storageDeletionResults.filter(
-          (result) => result.status === 'rejected',
-        )
+        // Log any failures for monitoring
+        const failures = storageDeletionResults
+          .map((result, index) => ({ result, file: files[index] }))
+          .filter(({ result }) => result.status === 'rejected')
+
+        for (const { result, file } of failures) {
+          const error = result.status === 'rejected' ? result.reason : undefined
+          console.error('Failed to delete file from storage:', error)
+          Sentry.captureException(error, {
+            tags: {
+              operation: 'storage.delete',
+              fileId: file._id,
+              documentId: args.id,
+            },
+          })
+        }
+
         if (failures.length > 0) {
           console.warn(
             `Failed to delete ${failures.length} of ${files.length} storage files`,
