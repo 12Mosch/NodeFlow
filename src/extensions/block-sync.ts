@@ -2,6 +2,8 @@ import { Extension } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Id } from '../../convex/_generated/dataModel'
+import type { CardDirection, CardType } from '@/lib/flashcard-parser'
+import { parseFlashcard } from '@/lib/flashcard-parser'
 
 // Types for block data
 export interface BlockData {
@@ -11,6 +13,13 @@ export interface BlockData {
   textContent: string
   position: number
   attrs?: any
+  // Flashcard fields
+  isCard: boolean
+  cardType?: CardType
+  cardDirection?: CardDirection
+  cardFront?: string
+  cardBack?: string
+  clozeOcclusions?: Array<string>
 }
 
 export interface BlockSyncOptions {
@@ -33,13 +42,23 @@ function extractBlockData(
   const nodeId = node.attrs[attributeName]
   if (!nodeId) return null
 
+  const textContent = node.textContent
+  const flashcardData = parseFlashcard(textContent)
+
   return {
     nodeId,
     type: node.type.name,
     content: node.toJSON(),
-    textContent: node.textContent,
+    textContent,
     position,
     attrs: Object.keys(node.attrs).length > 1 ? node.attrs : undefined,
+    // Flashcard fields from parser
+    isCard: flashcardData.isCard,
+    cardType: flashcardData.cardType,
+    cardDirection: flashcardData.cardDirection,
+    cardFront: flashcardData.cardFront,
+    cardBack: flashcardData.cardBack,
+    clozeOcclusions: flashcardData.clozeOcclusions,
   }
 }
 
@@ -57,7 +76,14 @@ function getAllBlocks(
     if (blockData) {
       blocks.set(blockData.nodeId, blockData)
       position++ // Only increment position for nodes that have IDs
+
+      // Important: avoid double-saving nested block nodes (e.g. listItem -> paragraph).
+      // If a node is considered a block (has an ID), we treat it as the canonical block
+      // and do NOT traverse into its children.
+      return false
     }
+
+    return
   })
 
   return blocks
@@ -69,7 +95,14 @@ function blocksAreDifferent(a: BlockData, b: BlockData): boolean {
     a.type !== b.type ||
     a.textContent !== b.textContent ||
     a.position !== b.position ||
-    JSON.stringify(a.content) !== JSON.stringify(b.content)
+    JSON.stringify(a.content) !== JSON.stringify(b.content) ||
+    // Check flashcard fields
+    a.isCard !== b.isCard ||
+    a.cardType !== b.cardType ||
+    a.cardDirection !== b.cardDirection ||
+    a.cardFront !== b.cardFront ||
+    a.cardBack !== b.cardBack ||
+    JSON.stringify(a.clozeOcclusions) !== JSON.stringify(b.clozeOcclusions)
   )
 }
 

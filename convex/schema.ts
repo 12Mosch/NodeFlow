@@ -33,10 +33,33 @@ export default defineSchema({
     textContent: v.string(), // Plain text for search/indexing
     position: v.number(), // Order in document
     attrs: v.optional(v.any()), // Node attributes (heading level, etc.)
+    // Flashcard fields (set when block contains flashcard syntax)
+    isCard: v.optional(v.boolean()),
+    cardType: v.optional(
+      v.union(
+        v.literal('basic'),
+        v.literal('concept'),
+        v.literal('descriptor'),
+        v.literal('cloze'),
+      ),
+    ),
+    cardDirection: v.optional(
+      v.union(
+        v.literal('forward'),
+        v.literal('reverse'),
+        v.literal('bidirectional'),
+        v.literal('disabled'),
+      ),
+    ),
+    cardFront: v.optional(v.string()),
+    cardBack: v.optional(v.string()),
+    clozeOcclusions: v.optional(v.array(v.string())),
   })
     .index('by_document', ['documentId'])
     .index('by_document_position', ['documentId', 'position'])
-    .index('by_nodeId', ['documentId', 'nodeId']),
+    .index('by_nodeId', ['documentId', 'nodeId'])
+    .index('by_document_isCard', ['documentId', 'isCard'])
+    .index('by_document_cardType', ['documentId', 'cardType']),
 
   // Files uploaded to documents (images, attachments, etc.)
   files: defineTable({
