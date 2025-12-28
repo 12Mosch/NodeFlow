@@ -26,6 +26,8 @@ const HIGHLIGHT_COLORS: Array<ColorOption> = [
 const TEXT_COLORS: Array<ColorOption> = [
   { name: 'Default', value: '' },
   { name: 'Gray', value: '#6b7280' },
+  { name: 'White', value: '#ffffff' },
+  { name: 'Black', value: '#000000' },
   { name: 'Red', value: '#dc2626' },
   { name: 'Orange', value: '#ea580c' },
   { name: 'Yellow', value: '#ca8a04' },
