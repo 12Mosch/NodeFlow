@@ -113,19 +113,59 @@ export const deleteDocument = mutation({
       async () => {
         await requireDocumentAccess(ctx, args.id)
 
-        // Query for all blocks associated with this document
+        // Query for all files and blocks associated with this document
+        const files = await ctx.db
+          .query('files')
+          .withIndex('by_document', (q) => q.eq('documentId', args.id))
+          .collect()
+
         const blocks = await ctx.db
           .query('blocks')
           .withIndex('by_document', (q) => q.eq('documentId', args.id))
           .collect()
 
-        // Delete all associated blocks
+        // Delete all database records first (files, blocks, document)
+        // This ensures that if any database operation fails, the transaction
+        // rolls back and we never delete storage files, preventing broken references
+        for (const file of files) {
+          await ctx.db.delete(file._id)
+        }
+
         for (const block of blocks) {
           await ctx.db.delete(block._id)
         }
 
-        // Delete the document
         await ctx.db.delete(args.id)
+
+        // Delete storage files in parallel after all database operations succeed
+        // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
+        // This is acceptable since the database records are already deleted
+        const storageDeletionResults = await Promise.allSettled(
+          files.map((file) => ctx.storage.delete(file.storageId)),
+        )
+
+        // Log any failures for monitoring
+        const failures = storageDeletionResults
+          .map((result, index) => ({ result, file: files[index] }))
+          .filter(({ result }) => result.status === 'rejected')
+
+        for (const { result, file } of failures) {
+          const error = result.status === 'rejected' ? result.reason : undefined
+          console.error('Failed to delete file from storage:', error)
+          Sentry.captureException(error, {
+            tags: {
+              operation: 'storage.delete',
+              fileId: file._id,
+              documentId: args.id,
+            },
+          })
+        }
+
+        if (failures.length > 0) {
+          console.warn(
+            `Failed to delete ${failures.length} of ${files.length} storage files`,
+          )
+        }
       },
     )
   },
