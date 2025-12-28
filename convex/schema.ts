@@ -57,7 +57,9 @@ export default defineSchema({
   })
     .index('by_document', ['documentId'])
     .index('by_document_position', ['documentId', 'position'])
-    .index('by_nodeId', ['documentId', 'nodeId']),
+    .index('by_nodeId', ['documentId', 'nodeId'])
+    .index('by_document_isCard', ['documentId', 'isCard'])
+    .index('by_document_cardType', ['documentId', 'cardType']),
 
   // Files uploaded to documents (images, attachments, etc.)
   files: defineTable({

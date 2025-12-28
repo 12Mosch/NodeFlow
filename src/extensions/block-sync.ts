@@ -3,7 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { CardDirection, CardType } from '@/lib/flashcard-parser'
-import { extractFlashcardData } from '@/lib/flashcard-parser'
+import { parseFlashcard } from '@/lib/flashcard-parser'
 
 // Types for block data
 export interface BlockData {
@@ -43,7 +43,7 @@ function extractBlockData(
   if (!nodeId) return null
 
   const textContent = node.textContent
-  const flashcardData = extractFlashcardData(textContent)
+  const flashcardData = parseFlashcard(textContent)
 
   return {
     nodeId,

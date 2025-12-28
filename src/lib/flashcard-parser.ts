@@ -161,31 +161,3 @@ export function parseFlashcard(text: string): FlashcardParseResult {
 
   return { isCard: false }
 }
-
-/**
- * Extract flashcard data for block sync.
- * Returns only the fields needed for database storage.
- */
-export function extractFlashcardData(text: string): {
-  isCard: boolean
-  cardType?: CardType
-  cardDirection?: CardDirection
-  cardFront?: string
-  cardBack?: string
-  clozeOcclusions?: Array<string>
-} {
-  const result = parseFlashcard(text)
-
-  if (!result.isCard) {
-    return { isCard: false }
-  }
-
-  return {
-    isCard: true,
-    cardType: result.cardType,
-    cardDirection: result.cardDirection,
-    cardFront: result.cardFront,
-    cardBack: result.cardBack,
-    clozeOcclusions: result.clozeOcclusions,
-  }
-}
