@@ -5,14 +5,6 @@ import { requireDocumentAccess } from './helpers/documentAccess'
 import { requireUser } from './auth'
 import type { Doc, Id } from './_generated/dataModel'
 
-export type FlashcardWithDocument = {
-  document: {
-    _id: Id<'documents'>
-    title: string
-  }
-  flashcards: Array<Doc<'blocks'>>
-}
-
 // Flashcard validators (matching schema.ts)
 const cardTypeValidator = v.optional(
   v.union(
@@ -306,12 +298,17 @@ export const listFlashcards = query({
           )
           .collect()
 
-        // Filter out disabled cards
-        return blocks.filter((block) => block.cardDirection !== 'disabled')
+        return filterOutDisabledCards(blocks)
       },
     )
   },
 })
+
+function filterOutDisabledCards<
+  T extends { cardDirection?: string | undefined },
+>(blocks: Array<T>): Array<T> {
+  return blocks.filter((block) => block.cardDirection !== 'disabled')
+}
 
 // Get flashcard count for a document
 export const countFlashcards = query({
@@ -331,9 +328,7 @@ export const countFlashcards = query({
           )
           .collect()
 
-        // Count non-disabled cards
-        return blocks.filter((block) => block.cardDirection !== 'disabled')
-          .length
+        return filterOutDisabledCards(blocks).length
       },
     )
   },
@@ -342,7 +337,17 @@ export const countFlashcards = query({
 // Get all flashcards across all user documents (for study page)
 export const listAllFlashcards = query({
   args: {},
-  handler: async (ctx): Promise<Array<FlashcardWithDocument>> => {
+  handler: async (
+    ctx,
+  ): Promise<
+    Array<{
+      document: {
+        _id: Id<'documents'>
+        title: string
+      }
+      flashcards: Array<Doc<'blocks'>>
+    }>
+  > => {
     return await Sentry.startSpan(
       { name: 'blocks.listAllFlashcards', op: 'convex.query' },
       async () => {
@@ -356,10 +361,8 @@ export const listAllFlashcards = query({
           )
           .collect()
 
-        // Filter out disabled cards
-        const flashcards: Array<Doc<'blocks'>> = allFlashcardBlocks.filter(
-          (block) => block.cardDirection !== 'disabled',
-        )
+        const flashcards: Array<Doc<'blocks'>> =
+          filterOutDisabledCards(allFlashcardBlocks)
 
         // Get all user's documents to map flashcards to documents
         const documents = await ctx.db
@@ -384,7 +387,13 @@ export const listAllFlashcards = query({
         }
 
         // Build the result array (avoid nulls so the return type is precise)
-        const result: Array<FlashcardWithDocument> = []
+        const result: Array<{
+          document: {
+            _id: Id<'documents'>
+            title: string
+          }
+          flashcards: Array<Doc<'blocks'>>
+        }> = []
         for (const [documentId, flashcardList] of flashcardsByDocumentId) {
           if (flashcardList.length === 0) continue
           const document = documentsMap.get(documentId)

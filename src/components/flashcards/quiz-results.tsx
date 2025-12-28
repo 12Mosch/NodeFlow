@@ -117,7 +117,12 @@ export function QuizResults({
             <CardTitle className="text-lg">Review</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y max-h-[400px] overflow-y-auto">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Review results"
+              className="divide-y max-h-[400px] overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {results.map((result, index) => (
                 <div
                   key={index}
