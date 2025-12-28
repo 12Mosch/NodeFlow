@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudyRouteImport } from './routes/study'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
 
+const StudyRoute = StudyRouteImport.update({
+  id: '/study',
+  path: '/study',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CallbackRoute = CallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -32,35 +38,46 @@ const DocDocIdRoute = DocDocIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/callback' | '/doc/$docId'
+  fullPaths: '/' | '/callback' | '/study' | '/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/callback' | '/doc/$docId'
-  id: '__root__' | '/' | '/callback' | '/doc/$docId'
+  to: '/' | '/callback' | '/study' | '/doc/$docId'
+  id: '__root__' | '/' | '/callback' | '/study' | '/doc/$docId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CallbackRoute: typeof CallbackRoute
+  StudyRoute: typeof StudyRoute
   DocDocIdRoute: typeof DocDocIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/study': {
+      id: '/study'
+      path: '/study'
+      fullPath: '/study'
+      preLoaderRoute: typeof StudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/callback': {
       id: '/callback'
       path: '/callback'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CallbackRoute: CallbackRoute,
+  StudyRoute: StudyRoute,
   DocDocIdRoute: DocDocIdRoute,
 }
 export const routeTree = rootRouteImport

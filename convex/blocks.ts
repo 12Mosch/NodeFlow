@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
 import { requireDocumentAccess } from './helpers/documentAccess'
+import { requireUser } from './auth'
 
 // Flashcard validators (matching schema.ts)
 const cardTypeValidator = v.optional(
@@ -269,6 +270,104 @@ export const syncBlocks = mutation({
             })
           }
         }
+      },
+    )
+  },
+})
+
+// Get all flashcard blocks for a document (excluding disabled cards)
+export const listFlashcards = query({
+  args: {
+    documentId: v.id('documents'),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'blocks.listFlashcards', op: 'convex.query' },
+      async () => {
+        await requireDocumentAccess(ctx, args.documentId)
+
+        const blocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document_isCard', (q) =>
+            q.eq('documentId', args.documentId).eq('isCard', true),
+          )
+          .collect()
+
+        // Filter out disabled cards
+        return blocks.filter((block) => block.cardDirection !== 'disabled')
+      },
+    )
+  },
+})
+
+// Get flashcard count for a document
+export const countFlashcards = query({
+  args: {
+    documentId: v.id('documents'),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'blocks.countFlashcards', op: 'convex.query' },
+      async () => {
+        await requireDocumentAccess(ctx, args.documentId)
+
+        const blocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document_isCard', (q) =>
+            q.eq('documentId', args.documentId).eq('isCard', true),
+          )
+          .collect()
+
+        // Count non-disabled cards
+        return blocks.filter((block) => block.cardDirection !== 'disabled')
+          .length
+      },
+    )
+  },
+})
+
+// Get all flashcards across all user documents (for study page)
+export const listAllFlashcards = query({
+  args: {},
+  handler: async (ctx) => {
+    return await Sentry.startSpan(
+      { name: 'blocks.listAllFlashcards', op: 'convex.query' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get all user's documents
+        const documents = await ctx.db
+          .query('documents')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect()
+
+        // Get flashcards for each document
+        const flashcardsByDocument = await Promise.all(
+          documents.map(async (doc) => {
+            const blocks = await ctx.db
+              .query('blocks')
+              .withIndex('by_document_isCard', (q) =>
+                q.eq('documentId', doc._id).eq('isCard', true),
+              )
+              .collect()
+
+            const flashcards = blocks.filter(
+              (block) => block.cardDirection !== 'disabled',
+            )
+
+            return {
+              document: {
+                _id: doc._id,
+                title: doc.title,
+              },
+              flashcards,
+              count: flashcards.length,
+            }
+          }),
+        )
+
+        // Only return documents that have flashcards
+        return flashcardsByDocument.filter((item) => item.count > 0)
       },
     )
   },
