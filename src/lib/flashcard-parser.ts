@@ -63,30 +63,46 @@ const CARD_PATTERNS: Array<CardPattern> = [
 
   // Multi-line patterns (triple markers)
   // Basic multi-line
-  { pattern: /^(.+?)\s*>>>\s*(.*)$/, type: 'basic', direction: 'forward' },
-  { pattern: /^(.+?)\s*<<<\s*(.*)$/, type: 'basic', direction: 'reverse' },
+  { pattern: /^(.+?)\s*>>>\s*([\s\S]*)$/, type: 'basic', direction: 'forward' },
+  { pattern: /^(.+?)\s*<<<\s*([\s\S]*)$/, type: 'basic', direction: 'reverse' },
   {
-    pattern: /^(.+?)\s*<><>\s*(.*)$/,
+    pattern: /^(.+?)\s*<><>\s*([\s\S]*)$/,
     type: 'basic',
     direction: 'bidirectional',
   },
-  { pattern: /^(.+?)\s*===\s*(.*)$/, type: 'basic', direction: 'forward' },
+  { pattern: /^(.+?)\s*===\s*([\s\S]*)$/, type: 'basic', direction: 'forward' },
   // Concept multi-line
   {
-    pattern: /^(.+?)\s*:::\s*(.*)$/,
+    pattern: /^(.+?)\s*:::\s*([\s\S]*)$/,
     type: 'concept',
     direction: 'bidirectional',
   },
-  { pattern: /^(.+?)\s*:>>\s*(.*)$/, type: 'concept', direction: 'forward' },
-  { pattern: /^(.+?)\s*:<<\s*(.*)$/, type: 'concept', direction: 'reverse' },
-  // Descriptor multi-line
-  { pattern: /^(.+?)\s*;;;\s*(.*)$/, type: 'descriptor', direction: 'forward' },
   {
-    pattern: /^(.+?)\s*;;<>\s*(.*)$/,
+    pattern: /^(.+?)\s*:>>\s*([\s\S]*)$/,
+    type: 'concept',
+    direction: 'forward',
+  },
+  {
+    pattern: /^(.+?)\s*:<<\s*([\s\S]*)$/,
+    type: 'concept',
+    direction: 'reverse',
+  },
+  // Descriptor multi-line
+  {
+    pattern: /^(.+?)\s*;;;\s*([\s\S]*)$/,
+    type: 'descriptor',
+    direction: 'forward',
+  },
+  {
+    pattern: /^(.+?)\s*;;<>\s*([\s\S]*)$/,
     type: 'descriptor',
     direction: 'bidirectional',
   },
-  { pattern: /^(.+?)\s*;<<\s*(.*)$/, type: 'descriptor', direction: 'reverse' },
+  {
+    pattern: /^(.+?)\s*;<<\s*([\s\S]*)$/,
+    type: 'descriptor',
+    direction: 'reverse',
+  },
 
   // Bidirectional patterns (must come before single-direction)
   {

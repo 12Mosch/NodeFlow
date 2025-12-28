@@ -1,16 +1,19 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
-import { Redo, Share2, Undo } from 'lucide-react'
+import { GraduationCap, Redo, Share2, Undo } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
+import type { FlashcardWithDocument } from '@/components/flashcards'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { ModeToggle } from '@/components/mode-toggle'
+import { FlashcardQuiz } from '@/components/flashcards'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -73,10 +76,18 @@ function DocumentPage() {
 }
 
 function DocumentContent({ docId }: { docId: Id<'documents'> }) {
+  const navigate = useNavigate()
   const { data: document, isLoading } = useQuery({
     ...convexQuery(api.documents.get, { id: docId }),
   })
+  const { data: flashcards } = useQuery({
+    ...convexQuery(api.blocks.listFlashcards, { documentId: docId }),
+    enabled: !!document,
+  })
   const [editor, setEditor] = useState<Editor | null>(null)
+  const [isStudying, setIsStudying] = useState(false)
+
+  const flashcardCount = flashcards?.length ?? 0
 
   if (isLoading) {
     return <div className="p-8 text-muted-foreground">Loading document...</div>
@@ -96,10 +107,35 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     )
   }
 
+  // Study mode for this document
+  if (isStudying && flashcards && flashcards.length > 0) {
+    const documentData: Array<FlashcardWithDocument> = [
+      {
+        document: { _id: docId, title: document.title },
+        flashcards,
+      },
+    ]
+
+    return (
+      <div className="max-w-4xl mx-auto p-8">
+        <FlashcardQuiz
+          documents={documentData}
+          selectedDocIds={new Set([docId])}
+          onBack={() => setIsStudying(false)}
+          onGoHome={() => navigate({ to: '/' })}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Minimal header */}
-      <MinimalHeader editor={editor} />
+      <MinimalHeader
+        editor={editor}
+        flashcardCount={flashcardCount}
+        onStudy={() => setIsStudying(true)}
+      />
 
       {/* Document title */}
       <DocumentTitle document={document} />
@@ -112,10 +148,38 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   )
 }
 
-function MinimalHeader({ editor }: { editor: Editor | null }) {
+function MinimalHeader({
+  editor,
+  flashcardCount,
+  onStudy,
+}: {
+  editor: Editor | null
+  flashcardCount: number
+  onStudy: () => void
+}) {
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center justify-end gap-1 px-4 py-2">
+        {/* Study button - only show if there are flashcards */}
+        {flashcardCount > 0 && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={onStudy}
+              title="Study flashcards"
+            >
+              <GraduationCap className="h-4 w-4" />
+              Study
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {flashcardCount}
+              </Badge>
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
+          </>
+        )}
+
         {/* Undo/Redo */}
         <Button
           variant="ghost"
