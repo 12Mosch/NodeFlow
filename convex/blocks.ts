@@ -3,6 +3,25 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { mutation, query } from './_generated/server'
 import { requireDocumentAccess } from './helpers/documentAccess'
 
+// Flashcard validators (matching schema.ts)
+const cardTypeValidator = v.optional(
+  v.union(
+    v.literal('basic'),
+    v.literal('concept'),
+    v.literal('descriptor'),
+    v.literal('cloze'),
+  ),
+)
+
+const cardDirectionValidator = v.optional(
+  v.union(
+    v.literal('forward'),
+    v.literal('reverse'),
+    v.literal('bidirectional'),
+    v.literal('disabled'),
+  ),
+)
+
 // Get all blocks for a document
 export const listByDocument = query({
   args: {
@@ -38,6 +57,13 @@ export const upsertBlock = mutation({
     textContent: v.string(),
     position: v.number(),
     attrs: v.optional(v.any()),
+    // Flashcard fields
+    isCard: v.optional(v.boolean()),
+    cardType: cardTypeValidator,
+    cardDirection: cardDirectionValidator,
+    cardFront: v.optional(v.string()),
+    cardBack: v.optional(v.string()),
+    clozeOcclusions: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
@@ -61,6 +87,13 @@ export const upsertBlock = mutation({
             textContent: args.textContent,
             position: args.position,
             attrs: args.attrs,
+            // Flashcard fields
+            isCard: args.isCard,
+            cardType: args.cardType,
+            cardDirection: args.cardDirection,
+            cardFront: args.cardFront,
+            cardBack: args.cardBack,
+            clozeOcclusions: args.clozeOcclusions,
           })
           return existingBlock._id
         } else {
@@ -73,6 +106,13 @@ export const upsertBlock = mutation({
             textContent: args.textContent,
             position: args.position,
             attrs: args.attrs,
+            // Flashcard fields
+            isCard: args.isCard,
+            cardType: args.cardType,
+            cardDirection: args.cardDirection,
+            cardFront: args.cardFront,
+            cardBack: args.cardBack,
+            clozeOcclusions: args.clozeOcclusions,
           })
           return id
         }
@@ -155,6 +195,13 @@ export const syncBlocks = mutation({
         textContent: v.string(),
         position: v.number(),
         attrs: v.optional(v.any()),
+        // Flashcard fields
+        isCard: v.optional(v.boolean()),
+        cardType: cardTypeValidator,
+        cardDirection: cardDirectionValidator,
+        cardFront: v.optional(v.string()),
+        cardBack: v.optional(v.string()),
+        clozeOcclusions: v.optional(v.array(v.string())),
       }),
     ),
   },
@@ -195,6 +242,13 @@ export const syncBlocks = mutation({
               textContent: block.textContent,
               position: block.position,
               attrs: block.attrs,
+              // Flashcard fields
+              isCard: block.isCard,
+              cardType: block.cardType,
+              cardDirection: block.cardDirection,
+              cardFront: block.cardFront,
+              cardBack: block.cardBack,
+              clozeOcclusions: block.clozeOcclusions,
             })
           } else {
             await ctx.db.insert('blocks', {
@@ -205,6 +259,13 @@ export const syncBlocks = mutation({
               textContent: block.textContent,
               position: block.position,
               attrs: block.attrs,
+              // Flashcard fields
+              isCard: block.isCard,
+              cardType: block.cardType,
+              cardDirection: block.cardDirection,
+              cardFront: block.cardFront,
+              cardBack: block.cardBack,
+              clozeOcclusions: block.clozeOcclusions,
             })
           }
         }

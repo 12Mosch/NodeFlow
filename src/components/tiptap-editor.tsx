@@ -73,6 +73,13 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
             textContent: block.textContent,
             position: block.position,
             attrs: block.attrs,
+            // Flashcard fields
+            isCard: block.isCard,
+            cardType: block.cardType,
+            cardDirection: block.cardDirection,
+            cardFront: block.cardFront,
+            cardBack: block.cardBack,
+            clozeOcclusions: block.clozeOcclusions,
           })
         },
       ).catch((error) => {
@@ -115,6 +122,13 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
               textContent: b.textContent,
               position: b.position,
               attrs: b.attrs,
+              // Flashcard fields
+              isCard: b.isCard,
+              cardType: b.cardType,
+              cardDirection: b.cardDirection,
+              cardFront: b.cardFront,
+              cardBack: b.cardBack,
+              clozeOcclusions: b.clozeOcclusions,
             })),
           })
         },
