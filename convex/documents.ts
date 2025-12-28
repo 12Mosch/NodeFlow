@@ -113,48 +113,60 @@ export const deleteDocument = mutation({
       async () => {
         await requireDocumentAccess(ctx, args.id)
 
-        // Query for all files associated with this document
+        // Query for all files and blocks associated with this document
         const files = await ctx.db
           .query('files')
           .withIndex('by_document', (q) => q.eq('documentId', args.id))
           .collect()
 
-        // Delete all associated files (both database records and storage)
-        for (const file of files) {
-          // Delete from database first to ensure atomicity
-          await ctx.db.delete(file._id)
-
-          // Delete from storage after database deletion succeeds
-          // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
-          try {
-            await ctx.storage.delete(file.storageId)
-          } catch (error) {
-            // Log storage deletion failure but don't fail the mutation
-            // The database record is already deleted, so orphaned storage is acceptable
-            console.error('Failed to delete file from storage:', error)
-            Sentry.captureException(error, {
-              tags: {
-                operation: 'storage.delete',
-                fileId: file._id,
-                documentId: args.id,
-              },
-            })
-          }
-        }
-
-        // Query for all blocks associated with this document
         const blocks = await ctx.db
           .query('blocks')
           .withIndex('by_document', (q) => q.eq('documentId', args.id))
           .collect()
 
-        // Delete all associated blocks
+        // Delete all database records first (files, blocks, document)
+        // This ensures that if any database operation fails, the transaction
+        // rolls back and we never delete storage files, preventing broken references
+        for (const file of files) {
+          await ctx.db.delete(file._id)
+        }
+
         for (const block of blocks) {
           await ctx.db.delete(block._id)
         }
 
-        // Delete the document
         await ctx.db.delete(args.id)
+
+        // Delete storage files in parallel after all database operations succeed
+        // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
+        // This is acceptable since the database records are already deleted
+        const storageDeletionResults = await Promise.allSettled(
+          files.map((file) =>
+            ctx.storage.delete(file.storageId).catch((error) => {
+              // Log storage deletion failure but don't fail the mutation
+              // The database record is already deleted, so orphaned storage is acceptable
+              console.error('Failed to delete file from storage:', error)
+              Sentry.captureException(error, {
+                tags: {
+                  operation: 'storage.delete',
+                  fileId: file._id,
+                  documentId: args.id,
+                },
+              })
+              throw error // Re-throw to mark as rejected in Promise.allSettled
+            }),
+          ),
+        )
+
+        // Log any failures for monitoring (already logged above, but useful for aggregation)
+        const failures = storageDeletionResults.filter(
+          (result) => result.status === 'rejected',
+        )
+        if (failures.length > 0) {
+          console.warn(
+            `Failed to delete ${failures.length} of ${files.length} storage files`,
+          )
+        }
       },
     )
   },
