@@ -42,8 +42,12 @@ function extractBlockData(
   const nodeId = node.attrs[attributeName]
   if (!nodeId) return null
 
+  // Keep a compact textContent for search/indexing, but parse flashcards from a
+  // newline-preserving representation so multi-line cards (e.g. list children)
+  // can roundtrip as `\n` instead of concatenated words.
   const textContent = node.textContent
-  const flashcardData = parseFlashcard(textContent)
+  const textForFlashcardParsing = node.textBetween(0, node.content.size, '\n')
+  const flashcardData = parseFlashcard(textForFlashcardParsing)
 
   return {
     nodeId,

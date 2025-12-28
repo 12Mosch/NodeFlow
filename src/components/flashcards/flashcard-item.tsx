@@ -21,15 +21,17 @@ export function FlashcardItem({
 
   const { block, documentTitle, direction } = card
 
+  const isCloze = block.cardType === 'cloze'
+
   // Get the front and back content based on direction
   const getFrontBack = () => {
-    if (block.cardType === 'cloze') {
-      // For cloze, front shows text with blanks, back shows the occlusions
+    if (isCloze) {
+      // For cloze, front shows text with blanks
       const textWithBlanks =
         block.textContent.replace(/\{\{([^}]+)\}\}/g, '______') || ''
       return {
         front: textWithBlanks,
-        back: block.clozeOcclusions?.join(', ') || '',
+        back: '', // We'll render cloze back separately with highlighting
       }
     }
 
@@ -45,6 +47,52 @@ export function FlashcardItem({
       front: block.cardFront || '',
       back: block.cardBack || '',
     }
+  }
+
+  // Render cloze text with highlighted answers
+  const renderClozeAnswer = () => {
+    if (!isCloze) return null
+
+    const text = block.textContent
+    const parts: Array<{ text: string; isAnswer: boolean }> = []
+    let lastIndex = 0
+    const regex = /\{\{([^}]+)\}\}/g
+    let match
+
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push({
+          text: text.slice(lastIndex, match.index),
+          isAnswer: false,
+        })
+      }
+      // Add the answer (without braces)
+      parts.push({ text: match[1], isAnswer: true })
+      lastIndex = regex.lastIndex
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({ text: text.slice(lastIndex), isAnswer: false })
+    }
+
+    return (
+      <p className="text-lg leading-relaxed whitespace-pre-line">
+        {parts.map((part, i) =>
+          part.isAnswer ? (
+            <mark
+              key={i}
+              className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1 py-0.5 rounded font-medium"
+            >
+              {part.text}
+            </mark>
+          ) : (
+            <span key={i}>{part.text}</span>
+          ),
+        )}
+      </p>
+    )
   }
 
   const { front, back } = getFrontBack()
@@ -94,7 +142,9 @@ export function FlashcardItem({
           </div>
 
           {/* Question */}
-          <p className="text-lg font-medium leading-relaxed">{front}</p>
+          <p className="text-lg font-medium leading-relaxed whitespace-pre-line">
+            {front}
+          </p>
         </div>
 
         {/* Accordion trigger */}
@@ -122,7 +172,13 @@ export function FlashcardItem({
         >
           <div className="overflow-hidden">
             <div className="p-6 pt-4 border-t bg-muted/30">
-              <p className="text-lg leading-relaxed">{back}</p>
+              {isCloze ? (
+                renderClozeAnswer()
+              ) : (
+                <p className="text-lg leading-relaxed whitespace-pre-line">
+                  {back}
+                </p>
+              )}
             </div>
           </div>
         </div>
