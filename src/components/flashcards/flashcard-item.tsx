@@ -23,6 +23,54 @@ export function FlashcardItem({
 
   const isCloze = block.cardType === 'cloze'
 
+  type ListKind = 'ul' | 'ol'
+
+  const detectListKind = (text: string): ListKind | null => {
+    const firstLine = text
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 0)
+    if (!firstLine) return null
+    if (firstLine.startsWith('• ')) return 'ul'
+    if (/^\d+\.\s+/.test(firstLine)) return 'ol'
+    return null
+  }
+
+  const renderList = (kind: ListKind, text: string) => {
+    const rawLines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+
+    if (rawLines.length === 0) return null
+
+    if (kind === 'ul') {
+      const items = rawLines.map((l) => l.replace(/^•\s+/, ''))
+      return (
+        <ul className="list-disc pl-6 space-y-1 text-lg leading-relaxed">
+          {items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    // ordered list
+    const firstNumMatch = rawLines[0]?.match(/^(\d+)\.\s+/)
+    const start = firstNumMatch ? Number(firstNumMatch[1]) : 1
+    const items = rawLines.map((l) => l.replace(/^\d+\.\s+/, ''))
+    return (
+      <ol
+        className="list-decimal pl-6 space-y-1 text-lg leading-relaxed"
+        start={start}
+      >
+        {items.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ol>
+    )
+  }
+
   // Get the front and back content based on direction
   const getFrontBack = () => {
     if (isCloze) {
@@ -96,6 +144,8 @@ export function FlashcardItem({
   }
 
   const { front, back } = getFrontBack()
+  const questionListKind = detectListKind(front)
+  const answerListKind = detectListKind(back)
 
   const cardTypeLabels = {
     basic: 'Basic',
@@ -142,9 +192,15 @@ export function FlashcardItem({
           </div>
 
           {/* Question */}
-          <p className="text-lg font-medium leading-relaxed whitespace-pre-line">
-            {front}
-          </p>
+          {questionListKind ? (
+            <div className="text-lg font-medium leading-relaxed">
+              {renderList(questionListKind, front)}
+            </div>
+          ) : (
+            <p className="text-lg font-medium leading-relaxed whitespace-pre-line">
+              {front}
+            </p>
+          )}
         </div>
 
         {/* Accordion trigger */}
@@ -174,6 +230,10 @@ export function FlashcardItem({
             <div className="p-6 pt-4 border-t bg-muted/30">
               {isCloze ? (
                 renderClozeAnswer()
+              ) : answerListKind ? (
+                renderList(answerListKind, back)
+              ) : questionListKind ? (
+                renderList(questionListKind, back)
               ) : (
                 <p className="text-lg leading-relaxed whitespace-pre-line">
                   {back}

@@ -33,9 +33,82 @@ export interface BlockSyncOptions {
 
 export const blockSyncPluginKey = new PluginKey('blockSync')
 
+function serializeNodeTextForFlashcards(node: ProseMirrorNode): string {
+  const type = node.type.name
+
+  // Text leaf
+  if (type === 'text') {
+    return node.textContent
+  }
+
+  if (type === 'hardBreak') {
+    return '\n'
+  }
+
+  const serializeChildren = (separator = ''): string => {
+    const parts: Array<string> = []
+    node.forEach((child) => {
+      const s = serializeNodeTextForFlashcards(child)
+      if (s) parts.push(s)
+    })
+    return parts.join(separator)
+  }
+
+  // Lists: inject visible markers so quiz UI can render bullets/numbers.
+  if (type === 'bulletList') {
+    const items: Array<string> = []
+    node.forEach((child) => {
+      if (child.type.name !== 'listItem') return
+      const itemText = serializeNodeTextForFlashcards(child).trim()
+      if (!itemText) return
+      items.push(`• ${itemText}`)
+    })
+    return items.join('\n')
+  }
+
+  if (type === 'orderedList') {
+    const items: Array<string> = []
+    const orderAttr = node.attrs.order
+    const start =
+      typeof orderAttr === 'number' && Number.isFinite(orderAttr)
+        ? orderAttr
+        : 1
+    let i = 0
+    node.forEach((child) => {
+      if (child.type.name !== 'listItem') return
+      const itemText = serializeNodeTextForFlashcards(child).trim()
+      if (!itemText) return
+      items.push(`${start + i}. ${itemText}`)
+      i++
+    })
+    return items.join('\n')
+  }
+
+  // A listItem typically contains a paragraph (and optionally nested lists).
+  // Join children with newlines to keep nested lists readable.
+  if (type === 'listItem') {
+    return serializeChildren('\n')
+  }
+
+  // Block types: join children as a single line of text.
+  if (type === 'paragraph' || type === 'heading') {
+    return serializeChildren('')
+  }
+
+  // Doc/root: separate blocks by newlines.
+  if (type === 'doc') {
+    return serializeChildren('\n')
+  }
+
+  // Fallback: preserve as best-effort plain text with newlines between children.
+  return serializeChildren('\n')
+}
+
 // Extract block data from a ProseMirror node
 function extractBlockData(
   node: ProseMirrorNode,
+  doc: ProseMirrorNode,
+  offset: number,
   position: number,
   attributeName: string,
 ): BlockData | null {
@@ -46,7 +119,33 @@ function extractBlockData(
   // newline-preserving representation so multi-line cards (e.g. list children)
   // can roundtrip as `\n` instead of concatenated words.
   const textContent = node.textContent
-  const textForFlashcardParsing = node.textBetween(0, node.content.size, '\n')
+  let textForFlashcardParsing = serializeNodeTextForFlashcards(node)
+
+  // If the block itself is a list item, include the bullet/number marker on the
+  // first line so the quiz UI can show it (and the parser preserves it).
+  if (node.type.name === 'listItem') {
+    const $pos = doc.resolve(offset)
+    const parent = $pos.parent
+    const idx = $pos.index()
+    const trimmed = textForFlashcardParsing.trim()
+
+    if (parent.type.name === 'bulletList') {
+      // Don't add a bullet if the text already starts with a list marker.
+      if (!trimmed.startsWith('• ') && !/^\d+\.\s+/.test(trimmed)) {
+        textForFlashcardParsing = `• ${trimmed}`
+      }
+    } else if (parent.type.name === 'orderedList') {
+      const orderAttr = parent.attrs.order
+      const start =
+        typeof orderAttr === 'number' && Number.isFinite(orderAttr)
+          ? orderAttr
+          : 1
+      // Don't add a number if the text already starts with a list marker.
+      if (!/^\d+\.\s+/.test(trimmed) && !trimmed.startsWith('• ')) {
+        textForFlashcardParsing = `${start + idx}. ${trimmed}`
+      }
+    }
+  }
   const flashcardData = parseFlashcard(textForFlashcardParsing)
 
   return {
@@ -75,8 +174,14 @@ function getAllBlocks(
   const blocks = new Map<string, BlockData>()
   let position = 0
 
-  doc.descendants((node, _offset) => {
-    const blockData = extractBlockData(node, position, attributeName)
+  doc.descendants((node, offset) => {
+    const blockData = extractBlockData(
+      node,
+      doc,
+      offset,
+      position,
+      attributeName,
+    )
     if (blockData) {
       blocks.set(blockData.nodeId, blockData)
       position++ // Only increment position for nodes that have IDs
