@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
@@ -232,13 +232,6 @@ function DocumentTitle({
   const isSavingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Sync title state when document.title changes externally
-  useEffect(() => {
-    if (!isEditing) {
-      setTitle(document.title)
-    }
-  }, [document.title, isEditing])
-
   const handleSave = async () => {
     await Sentry.startSpan(
       { name: 'DocumentTitle.updateTitle', op: 'ui.interaction' },
@@ -267,6 +260,7 @@ function DocumentTitle({
   }
 
   const handleClick = () => {
+    setTitle(document.title)
     setIsEditing(true)
   }
 

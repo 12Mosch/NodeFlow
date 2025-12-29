@@ -116,11 +116,6 @@ export function FlashcardQuiz({
     [currentCard, currentIndex, shuffledCards.length],
   )
 
-  // Reset expanded state when card changes
-  useEffect(() => {
-    setIsExpanded(false)
-  }, [currentIndex])
-
   // Keyboard shortcuts
   useEffect(() => {
     if (isComplete) return
@@ -165,6 +160,7 @@ export function FlashcardQuiz({
     setCurrentIndex(0)
     setResults([])
     setIsComplete(false)
+    setIsExpanded(false)
   }, [allCards])
 
   const handleShuffle = useCallback(() => {

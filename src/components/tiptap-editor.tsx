@@ -12,7 +12,8 @@ import Image from '@tiptap/extension-image'
 import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
-import { useMutation } from 'convex/react'
+import { useMutation } from '@tanstack/react-query'
+import { useConvexMutation } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
@@ -53,11 +54,18 @@ const EMPTY_DOC = { type: 'doc', content: [] }
 
 export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
+  const { isLoading, initialContent, create, extension } = sync
 
-  // Mutations for block-level sync
-  const upsertBlock = useMutation(api.blocks.upsertBlock)
-  const deleteBlocks = useMutation(api.blocks.deleteBlocks)
-  const syncBlocks = useMutation(api.blocks.syncBlocks)
+  // Mutations for block-level sync using TanStack Query pattern
+  const { mutateAsync: upsertBlock } = useMutation({
+    mutationFn: useConvexMutation(api.blocks.upsertBlock),
+  })
+  const { mutateAsync: deleteBlocks } = useMutation({
+    mutationFn: useConvexMutation(api.blocks.deleteBlocks),
+  })
+  const { mutateAsync: syncBlocks } = useMutation({
+    mutationFn: useConvexMutation(api.blocks.syncBlocks),
+  })
 
   // Callbacks for block sync extension
   const handleBlockUpdate = useCallback(
@@ -142,12 +150,12 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
 
   // Auto-create the document in prosemirror-sync if it doesn't exist yet
   useEffect(() => {
-    if (!sync.isLoading && sync.initialContent === null) {
-      sync.create(EMPTY_DOC)
+    if (!isLoading && initialContent === null) {
+      create(EMPTY_DOC)
     }
-  }, [sync.isLoading, sync.initialContent, sync.create])
+  }, [isLoading, initialContent, create])
 
-  if (sync.isLoading) {
+  if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -158,7 +166,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   }
 
   // Still waiting for document to be created
-  if (sync.initialContent === null) {
+  if (initialContent === null) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -244,13 +252,13 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       onBlocksDelete: handleBlocksDelete,
       onInitialSync: handleInitialSync,
     }),
-    sync.extension,
+    extension,
   ]
 
   return (
     <div className="w-full">
       <EditorProvider
-        content={sync.initialContent}
+        content={initialContent}
         extensions={extensions}
         immediatelyRender={false}
       >
@@ -273,7 +281,7 @@ function EditorContentWrapper({
   const { editor } = useCurrentEditor()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const pendingLinkUrl = useRef<string | null>(null)
+  const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isMountedRef = useRef(true)
   const editorRef = useRef<Editor | null>(null)
@@ -412,7 +420,7 @@ function EditorContentWrapper({
       // Ensure no other handlers get a chance to open the link (e.g. via window.open)
       mouseEvent.stopImmediatePropagation()
       mouseEvent.stopPropagation()
-      pendingLinkUrl.current = href
+      setPendingLinkUrl(href)
       setShowLinkWarning(true)
     },
     [editor],
@@ -433,16 +441,16 @@ function EditorContentWrapper({
   }, [editor, handleLinkClick])
 
   const handleConfirmOpenLink = useCallback(() => {
-    if (pendingLinkUrl.current) {
-      window.open(pendingLinkUrl.current, '_blank', 'noopener,noreferrer')
+    if (pendingLinkUrl) {
+      window.open(pendingLinkUrl, '_blank', 'noopener,noreferrer')
     }
     setShowLinkWarning(false)
-    pendingLinkUrl.current = null
-  }, [])
+    setPendingLinkUrl(null)
+  }, [pendingLinkUrl])
 
   const handleCancelOpenLink = useCallback(() => {
     setShowLinkWarning(false)
-    pendingLinkUrl.current = null
+    setPendingLinkUrl(null)
   }, [])
 
   if (!editor) {
@@ -475,9 +483,9 @@ function EditorContentWrapper({
             <AlertDialogDescription>
               You are about to visit an external website. This link will open in
               a new tab.
-              {pendingLinkUrl.current && (
+              {pendingLinkUrl && (
                 <span className="mt-2 block rounded bg-muted px-2 py-1 font-mono text-xs break-all">
-                  {pendingLinkUrl.current}
+                  {pendingLinkUrl}
                 </span>
               )}
             </AlertDialogDescription>
