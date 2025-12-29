@@ -126,10 +126,12 @@ function ratingToFSRS(rating: 1 | 2 | 3 | 4): Grade {
 
 /**
  * Converts our CardState to ts-fsrs Card format
+ *
+ * @param cardState - Current card state
+ * @param now - Current timestamp (defaults to now)
  */
-function cardStateToFSRS(cardState: CardState): Card {
+function cardStateToFSRS(cardState: CardState, now: Date = new Date()): Card {
   // Calculate elapsed_days from dates (elapsed_days is deprecated but still required)
-  const now = new Date()
   const dueDate = new Date(cardState.due)
   const lastReviewDate = cardState.lastReview
     ? new Date(cardState.lastReview)
@@ -158,10 +160,12 @@ function cardStateToFSRS(cardState: CardState): Card {
 
 /**
  * Converts ts-fsrs Card to our CardState format
+ *
+ * @param card - ts-fsrs Card to convert
+ * @param now - Current timestamp (defaults to now)
  */
-function fsrsToCardState(card: Card): CardState {
+function fsrsToCardState(card: Card, now: Date = new Date()): CardState {
   // Calculate elapsedDays from dates (elapsed_days is deprecated)
-  const now = new Date()
   const lastReviewDate = card.last_review
   const elapsedDays = lastReviewDate
     ? Math.round(
@@ -203,7 +207,7 @@ export function processReview(
   rating: 1 | 2 | 3 | 4,
   now: Date = new Date(),
 ): ReviewResult {
-  const card = cardStateToFSRS(cardState)
+  const card = cardStateToFSRS(cardState, now)
   const grade = ratingToFSRS(rating)
 
   // Get the scheduling result for this rating
@@ -220,7 +224,7 @@ export function processReview(
     : 0
 
   return {
-    card: fsrsToCardState(result.card),
+    card: fsrsToCardState(result.card, now),
     reviewLog: {
       rating,
       state: cardState.state, // State before review
@@ -248,7 +252,7 @@ export function getRetrievability(
     return 0 // New cards have no retrievability
   }
 
-  const card = cardStateToFSRS(cardState)
+  const card = cardStateToFSRS(cardState, now)
   const retrievability = scheduler.get_retrievability(card, now)
   // Ensure we return a number (handle potential string returns from library)
   return typeof retrievability === 'string'
@@ -267,7 +271,7 @@ export function previewIntervals(
   cardState: CardState,
   now: Date = new Date(),
 ): { again: number; hard: number; good: number; easy: number } {
-  const card = cardStateToFSRS(cardState)
+  const card = cardStateToFSRS(cardState, now)
   const results = scheduler.repeat(card, now)
 
   return {

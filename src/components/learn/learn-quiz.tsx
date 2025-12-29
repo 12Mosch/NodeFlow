@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { LearnCard } from './learn-card'
 import type { LearnCard as LearnCardType, Rating } from './types'
@@ -41,10 +42,16 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
 
       setIsReviewing(true)
       try {
-        await reviewCardMutation({
-          cardStateId: currentCard.cardState._id,
-          rating,
-        })
+        try {
+          await reviewCardMutation({
+            cardStateId: currentCard.cardState._id,
+            rating,
+          })
+        } catch (error) {
+          console.error('Failed to review card:', error)
+          toast.error('Failed to save your rating. Please try again.')
+          return
+        }
 
         setReviewedCount((prev) => prev + 1)
         setIsExpanded(false)

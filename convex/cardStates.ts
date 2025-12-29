@@ -37,6 +37,15 @@ export const getOrCreateCardState = mutation({
       async () => {
         const userId = await requireUser(ctx)
 
+        // Fetch the block and verify ownership
+        const block = await ctx.db.get(args.blockId)
+        if (!block) {
+          throw new Error('Block not found')
+        }
+        if (block.userId !== userId) {
+          throw new Error('Not authorized to create card state for this block')
+        }
+
         // Check if card state already exists
         const existing = await ctx.db
           .query('cardStates')
@@ -86,6 +95,15 @@ export const ensureCardStates = mutation({
       { name: 'cardStates.ensureCardStates', op: 'convex.mutation' },
       async () => {
         const userId = await requireUser(ctx)
+
+        // Fetch the block and verify ownership
+        const block = await ctx.db.get(args.blockId)
+        if (!block) {
+          throw new Error('Block not found')
+        }
+        if (block.userId !== userId) {
+          throw new Error('Not authorized to create card state for this block')
+        }
 
         const results: Array<Id<'cardStates'>> = []
 
@@ -461,8 +479,15 @@ export const getLearnSession = query({
           )
           .take(newLimit)
 
+        // Collect IDs of due cards to avoid duplicates
+        // (new cards can have due=now and match both queries)
+        const dueCardIds = new Set(dueCards.map((card) => card._id))
+        const filteredNewCards = newCards.filter(
+          (card) => !dueCardIds.has(card._id),
+        )
+
         // Combine and fetch blocks
-        const allCardStates = [...dueCards, ...newCards]
+        const allCardStates = [...dueCards, ...filteredNewCards]
 
         const cardsWithBlocks = await Promise.all(
           allCardStates.map(async (cardState) => {
@@ -536,7 +561,16 @@ export const deleteCardStatesForBlock = mutation({
     return await Sentry.startSpan(
       { name: 'cardStates.deleteCardStatesForBlock', op: 'convex.mutation' },
       async () => {
-        await requireUser(ctx)
+        const userId = await requireUser(ctx)
+
+        // Fetch the block and verify ownership
+        const block = await ctx.db.get(args.blockId)
+        if (!block) {
+          throw new Error('Block not found')
+        }
+        if (block.userId !== userId) {
+          throw new Error('Not authorized to delete card states for this block')
+        }
 
         // Find all card states for this block
         const cardStates = await ctx.db
