@@ -125,6 +125,29 @@ function ratingToFSRS(rating: 1 | 2 | 3 | 4): Grade {
 }
 
 /**
+ * Calculates the number of elapsed days between last review and now
+ *
+ * @param lastReviewDate - Date of last review (can be Date, timestamp, or null/undefined)
+ * @param now - Current timestamp (defaults to now)
+ * @returns Number of elapsed days, rounded to nearest integer
+ */
+function calculateElapsedDays(
+  lastReviewDate: Date | number | null | undefined,
+  now: Date = new Date(),
+): number {
+  if (!lastReviewDate) {
+    return 0
+  }
+
+  const lastReview =
+    lastReviewDate instanceof Date ? lastReviewDate : new Date(lastReviewDate)
+
+  return Math.round(
+    (now.getTime() - lastReview.getTime()) / (1000 * 60 * 60 * 24),
+  )
+}
+
+/**
  * Converts our CardState to ts-fsrs Card format
  *
  * @param cardState - Current card state
@@ -138,11 +161,7 @@ function cardStateToFSRS(cardState: CardState, now: Date = new Date()): Card {
     : null
 
   // Calculate days between last review and now (or 0 if no last review)
-  const elapsedDays = lastReviewDate
-    ? Math.round(
-        (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24),
-      )
-    : 0
+  const elapsedDays = calculateElapsedDays(lastReviewDate, now)
 
   return {
     due: dueDate,
@@ -166,12 +185,7 @@ function cardStateToFSRS(cardState: CardState, now: Date = new Date()): Card {
  */
 function fsrsToCardState(card: Card, now: Date = new Date()): CardState {
   // Calculate elapsedDays from dates (elapsed_days is deprecated)
-  const lastReviewDate = card.last_review
-  const elapsedDays = lastReviewDate
-    ? Math.round(
-        (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24),
-      )
-    : 0
+  const elapsedDays = calculateElapsedDays(card.last_review, now)
 
   return {
     stability: card.stability,
@@ -214,14 +228,7 @@ export function processReview(
   const result: RecordLogItem = scheduler.repeat(card, now)[grade]
 
   // Calculate elapsedDays from dates (elapsed_days is deprecated)
-  const lastReviewDate = cardState.lastReview
-    ? new Date(cardState.lastReview)
-    : null
-  const elapsedDays = lastReviewDate
-    ? Math.round(
-        (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24),
-      )
-    : 0
+  const elapsedDays = calculateElapsedDays(cardState.lastReview, now)
 
   return {
     card: fsrsToCardState(result.card, now),

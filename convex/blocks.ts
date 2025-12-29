@@ -177,6 +177,26 @@ export const upsertBlock = mutation({
             cardBack: args.cardBack,
             clozeOcclusions: args.clozeOcclusions,
           })
+
+          // Auto-create/update card states for flashcards
+          if (args.isCard && args.cardDirection !== 'disabled') {
+            const directions = getDirectionsForCard(args.cardDirection)
+            for (const direction of directions) {
+              // Check if card state exists
+              const existingState = await ctx.db
+                .query('cardStates')
+                .withIndex('by_block_direction', (q) =>
+                  q.eq('blockId', existingBlock._id).eq('direction', direction),
+                )
+                .unique()
+
+              if (!existingState) {
+                // Create new card state with FSRS defaults
+                await createCardState(ctx, existingBlock._id, userId, direction)
+              }
+            }
+          }
+
           return existingBlock._id
         } else {
           // Create new block
@@ -197,6 +217,15 @@ export const upsertBlock = mutation({
             cardBack: args.cardBack,
             clozeOcclusions: args.clozeOcclusions,
           })
+
+          // Auto-create card states for new flashcards
+          if (args.isCard && args.cardDirection !== 'disabled') {
+            const directions = getDirectionsForCard(args.cardDirection)
+            for (const direction of directions) {
+              await createCardState(ctx, id, userId, direction)
+            }
+          }
+
           return id
         }
       },

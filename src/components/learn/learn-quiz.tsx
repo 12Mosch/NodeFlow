@@ -59,7 +59,14 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         // If rating is "Again", the card will be re-queued
         // We need to refetch to get updated card list
         if (rating === 1) {
-          await refetch()
+          // Await refetch to ensure UI updates with fresh data before allowing next interaction
+          // This prevents race conditions where the UI might show stale data if user interacts quickly
+          const result = await refetch()
+          if (result.error) {
+            console.error('Failed to refetch cards:', result.error)
+            toast.error('Failed to refresh cards. Please try again.')
+            return
+          }
           // Stay on current index since new cards were fetched
         } else {
           // Move to next card
