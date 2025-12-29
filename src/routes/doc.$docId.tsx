@@ -18,8 +18,8 @@ import { FlashcardQuiz } from '@/components/flashcards'
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
   errorComponent: () => (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-8">
-      <div className="max-w-md w-full text-center space-y-4 border rounded-lg p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
+      <div className="w-full max-w-md space-y-4 rounded-lg border p-8 text-center shadow-sm">
         <h1 className="text-3xl font-bold text-destructive">
           Invalid Document
         </h1>
@@ -28,7 +28,7 @@ export const Route = createFileRoute('/doc/$docId')({
         </p>
         <Link
           to="/"
-          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded shadow hover:opacity-90 transition-opacity mt-4"
+          className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90"
         >
           Go back home
         </Link>
@@ -45,15 +45,15 @@ function DocumentPage() {
 
   if (!isValidPattern) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-8">
-        <div className="max-w-md w-full text-center space-y-4 border rounded-lg p-8 shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
+        <div className="w-full max-w-md space-y-4 rounded-lg border p-8 text-center shadow-sm">
           <h1 className="text-3xl font-bold text-destructive">Malformed ID</h1>
           <p className="text-muted-foreground">
             The ID "{docId}" is not a valid format.
           </p>
           <Link
             to="/"
-            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded shadow hover:opacity-90 transition-opacity mt-4"
+            className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90"
           >
             Go back home
           </Link>
@@ -95,9 +95,9 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
 
   if (!document) {
     return (
-      <div className="max-w-4xl mx-auto p-8 text-center">
-        <h1 className="text-3xl font-bold mb-4">Document not found</h1>
-        <p className="text-muted-foreground mb-6">
+      <div className="mx-auto max-w-4xl p-8 text-center">
+        <h1 className="mb-4 text-3xl font-bold">Document not found</h1>
+        <p className="mb-6 text-muted-foreground">
           This document doesn't exist or you don't have access to it.
         </p>
         <Link to="/" className="text-primary hover:underline">
@@ -117,7 +117,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     ]
 
     return (
-      <div className="max-w-4xl mx-auto p-8">
+      <div className="mx-auto max-w-4xl p-8">
         <FlashcardQuiz
           documents={documentData}
           selectedDocIds={new Set([docId])}
@@ -129,7 +129,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl">
       {/* Minimal header */}
       <MinimalHeader
         editor={editor}
@@ -176,7 +176,7 @@ function MinimalHeader({
                 {flashcardCount}
               </Badge>
             </Button>
-            <div className="w-px h-4 bg-border mx-1" />
+            <div className="mx-1 h-4 w-px bg-border" />
           </>
         )}
 
@@ -202,7 +202,7 @@ function MinimalHeader({
           <Redo className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-4 bg-border mx-1" />
+        <div className="mx-1 h-4 w-px bg-border" />
 
         {/* Share button */}
         <Button
@@ -293,7 +293,7 @@ function DocumentTitle({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="w-full text-3xl font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+          className="w-full bg-transparent text-3xl font-bold text-foreground outline-none placeholder:text-muted-foreground"
           placeholder="Untitled"
         />
       ) : (
@@ -302,7 +302,7 @@ function DocumentTitle({
           onKeyDown={handleTitleKeyDown}
           tabIndex={0}
           role="button"
-          className="text-3xl font-bold text-foreground cursor-text hover:bg-accent/50 focus:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded px-1 -mx-1 transition-colors"
+          className="-mx-1 cursor-text rounded px-1 text-3xl font-bold text-foreground transition-colors hover:bg-accent/50 focus:bg-accent/50 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
         >
           {document.title || 'Untitled'}
         </h1>

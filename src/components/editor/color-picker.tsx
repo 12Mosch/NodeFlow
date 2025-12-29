@@ -141,7 +141,7 @@ export function ColorPicker({
                 )}
                 {isSelected && !isNone && (
                   <Check
-                    className={`h-3.5 w-3.5 checkmark-icon ${type === 'highlight' && isLight ? 'checkmark-dark' : 'checkmark-light'}`}
+                    className={`checkmark-icon h-3.5 w-3.5 ${type === 'highlight' && isLight ? 'checkmark-dark' : 'checkmark-light'}`}
                     strokeWidth={3}
                   />
                 )}

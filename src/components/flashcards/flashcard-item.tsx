@@ -56,7 +56,7 @@ export function FlashcardItem({
     if (kind === 'ul') {
       const items = rawLines.map((l) => l.replace(/^•\s+/, ''))
       return (
-        <ul className="list-disc pl-6 space-y-1 text-lg leading-relaxed">
+        <ul className="list-disc space-y-1 pl-6 text-lg leading-relaxed">
           {items.map((item, i) => (
             <li key={i}>{item}</li>
           ))}
@@ -70,7 +70,7 @@ export function FlashcardItem({
     const items = rawLines.map((l) => l.replace(/^\d+\.\s+/, ''))
     return (
       <ol
-        className="list-decimal pl-6 space-y-1 text-lg leading-relaxed"
+        className="list-decimal space-y-1 pl-6 text-lg leading-relaxed"
         start={start}
       >
         {items.map((item, i) => (
@@ -144,8 +144,8 @@ export function FlashcardItem({
         {/* Front of card - always visible */}
         <div className="p-6">
           {/* Header with metadata */}
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="max-w-[200px] truncate text-sm text-muted-foreground">
               {documentTitle}
             </span>
             <div className="flex items-center gap-2">
@@ -167,11 +167,11 @@ export function FlashcardItem({
 
           {/* Question */}
           {questionListKind ? (
-            <div className="text-lg font-medium leading-relaxed">
+            <div className="text-lg leading-relaxed font-medium">
               {renderList(questionListKind, front)}
             </div>
           ) : (
-            <p className="text-lg font-medium leading-relaxed whitespace-pre-line">
+            <p className="text-lg leading-relaxed font-medium whitespace-pre-line">
               {front}
             </p>
           )}
@@ -182,7 +182,7 @@ export function FlashcardItem({
           onClick={() => setIsExpanded(!isExpanded)}
           aria-expanded={isExpanded}
           aria-controls="flashcard-answer"
-          className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-muted/50 hover:bg-muted transition-colors border-t"
+          className="flex w-full items-center justify-center gap-2 border-t bg-muted/50 px-6 py-3 transition-colors hover:bg-muted"
         >
           <span className="text-sm text-muted-foreground">
             {isExpanded ? 'Hide answer' : 'Show answer'}
@@ -204,7 +204,7 @@ export function FlashcardItem({
           )}
         >
           <div className="overflow-hidden">
-            <div className="p-6 pt-4 border-t bg-muted/30">
+            <div className="border-t bg-muted/30 p-6 pt-4">
               {isCloze ? (
                 renderClozeAnswer()
               ) : answerListKind ? (
@@ -220,7 +220,7 @@ export function FlashcardItem({
 
         {/* Answer buttons */}
         {showButtons && isExpanded && (
-          <div className="flex gap-3 p-6 pt-0 bg-muted/30">
+          <div className="flex gap-3 bg-muted/30 p-6 pt-0">
             <Button
               variant="outline"
               className="flex-1 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:text-red-400"

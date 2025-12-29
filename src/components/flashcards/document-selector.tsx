@@ -44,13 +44,13 @@ export function DocumentSelector({
 
   if (documents.length === 0) {
     return (
-      <Card className="max-w-lg mx-auto">
+      <Card className="mx-auto max-w-lg">
         <CardContent className="py-12 text-center">
-          <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No flashcards found</h2>
+          <GraduationCap className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h2 className="mb-2 text-xl font-semibold">No flashcards found</h2>
           <p className="text-muted-foreground">
             Create flashcards in your documents using syntax like{' '}
-            <code className="px-1.5 py-0.5 rounded bg-muted text-sm">
+            <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
               Question {'>>'} Answer
             </code>
           </p>
@@ -60,7 +60,7 @@ export function DocumentSelector({
   }
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className="mx-auto max-w-2xl">
       <CardHeader className="border-b">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -86,7 +86,7 @@ export function DocumentSelector({
               <label
                 key={document._id}
                 className={cn(
-                  'flex items-center gap-4 p-4 cursor-pointer transition-colors hover:bg-accent/50',
+                  'flex cursor-pointer items-center gap-4 p-4 transition-colors hover:bg-accent/50',
                   isSelected && 'bg-accent/30',
                 )}
               >
@@ -94,9 +94,9 @@ export function DocumentSelector({
                   checked={isSelected}
                   onCheckedChange={() => toggleDocument(document._id)}
                 />
-                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">
+                <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
                     {document.title || 'Untitled'}
                   </p>
                 </div>
@@ -109,7 +109,7 @@ export function DocumentSelector({
         </div>
 
         {/* Footer with start button */}
-        <div className="p-4 border-t bg-muted/30 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t bg-muted/30 p-4">
           <p className="text-sm text-muted-foreground">
             {selectedDocIds.size === 0 ? (
               'Select documents to study'

@@ -35,17 +35,17 @@ export function QuizResults({
   const message = getMessage()
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       {/* Main results card */}
       <Card>
-        <CardHeader className="text-center pb-2">
-          <div className="text-6xl mb-4">{message.icon}</div>
+        <CardHeader className="pb-2 text-center">
+          <div className="mb-4 text-6xl">{message.icon}</div>
           <CardTitle className="text-2xl">{message.text}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Score display */}
           <div className="text-center">
-            <div className="text-5xl font-bold mb-2">
+            <div className="mb-2 text-5xl font-bold">
               <span className="text-emerald-500">{knewCount}</span>
               <span className="text-muted-foreground">/</span>
               <span>{totalCount}</span>
@@ -64,8 +64,8 @@ export function QuizResults({
 
           {/* Stats breakdown */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <div className="p-2 rounded-full bg-emerald-500/20">
+            <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
+              <div className="rounded-full bg-emerald-500/20 p-2">
                 <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
@@ -75,8 +75,8 @@ export function QuizResults({
                 <p className="text-sm text-muted-foreground">Knew it</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-              <div className="p-2 rounded-full bg-red-500/20">
+            <div className="flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+              <div className="rounded-full bg-red-500/20 p-2">
                 <X className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
@@ -89,7 +89,7 @@ export function QuizResults({
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
             <Button onClick={onRestart} className="flex-1 gap-2">
               <RotateCcw className="h-4 w-4" />
               Study Again
@@ -121,7 +121,7 @@ export function QuizResults({
               tabIndex={0}
               role="region"
               aria-label="Review results"
-              className="divide-y max-h-[400px] overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="max-h-[400px] divide-y overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {results.map((result, index) => (
                 <div
@@ -133,7 +133,7 @@ export function QuizResults({
                 >
                   <div
                     className={cn(
-                      'p-1 rounded-full shrink-0 mt-0.5',
+                      'mt-0.5 shrink-0 rounded-full p-1',
                       result.knew ? 'bg-emerald-500/20' : 'bg-red-500/20',
                     )}
                   >
@@ -143,8 +143,8 @@ export function QuizResults({
                       <X className="h-3 w-3 text-red-600 dark:text-red-400" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-4 whitespace-pre-line">
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-4 text-sm font-medium whitespace-pre-line">
                       {result.card.block.cardType === 'cloze'
                         ? renderClozeText(result.card.block.textContent, {
                             markClassName:
@@ -154,7 +154,7 @@ export function QuizResults({
                           ? result.card.block.cardBack
                           : result.card.block.cardFront}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {result.card.documentTitle}
                     </p>
                   </div>

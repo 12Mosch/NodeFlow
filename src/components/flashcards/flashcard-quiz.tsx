@@ -179,8 +179,8 @@ export function FlashcardQuiz({
 
   if (shuffledCards.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">No cards to study.</p>
+      <div className="py-12 text-center">
+        <p className="mb-4 text-muted-foreground">No cards to study.</p>
         <Button onClick={onBack}>Go Back</Button>
       </div>
     )
@@ -198,7 +198,7 @@ export function FlashcardQuiz({
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
@@ -237,17 +237,17 @@ export function FlashcardQuiz({
       />
 
       {/* Keyboard shortcuts hint */}
-      <p className="text-xs text-center text-muted-foreground">
+      <p className="text-center text-xs text-muted-foreground">
         Press{' '}
-        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
           Space
         </kbd>{' '}
         to reveal answer, then{' '}
-        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
           1
         </kbd>{' '}
         or{' '}
-        <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted border border-border rounded">
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
           2
         </kbd>{' '}
         to answer

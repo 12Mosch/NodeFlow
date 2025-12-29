@@ -156,7 +156,7 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
             <AlertDialogDescription>
               You are about to visit an external website. This link will open in
               a new tab.
-              <span className="mt-2 block rounded bg-muted px-2 py-1 text-xs font-mono break-all">
+              <span className="mt-2 block rounded bg-muted px-2 py-1 font-mono text-xs break-all">
                 {currentLink}
               </span>
             </AlertDialogDescription>

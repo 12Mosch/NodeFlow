@@ -67,8 +67,8 @@ function DocumentList() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="mx-auto max-w-4xl p-8">
+      <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Documents</h1>
         <div className="flex items-center gap-2">
           <ModeToggle />
@@ -86,10 +86,10 @@ function DocumentList() {
       </div>
 
       {documents.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-lg">
-          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-xl font-medium mb-2">No documents yet</h2>
-          <p className="text-muted-foreground mb-6">
+        <div className="rounded-lg border border-dashed border-border py-16 text-center">
+          <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
+          <p className="mb-6 text-muted-foreground">
             Create your first document to get started.
           </p>
           <Button onClick={handleCreate} className="gap-2">
@@ -104,7 +104,7 @@ function DocumentList() {
               key={doc._id}
               to="/doc/$docId"
               params={{ docId: doc._id }}
-              className="group flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
+              className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent"
             >
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-muted-foreground" />
@@ -120,7 +120,7 @@ function DocumentList() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                 onClick={(e) => handleDelete(doc._id, e)}
                 aria-label="Delete document"
               >

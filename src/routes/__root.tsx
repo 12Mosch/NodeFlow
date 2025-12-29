@@ -75,8 +75,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname !== '/callback'
   ) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-pulse text-foreground font-medium text-lg">
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-pulse text-lg font-medium text-foreground">
           Loading NodeFlow...
         </div>
       </div>

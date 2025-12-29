@@ -149,7 +149,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
 
   if (sync.isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
           Loading document...
         </div>
@@ -160,7 +160,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   // Still waiting for document to be created
   if (sync.initialContent === null) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
           Initializing document...
         </div>
@@ -466,7 +466,7 @@ function EditorContentWrapper({
       <EditorBubbleMenu />
       <EditorContent
         editor={editor}
-        className="prose prose-zinc dark:prose-invert max-w-none min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4"
+        className="prose prose-zinc dark:prose-invert min-h-[400px] max-w-none focus:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:outline-none"
       />
       <AlertDialog open={showLinkWarning} onOpenChange={setShowLinkWarning}>
         <AlertDialogContent>
@@ -476,7 +476,7 @@ function EditorContentWrapper({
               You are about to visit an external website. This link will open in
               a new tab.
               {pendingLinkUrl.current && (
-                <span className="mt-2 block rounded bg-muted px-2 py-1 text-xs font-mono break-all">
+                <span className="mt-2 block rounded bg-muted px-2 py-1 font-mono text-xs break-all">
                   {pendingLinkUrl.current}
                 </span>
               )}
