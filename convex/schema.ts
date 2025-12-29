@@ -63,6 +63,59 @@ export default defineSchema({
     .index('by_document_cardType', ['documentId', 'cardType'])
     .index('by_user_isCard', ['userId', 'isCard']), // Optimized index for listAllFlashcards
 
+  // FSRS card states - tracks spaced repetition memory state per card
+  cardStates: defineTable({
+    blockId: v.id('blocks'), // Reference to the flashcard block
+    userId: v.id('users'), // Card owner (denormalized for efficient querying)
+    // For bidirectional cards, we track forward and reverse separately
+    direction: v.union(v.literal('forward'), v.literal('reverse')),
+    // FSRS memory state
+    stability: v.number(), // Time (in days) for retrievability to drop to 90%
+    difficulty: v.number(), // Card difficulty (1-10)
+    due: v.number(), // Next review timestamp (ms since epoch)
+    lastReview: v.optional(v.number()), // Last review timestamp (ms since epoch)
+    reps: v.number(), // Total successful review count
+    lapses: v.number(), // Times forgotten (pressed Again)
+    // Card learning state
+    state: v.union(
+      v.literal('new'), // Never reviewed
+      v.literal('learning'), // In initial learning phase
+      v.literal('review'), // Graduated to review queue
+      v.literal('relearning'), // Failed review, relearning
+    ),
+    // For learning/relearning steps
+    scheduledDays: v.number(), // Days until next review
+    elapsedDays: v.number(), // Days since last review
+  })
+    .index('by_block_direction', ['blockId', 'direction'])
+    .index('by_user_due', ['userId', 'due'])
+    .index('by_user_state', ['userId', 'state'])
+    .index('by_user_state_due', ['userId', 'state', 'due']),
+
+  // Review logs - audit trail of all reviews for analytics
+  reviewLogs: defineTable({
+    cardStateId: v.id('cardStates'), // Reference to the card state
+    userId: v.id('users'), // User who reviewed
+    rating: v.number(), // User rating (1=Again, 2=Hard, 3=Good, 4=Easy)
+    // State before review
+    state: v.union(
+      v.literal('new'),
+      v.literal('learning'),
+      v.literal('review'),
+      v.literal('relearning'),
+    ),
+    // Scheduling info
+    scheduledDays: v.number(), // Days that were scheduled
+    elapsedDays: v.number(), // Actual days elapsed since last review
+    // Memory state at time of review
+    stability: v.number(),
+    difficulty: v.number(),
+    // Timestamp
+    reviewedAt: v.number(), // When the review happened (ms since epoch)
+  })
+    .index('by_cardState', ['cardStateId'])
+    .index('by_user_date', ['userId', 'reviewedAt']),
+
   // Files uploaded to documents (images, attachments, etc.)
   files: defineTable({
     storageId: v.id('_storage'), // Convex storage ID

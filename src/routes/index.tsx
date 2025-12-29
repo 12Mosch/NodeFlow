@@ -5,7 +5,7 @@ import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import { FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
+import { Brain, FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
@@ -72,10 +72,16 @@ function DocumentList() {
         <h1 className="text-3xl font-bold">Documents</h1>
         <div className="flex items-center gap-2">
           <ModeToggle />
-          <Link to="/study">
+          <Link to="/learn">
             <Button variant="outline" className="gap-2">
+              <Brain className="h-4 w-4" />
+              Learn
+            </Button>
+          </Link>
+          <Link to="/study">
+            <Button variant="ghost" className="gap-2">
               <GraduationCap className="h-4 w-4" />
-              Study
+              Practice
             </Button>
           </Link>
           <Button onClick={handleCreate} className="gap-2">

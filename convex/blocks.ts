@@ -1,9 +1,12 @@
-import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
+import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { requireDocumentAccess } from './helpers/documentAccess'
 import { requireUser } from './auth'
+import { requireDocumentAccess } from './helpers/documentAccess'
+import { createNewCardState } from './helpers/fsrs'
 import type { Doc, Id } from './_generated/dataModel'
+
+type Direction = 'forward' | 'reverse'
 
 // Flashcard validators (matching schema.ts)
 const cardTypeValidator = v.optional(
@@ -23,6 +26,24 @@ const cardDirectionValidator = v.optional(
     v.literal('disabled'),
   ),
 )
+
+/**
+ * Get the directions that need card states based on cardDirection
+ */
+function getDirectionsForCard(
+  cardDirection: string | undefined,
+): Array<Direction> {
+  switch (cardDirection) {
+    case 'forward':
+      return ['forward']
+    case 'reverse':
+      return ['reverse']
+    case 'bidirectional':
+      return ['forward', 'reverse']
+    default:
+      return []
+  }
+}
 
 // Get all blocks for a document
 export const listByDocument = query({
@@ -145,6 +166,27 @@ export const deleteBlock = mutation({
           .unique()
 
         if (block) {
+          // Delete associated card states first
+          const cardStates = await ctx.db
+            .query('cardStates')
+            .withIndex('by_block_direction', (q) => q.eq('blockId', block._id))
+            .collect()
+
+          for (const cardState of cardStates) {
+            // Delete associated review logs
+            const logs = await ctx.db
+              .query('reviewLogs')
+              .withIndex('by_cardState', (q) =>
+                q.eq('cardStateId', cardState._id),
+              )
+              .collect()
+
+            for (const log of logs) {
+              await ctx.db.delete(log._id)
+            }
+            await ctx.db.delete(cardState._id)
+          }
+
           await ctx.db.delete(block._id)
         }
       },
@@ -179,6 +221,29 @@ export const deleteBlocks = mutation({
         for (const nodeId of args.nodeIds) {
           const block = blocksByNodeId.get(nodeId)
           if (block) {
+            // Delete associated card states first
+            const cardStates = await ctx.db
+              .query('cardStates')
+              .withIndex('by_block_direction', (q) =>
+                q.eq('blockId', block._id),
+              )
+              .collect()
+
+            for (const cardState of cardStates) {
+              // Delete associated review logs
+              const logs = await ctx.db
+                .query('reviewLogs')
+                .withIndex('by_cardState', (q) =>
+                  q.eq('cardStateId', cardState._id),
+                )
+                .collect()
+
+              for (const log of logs) {
+                await ctx.db.delete(log._id)
+              }
+              await ctx.db.delete(cardState._id)
+            }
+
             await ctx.db.delete(block._id)
           }
         }
@@ -228,9 +293,32 @@ export const syncBlocks = mutation({
 
         const newNodeIds = new Set(args.blocks.map((b) => b.nodeId))
 
-        // Delete blocks that no longer exist
+        // Delete blocks that no longer exist (and their card states)
         for (const block of existingBlocks) {
           if (!newNodeIds.has(block.nodeId)) {
+            // Delete associated card states first
+            const cardStates = await ctx.db
+              .query('cardStates')
+              .withIndex('by_block_direction', (q) =>
+                q.eq('blockId', block._id),
+              )
+              .collect()
+
+            for (const cardState of cardStates) {
+              // Delete associated review logs
+              const logs = await ctx.db
+                .query('reviewLogs')
+                .withIndex('by_cardState', (q) =>
+                  q.eq('cardStateId', cardState._id),
+                )
+                .collect()
+
+              for (const log of logs) {
+                await ctx.db.delete(log._id)
+              }
+              await ctx.db.delete(cardState._id)
+            }
+
             await ctx.db.delete(block._id)
           }
         }
@@ -255,8 +343,41 @@ export const syncBlocks = mutation({
               cardBack: block.cardBack,
               clozeOcclusions: block.clozeOcclusions,
             })
+
+            // Auto-create/update card states for flashcards
+            if (block.isCard && block.cardDirection !== 'disabled') {
+              const directions = getDirectionsForCard(block.cardDirection)
+              for (const direction of directions) {
+                // Check if card state exists
+                const existingState = await ctx.db
+                  .query('cardStates')
+                  .withIndex('by_block_direction', (q) =>
+                    q.eq('blockId', existing._id).eq('direction', direction),
+                  )
+                  .unique()
+
+                if (!existingState) {
+                  // Create new card state with FSRS defaults
+                  const newState = createNewCardState()
+                  await ctx.db.insert('cardStates', {
+                    blockId: existing._id,
+                    userId,
+                    direction,
+                    stability: newState.stability,
+                    difficulty: newState.difficulty,
+                    due: newState.due,
+                    lastReview: newState.lastReview,
+                    reps: newState.reps,
+                    lapses: newState.lapses,
+                    state: newState.state,
+                    scheduledDays: newState.scheduledDays,
+                    elapsedDays: newState.elapsedDays,
+                  })
+                }
+              }
+            }
           } else {
-            await ctx.db.insert('blocks', {
+            const blockId = await ctx.db.insert('blocks', {
               documentId: args.documentId,
               userId,
               nodeId: block.nodeId,
@@ -273,6 +394,28 @@ export const syncBlocks = mutation({
               cardBack: block.cardBack,
               clozeOcclusions: block.clozeOcclusions,
             })
+
+            // Auto-create card states for new flashcards
+            if (block.isCard && block.cardDirection !== 'disabled') {
+              const directions = getDirectionsForCard(block.cardDirection)
+              for (const direction of directions) {
+                const newState = createNewCardState()
+                await ctx.db.insert('cardStates', {
+                  blockId,
+                  userId,
+                  direction,
+                  stability: newState.stability,
+                  difficulty: newState.difficulty,
+                  due: newState.due,
+                  lastReview: newState.lastReview,
+                  reps: newState.reps,
+                  lapses: newState.lapses,
+                  state: newState.state,
+                  scheduledDays: newState.scheduledDays,
+                  elapsedDays: newState.elapsedDays,
+                })
+              }
+            }
           }
         }
       },
