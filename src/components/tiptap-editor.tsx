@@ -12,8 +12,7 @@ import Image from '@tiptap/extension-image'
 import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
-import { useMutation } from '@tanstack/react-query'
-import { useConvexMutation } from '@convex-dev/react-query'
+import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
@@ -56,16 +55,10 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
 
-  // Mutations for block-level sync using TanStack Query pattern
-  const { mutateAsync: upsertBlock } = useMutation({
-    mutationFn: useConvexMutation(api.blocks.upsertBlock),
-  })
-  const { mutateAsync: deleteBlocks } = useMutation({
-    mutationFn: useConvexMutation(api.blocks.deleteBlocks),
-  })
-  const { mutateAsync: syncBlocks } = useMutation({
-    mutationFn: useConvexMutation(api.blocks.syncBlocks),
-  })
+  // Mutations for block-level sync
+  const upsertBlock = useMutation(api.blocks.upsertBlock)
+  const deleteBlocks = useMutation(api.blocks.deleteBlocks)
+  const syncBlocks = useMutation(api.blocks.syncBlocks)
 
   // Callbacks for block sync extension
   const handleBlockUpdate = useCallback(
@@ -95,6 +88,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         console.error('Failed to upsert block:', error)
       })
     },
+    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
+    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [upsertBlock],
   )
 
@@ -113,6 +108,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         console.error('Failed to delete blocks:', error)
       })
     },
+    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
+    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [deleteBlocks],
   )
 
@@ -145,6 +142,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         console.error('Failed to sync blocks:', error)
       })
     },
+    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
+    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [syncBlocks],
   )
 

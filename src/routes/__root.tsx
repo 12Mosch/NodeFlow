@@ -56,6 +56,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth()
   const storeUser = useMutation(api.users.getOrCreateUser)
   const storeUserRef = useRef(storeUser)
+  useEffect(() => {
+    storeUserRef.current = storeUser
+    // eslint-disable-next-line @tanstack/query/no-unstable-deps
+  }, [storeUser])
 
   const { pathname } = useLocation()
 
@@ -67,7 +71,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated) {
-      void storeUserRef.current()
+      void storeUserRef.current({})
     }
   }, [isAuthenticated])
 
