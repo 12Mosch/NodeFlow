@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAuth } from '@workos-inc/authkit-react'
 import { useConvexAuth, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -55,6 +55,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading, signIn } = useAuth()
   const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth()
   const storeUser = useMutation(api.users.getOrCreateUser)
+  const storeUserRef = useRef(storeUser)
+  useEffect(() => {
+    storeUserRef.current = storeUser
+    // eslint-disable-next-line @tanstack/query/no-unstable-deps
+  }, [storeUser])
 
   const { pathname } = useLocation()
 
@@ -66,9 +71,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated) {
-      void storeUser()
+      void storeUserRef.current({})
     }
-  }, [isAuthenticated, storeUser])
+  }, [isAuthenticated])
 
   if (
     (isLoading || isConvexLoading || !user || !isAuthenticated) &&

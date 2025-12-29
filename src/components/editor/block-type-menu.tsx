@@ -133,6 +133,14 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
     [editor],
   )
 
+  const handleToggleOpen = useCallback(() => {
+    if (!isOpen) {
+      const activeIndex = blockTypes.findIndex((type) => type.isActive(editor))
+      setSelectedIndex(activeIndex >= 0 ? activeIndex : 0)
+    }
+    setIsOpen((prev) => !prev)
+  }, [editor, isOpen])
+
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -182,21 +190,13 @@ export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
     }
   }, [isOpen, selectedIndex, handleSelect])
 
-  // Reset selected index when opening menu
-  useEffect(() => {
-    if (isOpen) {
-      const activeIndex = blockTypes.findIndex((type) => type.isActive(editor))
-      setSelectedIndex(activeIndex >= 0 ? activeIndex : 0)
-    }
-  }, [isOpen, editor])
-
   return (
     <div ref={menuRef} className="block-type-menu">
       <button
         ref={buttonRef}
         type="button"
         className="block-type-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleOpen}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >

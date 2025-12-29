@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { ExternalLink, Link2, Trash2 } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -25,20 +25,13 @@ interface LinkPopoverProps {
 
 export function LinkPopover({ editor }: LinkPopoverProps) {
   const [open, setOpen] = useState(false)
-  const [url, setUrl] = useState('')
+  const [urlDraft, setUrlDraft] = useState<string | null>(null)
   const [showExternalWarning, setShowExternalWarning] = useState(false)
 
   const isActive = editor.isActive('link')
   const currentLink = editor.getAttributes('link').href as string | undefined
 
-  // Update URL input when popover opens
-  useEffect(() => {
-    if (open && currentLink) {
-      setUrl(currentLink)
-    } else if (!open) {
-      setUrl('')
-    }
-  }, [open, currentLink])
+  const url = urlDraft ?? (open ? (currentLink ?? '') : '')
 
   const handleSetLink = useCallback(() => {
     if (!url) {
@@ -49,11 +42,12 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
       editor.chain().focus().setLink({ href: normalizedUrl }).run()
     }
     setOpen(false)
+    setUrlDraft(null)
   }, [editor, url])
 
   const handleRemoveLink = useCallback(() => {
     editor.chain().focus().unsetLink().run()
-    setUrl('')
+    setUrlDraft(null)
     setOpen(false)
   }, [editor])
 
@@ -86,7 +80,13 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen)
+          setUrlDraft(null)
+        }}
+      >
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -102,7 +102,7 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
               type="url"
               placeholder="Enter URL..."
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => setUrlDraft(e.target.value)}
               onKeyDown={handleKeyDown}
               className="link-input"
               autoFocus
