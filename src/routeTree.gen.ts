@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudyRouteImport } from './routes/study'
+import { Route as LearnRouteImport } from './routes/learn'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
@@ -17,6 +18,11 @@ import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CallbackRoute = CallbackRouteImport.update({
@@ -38,12 +44,14 @@ const DocDocIdRoute = DocDocIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/learn': typeof LearnRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/learn': typeof LearnRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
+  '/learn': typeof LearnRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/callback' | '/study' | '/doc/$docId'
+  fullPaths: '/' | '/callback' | '/learn' | '/study' | '/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/callback' | '/study' | '/doc/$docId'
-  id: '__root__' | '/' | '/callback' | '/study' | '/doc/$docId'
+  to: '/' | '/callback' | '/learn' | '/study' | '/doc/$docId'
+  id: '__root__' | '/' | '/callback' | '/learn' | '/study' | '/doc/$docId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CallbackRoute: typeof CallbackRoute
+  LearnRoute: typeof LearnRoute
   StudyRoute: typeof StudyRoute
   DocDocIdRoute: typeof DocDocIdRoute
 }
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/study'
       fullPath: '/study'
       preLoaderRoute: typeof StudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/callback': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CallbackRoute: CallbackRoute,
+  LearnRoute: LearnRoute,
   StudyRoute: StudyRoute,
   DocDocIdRoute: DocDocIdRoute,
 }
