@@ -103,6 +103,65 @@ async function createCardState(
   })
 }
 
+/**
+ * Clean up orphaned card states when card direction changes.
+ * Deletes card states that are no longer needed based on the new cardDirection.
+ */
+async function cleanupOrphanedCardStates(
+  ctx: MutationCtx,
+  blockId: Id<'blocks'>,
+  isCard: boolean | undefined,
+  cardDirection: string | undefined,
+): Promise<void> {
+  // If not a card or disabled, delete all card states
+  if (!isCard || cardDirection === 'disabled') {
+    const allCardStates = await ctx.db
+      .query('cardStates')
+      .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
+      .collect()
+
+    for (const cardState of allCardStates) {
+      // Delete associated review logs first
+      const logs = await ctx.db
+        .query('reviewLogs')
+        .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
+        .collect()
+
+      for (const log of logs) {
+        await ctx.db.delete(log._id)
+      }
+      await ctx.db.delete(cardState._id)
+    }
+    return
+  }
+
+  // Get the directions that should exist
+  const neededDirections = getDirectionsForCard(cardDirection)
+  const neededDirectionsSet = new Set(neededDirections)
+
+  // Get all existing card states for this block
+  const existingCardStates = await ctx.db
+    .query('cardStates')
+    .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
+    .collect()
+
+  // Delete card states that are not in the needed directions
+  for (const cardState of existingCardStates) {
+    if (!neededDirectionsSet.has(cardState.direction)) {
+      // Delete associated review logs first
+      const logs = await ctx.db
+        .query('reviewLogs')
+        .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
+        .collect()
+
+      for (const log of logs) {
+        await ctx.db.delete(log._id)
+      }
+      await ctx.db.delete(cardState._id)
+    }
+  }
+}
+
 // Get all blocks for a document
 export const listByDocument = query({
   args: {
@@ -177,6 +236,14 @@ export const upsertBlock = mutation({
             cardBack: args.cardBack,
             clozeOcclusions: args.clozeOcclusions,
           })
+
+          // Clean up orphaned card states when direction changes
+          await cleanupOrphanedCardStates(
+            ctx,
+            existingBlock._id,
+            args.isCard,
+            args.cardDirection,
+          )
 
           // Auto-create/update card states for flashcards
           if (args.isCard && args.cardDirection !== 'disabled') {
@@ -363,6 +430,14 @@ export const syncBlocks = mutation({
               cardBack: block.cardBack,
               clozeOcclusions: block.clozeOcclusions,
             })
+
+            // Clean up orphaned card states when direction changes
+            await cleanupOrphanedCardStates(
+              ctx,
+              existing._id,
+              block.isCard,
+              block.cardDirection,
+            )
 
             // Auto-create/update card states for flashcards
             if (block.isCard && block.cardDirection !== 'disabled') {

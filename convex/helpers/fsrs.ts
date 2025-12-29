@@ -260,11 +260,11 @@ export function getRetrievability(
   }
 
   const card = cardStateToFSRS(cardState, now)
-  const retrievability = scheduler.get_retrievability(card, now)
-  // Ensure we return a number (handle potential string returns from library)
-  return typeof retrievability === 'string'
-    ? parseFloat(retrievability)
-    : retrievability
+  const retrievability: number = scheduler.get_retrievability(
+    card,
+    now,
+  ) as unknown as number
+  return retrievability
 }
 
 /**
