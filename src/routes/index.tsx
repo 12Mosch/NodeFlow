@@ -1,15 +1,17 @@
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import { Brain, FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
+import { FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { Button } from '@/components/ui/button'
+import type { StudyMode } from '@/components/study-mode-dialog'
 import { ModeToggle } from '@/components/mode-toggle'
+import { StudyModeDialog } from '@/components/study-mode-dialog'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -34,6 +36,7 @@ function DocumentList() {
   const createDocument = useMutation(api.documents.create)
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
+  const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
 
   const handleCreate = async () => {
     try {
@@ -66,24 +69,24 @@ function DocumentList() {
     }
   }
 
+  const handleSelectStudyMode = (mode: StudyMode) => {
+    navigate({ to: '/study', search: { mode } })
+  }
+
   return (
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Documents</h1>
         <div className="flex items-center gap-2">
           <ModeToggle />
-          <Link to="/learn">
-            <Button variant="outline" className="gap-2">
-              <Brain className="h-4 w-4" />
-              Learn
-            </Button>
-          </Link>
-          <Link to="/study">
-            <Button variant="ghost" className="gap-2">
-              <GraduationCap className="h-4 w-4" />
-              Practice
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setIsStudyDialogOpen(true)}
+          >
+            <GraduationCap className="h-4 w-4" />
+            Study
+          </Button>
           <Button onClick={handleCreate} className="gap-2">
             <Plus className="h-4 w-4" />
             New Document
@@ -136,6 +139,12 @@ function DocumentList() {
           ))}
         </div>
       )}
+
+      <StudyModeDialog
+        open={isStudyDialogOpen}
+        onOpenChange={setIsStudyDialogOpen}
+        onSelectMode={handleSelectStudyMode}
+      />
     </div>
   )
 }

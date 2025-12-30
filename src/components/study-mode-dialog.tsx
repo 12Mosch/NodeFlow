@@ -194,8 +194,8 @@ export function StudyModeDialog({
                   </CardTitle>
                   <CardDescription>
                     {isSpacedRepetition
-                      ? 'Review cards at optimal intervals using the FSRS algorithm for maximum retention'
-                      : "Study all cards in random order with simple know/don't know tracking"}
+                      ? 'Review cards at scientifically optimal intervals using FSRS. Rate each card (Again, Hard, Good, Easy) to maximize long-term retention.'
+                      : "Practice all cards in random order with simple know/don't know tracking. Perfect for quick review sessions without spaced repetition."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

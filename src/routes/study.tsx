@@ -1,20 +1,52 @@
-import { Suspense, useState } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { Suspense, startTransition, useEffect, useRef, useState } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { convexQuery } from '@convex-dev/react-query'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
-import type { QuizState } from '@/components/flashcards'
-import { Button } from '@/components/ui/button'
-import { ModeToggle } from '@/components/mode-toggle'
-import { DocumentSelector, FlashcardQuiz } from '@/components/flashcards'
+import type { StudyState } from '@/components/study/types'
+import type { StudyMode } from '@/components/study-mode-dialog'
+import { StudyModeDialog } from '@/components/study-mode-dialog'
+import { SpacedRepetitionMode } from '@/components/study/SpacedRepetitionMode'
+import { RandomMode } from '@/components/study/RandomMode'
+
+type StudySearch = {
+  mode?: StudyMode
+}
 
 export const Route = createFileRoute('/study')({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(
-      convexQuery(api.blocks.listAllFlashcards, {}),
-    )
+  validateSearch: (search: Record<string, unknown>): StudySearch => {
+    return {
+      mode:
+        search.mode === 'spaced-repetition' || search.mode === 'random'
+          ? search.mode
+          : undefined,
+    }
+  },
+  loader: async ({ context, location }) => {
+    const searchParams = new URLSearchParams(location.search)
+    const mode = searchParams.get('mode')
+
+    // Conditionally load data based on selected mode
+    // React Query will cache it, so mode switching within a session is still fast
+    if (mode === 'spaced-repetition') {
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          convexQuery(api.cardStates.getStats, {}),
+        ),
+        context.queryClient.ensureQueryData(
+          convexQuery(api.cardStates.getLearnSession, {}),
+        ),
+      ])
+    } else if (mode === 'random') {
+      await context.queryClient.ensureQueryData(
+        convexQuery(api.blocks.listAllFlashcards, {}),
+      )
+    } else {
+      // No mode selected - only load stats for potential dialog display
+      await context.queryClient.ensureQueryData(
+        convexQuery(api.cardStates.getStats, {}),
+      )
+    }
   },
   component: StudyPage,
 })
@@ -24,7 +56,9 @@ function StudyPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Suspense
         fallback={
-          <div className="p-8 text-muted-foreground">Loading flashcards...</div>
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
         }
       >
         <StudyContent />
@@ -34,74 +68,80 @@ function StudyPage() {
 }
 
 function StudyContent() {
-  const { data: flashcardData } = useSuspenseQuery(
-    convexQuery(api.blocks.listAllFlashcards, {}),
-  )
-
   const navigate = useNavigate()
-  const [quizState, setQuizState] = useState<QuizState>('selecting')
-  const [selectedDocIds, setSelectedDocIds] = useState<Set<Id<'documents'>>>(
-    new Set(),
+  const { mode } = Route.useSearch()
+  const [studyState, setStudyState] = useState<StudyState>(
+    mode === 'spaced-repetition' ? 'overview' : 'selecting',
   )
+  const [isDialogOpen, setIsDialogOpen] = useState(!mode)
+  const prevModeRef = useRef(mode)
 
-  const documents = flashcardData
+  // Sync states with mode parameter changes
+  // This effect syncs local UI state with URL parameters, which is necessary
+  // because studyState can be 'studying' (local state) but needs to reset when mode changes
+  useEffect(() => {
+    // Only update if mode actually changed
+    if (prevModeRef.current !== mode) {
+      prevModeRef.current = mode
 
-  const handleStartStudy = () => {
-    if (selectedDocIds.size > 0) {
-      setQuizState('studying')
+      // Use startTransition to mark these as non-urgent updates
+      startTransition(() => {
+        if (mode === 'spaced-repetition') {
+          setStudyState('overview')
+        } else if (mode === 'random') {
+          setStudyState('selecting')
+        }
+        setIsDialogOpen(!mode)
+      })
     }
-  }
+  }, [mode])
 
-  const handleBack = () => {
-    setQuizState('selecting')
+  // Handle mode selection from dialog
+  const handleSelectMode = (selectedMode: StudyMode) => {
+    navigate({ to: '/study', search: { mode: selectedMode } })
   }
 
   const handleGoHome = () => {
     navigate({ to: '/' })
   }
 
-  return (
-    <div className="mx-auto max-w-4xl">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Home
-              </Button>
-            </Link>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-muted-foreground" />
-              <h1 className="font-semibold">Study Flashcards</h1>
-            </div>
-          </div>
-          <ModeToggle />
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="p-8">
-        {quizState === 'selecting' && (
-          <DocumentSelector
-            documents={documents}
-            selectedDocIds={selectedDocIds}
-            onSelectionChange={setSelectedDocIds}
-            onStartStudy={handleStartStudy}
-          />
-        )}
-
-        {quizState === 'studying' && (
-          <FlashcardQuiz
-            documents={documents}
-            selectedDocIds={selectedDocIds}
-            onBack={handleBack}
-            onGoHome={handleGoHome}
-          />
-        )}
+  // If no mode selected, show dialog
+  if (!mode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <StudyModeDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open)
+            if (!open) {
+              handleGoHome()
+            }
+          }}
+          onSelectMode={handleSelectMode}
+        />
       </div>
-    </div>
-  )
+    )
+  }
+
+  // Render content based on mode
+  switch (mode) {
+    case 'spaced-repetition':
+      return (
+        <SpacedRepetitionMode
+          studyState={studyState}
+          setStudyState={setStudyState}
+          onGoHome={handleGoHome}
+        />
+      )
+    case 'random':
+      return (
+        <RandomMode
+          studyState={studyState}
+          setStudyState={setStudyState}
+          onGoHome={handleGoHome}
+        />
+      )
+    default:
+      return null
+  }
 }

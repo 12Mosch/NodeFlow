@@ -1,7 +1,7 @@
-import { Suspense, useState } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import * as Sentry from '@sentry/tanstackstart-react'
+import { Link } from '@tanstack/react-router'
 import {
   ArrowLeft,
   BookOpen,
@@ -9,49 +9,27 @@ import {
   Calendar,
   CheckCircle2,
   Flame,
-  Loader2,
   Sparkles,
 } from 'lucide-react'
-import { api } from '../../convex/_generated/api'
+import { api } from '../../../convex/_generated/api'
+import type { StudyState } from './types'
 import { LearnQuiz } from '@/components/learn'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Progress } from '@/components/ui/progress'
 
-export const Route = createFileRoute('/learn')({
-  loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(
-        convexQuery(api.cardStates.getStats, {}),
-      ),
-      context.queryClient.ensureQueryData(
-        convexQuery(api.cardStates.getLearnSession, {}),
-      ),
-    ])
-  },
-  component: LearnPage,
-})
-
-function LearnPage() {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        }
-      >
-        <LearnContent />
-      </Suspense>
-    </div>
-  )
+interface SpacedRepetitionModeProps {
+  studyState: StudyState
+  setStudyState: (state: StudyState) => void
+  onGoHome: () => void
 }
 
-type LearnState = 'overview' | 'learning'
-
-function LearnContent() {
+export function SpacedRepetitionMode({
+  studyState,
+  setStudyState,
+  onGoHome,
+}: SpacedRepetitionModeProps) {
   const { data: stats } = useSuspenseQuery(
     convexQuery(api.cardStates.getStats, {}),
   )
@@ -59,19 +37,17 @@ function LearnContent() {
     convexQuery(api.cardStates.getLearnSession, {}),
   )
 
-  const navigate = useNavigate()
-  const [learnState, setLearnState] = useState<LearnState>('overview')
-
   const handleStartLearning = () => {
-    setLearnState('learning')
+    Sentry.startSpan(
+      { name: 'StudyMode.startLearning', op: 'ui.interaction' },
+      () => {
+        setStudyState('studying')
+      },
+    )
   }
 
   const handleBack = () => {
-    setLearnState('overview')
-  }
-
-  const handleGoHome = () => {
-    navigate({ to: '/' })
+    setStudyState('overview')
   }
 
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
@@ -93,7 +69,7 @@ function LearnContent() {
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-muted-foreground" />
-              <h1 className="font-semibold">Learn</h1>
+              <h1 className="font-semibold">Spaced Repetition</h1>
             </div>
           </div>
           <ModeToggle />
@@ -102,12 +78,12 @@ function LearnContent() {
 
       {/* Content */}
       <div className="p-8">
-        {learnState === 'overview' && (
+        {studyState === 'overview' && (
           <div className="space-y-8">
             {/* Hero section */}
             <div className="text-center">
               <h2 className="text-3xl font-bold tracking-tight">
-                Spaced Repetition
+                Study with FSRS
               </h2>
               <p className="mt-2 text-muted-foreground">
                 Review cards at optimal intervals for maximum retention
@@ -225,7 +201,7 @@ function LearnContent() {
                     <Button
                       variant="outline"
                       className="mt-4"
-                      onClick={handleGoHome}
+                      onClick={onGoHome}
                     >
                       Go to Documents
                     </Button>
@@ -247,8 +223,8 @@ function LearnContent() {
           </div>
         )}
 
-        {learnState === 'learning' && (
-          <LearnQuiz onBack={handleBack} onGoHome={handleGoHome} />
+        {studyState === 'studying' && (
+          <LearnQuiz onBack={handleBack} onGoHome={onGoHome} />
         )}
       </div>
     </div>
