@@ -5,15 +5,19 @@ import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GraduationCap, Redo, Share2, Undo } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { FlashcardWithDocument } from '@/components/flashcards'
-import { TiptapEditor } from '@/components/tiptap-editor'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ModeToggle } from '@/components/mode-toggle'
+import type { StudyMode } from '@/components/study-mode-dialog'
+import { DocumentLearnQuiz } from '@/components/document-learn-quiz'
 import { FlashcardQuiz } from '@/components/flashcards'
+import { StudyModeDialog } from '@/components/study-mode-dialog'
+import { TiptapEditor } from '@/components/tiptap-editor'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ModeToggle } from '@/components/mode-toggle'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -86,8 +90,36 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   })
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isStudying, setIsStudying] = useState(false)
+  const [studyMode, setStudyMode] = useState<StudyMode | null>(null)
+  const [showStudyModeDialog, setShowStudyModeDialog] = useState(false)
 
   const flashcardCount = flashcards?.length ?? 0
+
+  const handleStudyClick = () => {
+    setShowStudyModeDialog(true)
+  }
+
+  const initializeCardStates = useMutation(
+    api.cardStates.initializeDocumentCardStates,
+  )
+
+  const handleSelectStudyMode = async (mode: StudyMode) => {
+    if (mode === 'spaced-repetition') {
+      // Initialize card states for all flashcards in this document
+      // This ensures cards are available for spaced repetition
+      try {
+        await initializeCardStates({ documentId: docId })
+      } catch (error) {
+        console.error('Failed to initialize card states:', error)
+        toast.warning(
+          'Could not initialize card states. Cards will be created on first review.',
+        )
+        // Continue anyway - card states will be created on first review
+      }
+    }
+    setStudyMode(mode)
+    setIsStudying(true)
+  }
 
   if (isLoading) {
     return <div className="p-8 text-muted-foreground">Loading document...</div>
@@ -109,6 +141,22 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
 
   // Study mode for this document
   if (isStudying && flashcards && flashcards.length > 0) {
+    if (studyMode === 'spaced-repetition') {
+      return (
+        <div className="mx-auto max-w-4xl p-8">
+          <DocumentLearnQuiz
+            documentId={docId}
+            onBack={() => {
+              setIsStudying(false)
+              setStudyMode(null)
+            }}
+            onGoHome={() => navigate({ to: '/' })}
+          />
+        </div>
+      )
+    }
+
+    // Random mode (default)
     const documentData: Array<FlashcardWithDocument> = [
       {
         document: { _id: docId, title: document.title },
@@ -121,7 +169,10 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         <FlashcardQuiz
           documents={documentData}
           selectedDocIds={new Set([docId])}
-          onBack={() => setIsStudying(false)}
+          onBack={() => {
+            setIsStudying(false)
+            setStudyMode(null)
+          }}
           onGoHome={() => navigate({ to: '/' })}
         />
       </div>
@@ -134,7 +185,14 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       <MinimalHeader
         editor={editor}
         flashcardCount={flashcardCount}
-        onStudy={() => setIsStudying(true)}
+        onStudy={handleStudyClick}
+      />
+
+      {/* Study mode dialog */}
+      <StudyModeDialog
+        open={showStudyModeDialog}
+        onOpenChange={setShowStudyModeDialog}
+        onSelectMode={handleSelectStudyMode}
       />
 
       {/* Document title */}

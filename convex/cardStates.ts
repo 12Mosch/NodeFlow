@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
+import { requireDocumentAccess } from './helpers/documentAccess'
 import {
   createNewCardState,
   formatInterval,
@@ -545,6 +546,221 @@ export const getLearnSession = query({
 
         // Interleave: show due cards first, then introduce new ones
         return [...due, ...newOnes]
+      },
+    )
+  },
+})
+
+/**
+ * Get cards for learning session for a specific document (due + new cards mixed)
+ */
+export const getDocumentLearnSession = query({
+  args: {
+    documentId: v.id('documents'),
+    newLimit: v.optional(v.number()),
+    reviewLimit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.getDocumentLearnSession', op: 'convex.query' },
+      async () => {
+        // Verify document ownership before proceeding
+        const { userId } = await requireDocumentAccess(ctx, args.documentId)
+        const now = Date.now()
+        const newLimit = args.newLimit ?? 20
+        const reviewLimit = args.reviewLimit ?? 100
+
+        // Get all blocks for this document that are flashcards
+        const documentBlocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document_isCard', (q) =>
+            q.eq('documentId', args.documentId).eq('isCard', true),
+          )
+          .collect()
+
+        // Filter out disabled cards
+        const enabledBlocks = documentBlocks.filter(
+          (block) => block.cardDirection !== 'disabled',
+        )
+
+        const blockIds = Array.from(enabledBlocks.map((b) => b._id))
+
+        // Query cardStates for each block in parallel using the by_block_direction index
+        // This is more efficient than fetching all user cards globally and filtering
+        const allCardStatesForBlocks = await Promise.all(
+          blockIds.map(async (blockId) => {
+            // Query all cardStates for this block (both directions)
+            return await ctx.db
+              .query('cardStates')
+              .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
+              .collect()
+          }),
+        )
+
+        // Flatten and filter by userId (security check) and due/state
+        const allRelevantCards = allCardStatesForBlocks
+          .flat()
+          .filter((card) => card.userId === userId)
+
+        // Separate due and new cards
+        const dueCards = allRelevantCards
+          .filter((card) => card.state !== 'new' && card.due <= now)
+          .sort((a, b) => a.due - b.due) // Sort by due date for consistent ordering
+          .slice(0, reviewLimit)
+
+        // Get new cards, excluding any that are already in dueCards
+        const dueCardIds = new Set(dueCards.map((card) => card._id))
+        const newCards = allRelevantCards
+          .filter((card) => card.state === 'new' && !dueCardIds.has(card._id))
+          .slice(0, newLimit)
+
+        // Combine and fetch blocks
+        const allCardStates = [...dueCards, ...newCards]
+
+        const cardsWithBlocks = await Promise.all(
+          allCardStates.map(async (cardState) => {
+            const block = await ctx.db.get(cardState.blockId)
+            if (!block || !block.isCard || block.cardDirection === 'disabled') {
+              return null
+            }
+
+            // Get document for title
+            const document = await ctx.db.get(block.documentId)
+
+            // Calculate retrievability and intervals
+            const state: CardState = {
+              stability: cardState.stability,
+              difficulty: cardState.difficulty,
+              due: cardState.due,
+              lastReview: cardState.lastReview,
+              reps: cardState.reps,
+              lapses: cardState.lapses,
+              state: cardState.state,
+              scheduledDays: cardState.scheduledDays,
+              elapsedDays: cardState.elapsedDays,
+            }
+            const retrievability = getRetrievability(state)
+            const intervals = previewIntervals(state)
+
+            return {
+              cardState,
+              block,
+              document: document
+                ? { _id: document._id, title: document.title }
+                : null,
+              retrievability,
+              intervalPreviews: {
+                again: formatInterval(intervals.again),
+                hard: formatInterval(intervals.hard),
+                good: formatInterval(intervals.good),
+                easy: formatInterval(intervals.easy),
+              },
+            }
+          }),
+        )
+
+        // Filter out nulls and sort: due cards by retrievability, then new cards
+        const validCards = cardsWithBlocks.filter(
+          (c): c is NonNullable<typeof c> => c !== null,
+        )
+
+        // Separate due and new cards
+        const due = validCards
+          .filter((c) => c.cardState.state !== 'new')
+          .sort((a, b) => a.retrievability - b.retrievability)
+
+        const newOnes = validCards.filter((c) => c.cardState.state === 'new')
+
+        // Interleave: show due cards first, then introduce new ones
+        return [...due, ...newOnes]
+      },
+    )
+  },
+})
+
+/**
+ * Initialize card states for all flashcards in a document
+ * This is called when a user first starts spaced repetition for a document
+ */
+export const initializeDocumentCardStates = mutation({
+  args: {
+    documentId: v.id('documents'),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      {
+        name: 'cardStates.initializeDocumentCardStates',
+        op: 'convex.mutation',
+      },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get all flashcards for this document
+        const blocks = await ctx.db
+          .query('blocks')
+          .withIndex('by_document_isCard', (q) =>
+            q.eq('documentId', args.documentId).eq('isCard', true),
+          )
+          .collect()
+
+        // Filter out disabled cards
+        const enabledBlocks = blocks.filter(
+          (block) => block.cardDirection !== 'disabled',
+        )
+
+        let createdCount = 0
+
+        for (const block of enabledBlocks) {
+          // Verify ownership
+          if (block.userId !== userId) {
+            continue
+          }
+
+          // Determine which directions need card states
+          const directions: Array<'forward' | 'reverse'> = []
+
+          if (block.cardType === 'cloze') {
+            // Cloze cards only have forward direction
+            directions.push('forward')
+          } else if (block.cardDirection === 'forward') {
+            directions.push('forward')
+          } else if (block.cardDirection === 'reverse') {
+            directions.push('reverse')
+          } else if (block.cardDirection === 'bidirectional') {
+            directions.push('forward', 'reverse')
+          }
+
+          // Create card states for each direction if they don't exist
+          for (const direction of directions) {
+            const existing = await ctx.db
+              .query('cardStates')
+              .withIndex('by_block_direction', (q) =>
+                q.eq('blockId', block._id).eq('direction', direction),
+              )
+              .unique()
+
+            if (!existing) {
+              const newState = createNewCardState()
+              await ctx.db.insert('cardStates', {
+                blockId: block._id,
+                userId,
+                direction,
+                stability: newState.stability,
+                difficulty: newState.difficulty,
+                due: newState.due,
+                lastReview: newState.lastReview,
+                reps: newState.reps,
+                lapses: newState.lapses,
+                state: newState.state,
+                scheduledDays: newState.scheduledDays,
+                elapsedDays: newState.elapsedDays,
+              })
+              createdCount++
+            }
+          }
+        }
+
+        return { createdCount }
       },
     )
   },
