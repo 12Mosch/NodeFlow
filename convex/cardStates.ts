@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
+import { requireDocumentAccess } from './helpers/documentAccess'
 import {
   createNewCardState,
   formatInterval,
@@ -563,7 +564,8 @@ export const getDocumentLearnSession = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getDocumentLearnSession', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        // Verify document ownership before proceeding
+        const { userId } = await requireDocumentAccess(ctx, args.documentId)
         const now = Date.now()
         const newLimit = args.newLimit ?? 20
         const reviewLimit = args.reviewLimit ?? 100
@@ -581,40 +583,39 @@ export const getDocumentLearnSession = query({
           (block) => block.cardDirection !== 'disabled',
         )
 
-        const blockIds = new Set(enabledBlocks.map((b) => b._id))
+        const blockIds = Array.from(enabledBlocks.map((b) => b._id))
 
-        // Get due review cards for these blocks
-        const allDueCards = await ctx.db
-          .query('cardStates')
-          .withIndex('by_user_due', (q) =>
-            q.eq('userId', userId).lte('due', now),
-          )
-          .collect()
-
-        const dueCards = allDueCards
-          .filter((card) => blockIds.has(card.blockId))
-          .slice(0, reviewLimit)
-
-        // Get new cards for these blocks
-        const allNewCards = await ctx.db
-          .query('cardStates')
-          .withIndex('by_user_state', (q) =>
-            q.eq('userId', userId).eq('state', 'new'),
-          )
-          .collect()
-
-        const newCards = allNewCards
-          .filter((card) => blockIds.has(card.blockId))
-          .slice(0, newLimit)
-
-        // Collect IDs of due cards to avoid duplicates
-        const dueCardIds = new Set(dueCards.map((card) => card._id))
-        const filteredNewCards = newCards.filter(
-          (card) => !dueCardIds.has(card._id),
+        // Query cardStates for each block in parallel using the by_block_direction index
+        // This is more efficient than fetching all user cards globally and filtering
+        const allCardStatesForBlocks = await Promise.all(
+          blockIds.map(async (blockId) => {
+            // Query all cardStates for this block (both directions)
+            return await ctx.db
+              .query('cardStates')
+              .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
+              .collect()
+          }),
         )
 
+        // Flatten and filter by userId (security check) and due/state
+        const allRelevantCards = allCardStatesForBlocks
+          .flat()
+          .filter((card) => card.userId === userId)
+
+        // Separate due and new cards
+        const dueCards = allRelevantCards
+          .filter((card) => card.state !== 'new' && card.due <= now)
+          .sort((a, b) => a.due - b.due) // Sort by due date for consistent ordering
+          .slice(0, reviewLimit)
+
+        // Get new cards, excluding any that are already in dueCards
+        const dueCardIds = new Set(dueCards.map((card) => card._id))
+        const newCards = allRelevantCards
+          .filter((card) => card.state === 'new' && !dueCardIds.has(card._id))
+          .slice(0, newLimit)
+
         // Combine and fetch blocks
-        const allCardStates = [...dueCards, ...filteredNewCards]
+        const allCardStates = [...dueCards, ...newCards]
 
         const cardsWithBlocks = await Promise.all(
           allCardStates.map(async (cardState) => {

@@ -5,6 +5,7 @@ import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GraduationCap, Redo, Share2, Undo } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -110,6 +111,9 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         await initializeCardStates({ documentId: docId })
       } catch (error) {
         console.error('Failed to initialize card states:', error)
+        toast.warning(
+          'Could not initialize card states. Cards will be created on first review.',
+        )
         // Continue anyway - card states will be created on first review
       }
     }
