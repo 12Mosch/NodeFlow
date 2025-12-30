@@ -123,23 +123,25 @@ function StudyContent() {
     )
   }
 
-  // Spaced Repetition Mode
-  if (mode === 'spaced-repetition') {
-    return (
-      <SpacedRepetitionMode
-        studyState={studyState}
-        setStudyState={setStudyState}
-        onGoHome={handleGoHome}
-      />
-    )
+  // Render content based on mode
+  switch (mode) {
+    case 'spaced-repetition':
+      return (
+        <SpacedRepetitionMode
+          studyState={studyState}
+          setStudyState={setStudyState}
+          onGoHome={handleGoHome}
+        />
+      )
+    case 'random':
+      return (
+        <RandomMode
+          studyState={studyState}
+          setStudyState={setStudyState}
+          onGoHome={handleGoHome}
+        />
+      )
+    default:
+      return null
   }
-
-  // Random Mode
-  return (
-    <RandomMode
-      studyState={studyState}
-      setStudyState={setStudyState}
-      onGoHome={handleGoHome}
-    />
-  )
 }

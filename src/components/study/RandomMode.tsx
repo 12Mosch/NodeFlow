@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
+import * as Sentry from '@sentry/tanstackstart-react'
 import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
@@ -33,7 +34,12 @@ export function RandomMode({
 
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {
-      setStudyState('studying')
+      Sentry.startSpan(
+        { name: 'RandomMode.startStudy', op: 'ui.interaction' },
+        () => {
+          setStudyState('studying')
+        },
+      )
     }
   }
 
