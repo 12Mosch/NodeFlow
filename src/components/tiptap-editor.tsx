@@ -11,6 +11,8 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
+import Superscript from '@tiptap/extension-superscript'
+import Subscript from '@tiptap/extension-subscript'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -229,6 +231,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
         triggerImageDropPaste(files)
       },
     }),
+    Superscript,
+    Subscript,
     // Callout block extension
     Callout,
     // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
