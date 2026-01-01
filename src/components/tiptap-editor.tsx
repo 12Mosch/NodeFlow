@@ -182,6 +182,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       heading: {
         levels: [1, 2, 3],
       },
+      link: false,
     }),
     Placeholder.configure({
       placeholder: 'Start writing...',
