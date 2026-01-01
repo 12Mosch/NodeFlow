@@ -43,10 +43,10 @@ Create a `.env.local` file in the root directory:
 ```env
 # Convex
 VITE_CONVEX_URL=your_convex_url
-CONVEX_DEPLOYMENT=your_convex_deployment_name
 
 # WorkOS
 VITE_WORKOS_CLIENT_ID=your_workos_client_id
+VITE_WORKOS_API_HOSTNAME=your_workos_api_hostname
 VITE_WORKOS_REDIRECT_URI=http://localhost:3000/callback
 
 # Sentry (Optional)
@@ -54,7 +54,7 @@ VITE_SENTRY_DSN=your_sentry_dsn
 SENTRY_AUTH_TOKEN=your_sentry_auth_token
 ```
 
-> **Note**: For authentication to work in the backend, you also need to set `WORKOS_CLIENT_ID` in your [Convex Dashboard](https://dashboard.convex.dev/) (under Settings > Environment Variables).
+> **Note**: For authentication to work in the backend, you must also set `WORKOS_CLIENT_ID` (and optionally `WORKOS_API_HOSTNAME` if you are using a custom one) in your [Convex Dashboard](https://dashboard.convex.dev/) under **Settings > Environment Variables**.
 
 ### Installation
 
