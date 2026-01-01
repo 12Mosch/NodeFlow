@@ -8,6 +8,8 @@ import {
   Italic,
   Palette,
   Strikethrough,
+  Subscript as SubscriptIcon,
+  Superscript as SuperscriptIcon,
   Unlink,
 } from 'lucide-react'
 import { BlockTypeMenu } from './block-type-menu'
@@ -159,6 +161,24 @@ export function EditorBubbleMenu() {
           aria-pressed={editor.isActive('code')}
         >
           <Code className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={`bubble-menu-button ${editor.isActive('superscript') ? 'is-active' : ''}`}
+          onClick={() => editor.chain().focus().toggleSuperscript().run()}
+          title="Superscript"
+          aria-pressed={editor.isActive('superscript')}
+        >
+          <SuperscriptIcon className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={`bubble-menu-button ${editor.isActive('subscript') ? 'is-active' : ''}`}
+          onClick={() => editor.chain().focus().toggleSubscript().run()}
+          title="Subscript"
+          aria-pressed={editor.isActive('subscript')}
+        >
+          <SubscriptIcon className="h-4 w-4" />
         </button>
       </div>
 
