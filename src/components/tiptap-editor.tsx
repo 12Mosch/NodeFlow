@@ -207,6 +207,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     Image.configure({
       HTMLAttributes: {
         class: 'editor-image',
+        loading: 'lazy',
       },
       allowBase64: false,
     }),
