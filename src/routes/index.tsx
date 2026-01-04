@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useMutation, usePaginatedQuery } from 'convex/react'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
+import { useConvex, useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import {
@@ -18,7 +20,9 @@ import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
 
-export const Route = createFileRoute('/')({ component: App })
+export const Route = createFileRoute('/')({
+  component: App,
+})
 
 function App() {
   return (
@@ -29,15 +33,53 @@ function App() {
 }
 
 function DocumentList() {
+  const { isAuthenticated } = useConvexAuth()
+  const convex = useConvex()
   const {
-    results: documents,
-    status,
-    loadMore,
-  } = usePaginatedQuery(api.documents.list, {}, { initialNumItems: 10 })
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error: queryError,
+  } = useInfiniteQuery({
+    queryKey: ['documents', 'list'],
+    queryFn: async ({ pageParam }) => {
+      const results = await convex.query(api.documents.list, {
+        paginationOpts: {
+          numItems: 10,
+          cursor: pageParam,
+        },
+      })
+      return results
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.isDone ? null : lastPage.continueCursor,
+    enabled: isAuthenticated,
+  })
+
+  const documents = data?.pages.flatMap((p: any) => p.page) || []
   const createDocument = useMutation(api.documents.create)
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
+  const { queryClient } = Route.useRouteContext()
+
+  // Prefetch data once authentication is available client-side
+  // This waits for authentication before attempting to prefetch, ensuring
+  // the query succeeds and populates the TanStack Query cache
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Prefetch into TanStack Query cache for better performance
+      queryClient.ensureQueryData(
+        convexQuery(api.documents.list, {
+          paginationOpts: { numItems: 10, cursor: null },
+        }),
+      )
+    }
+  }, [isAuthenticated, queryClient])
 
   const handleCreate = async () => {
     try {
@@ -74,11 +116,19 @@ function DocumentList() {
     navigate({ to: '/study', search: { mode } })
   }
 
-  if (status === 'LoadingFirstPage') {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center p-8 text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         Loading documents...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-screen items-center justify-center p-8 text-destructive">
+        Error loading documents: {queryError.message || 'Unknown error'}
       </div>
     )
   }
@@ -104,7 +154,7 @@ function DocumentList() {
         </div>
       </div>
 
-      {documents.length === 0 && status === 'Exhausted' ? (
+      {documents.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
           <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
@@ -148,23 +198,21 @@ function DocumentList() {
             </Link>
           ))}
 
-          {status === 'CanLoadMore' && (
+          {(hasNextPage || isFetchingNextPage) && (
             <div className="mt-4 flex justify-center">
               <Button
                 variant="outline"
-                onClick={() => loadMore(10)}
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
                 className="gap-2"
               >
-                <ChevronDown className="h-4 w-4" />
-                Load More
+                {isFetchingNextPage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                {isFetchingNextPage ? 'Loading more...' : 'Load More'}
               </Button>
-            </div>
-          )}
-
-          {status === 'LoadingMore' && (
-            <div className="mt-4 flex justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading more...
             </div>
           )}
         </div>
