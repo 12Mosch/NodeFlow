@@ -79,10 +79,6 @@ export function useImageUpload({
           // This URL works without authentication, unlike our custom HTTP endpoint
           const url = result.url
 
-          if (!url) {
-            throw new Error('Failed to get image URL')
-          }
-
           onUploadComplete?.(url)
 
           return { url, storageId }
