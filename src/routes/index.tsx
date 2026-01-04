@@ -1,42 +1,103 @@
-import { Suspense, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSuspenseQuery } from '@tanstack/react-query'
-import { useMutation } from 'convex/react'
-import { convexQuery } from '@convex-dev/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useConvex, useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import { FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  FileText,
+  GraduationCap,
+  Loader2,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { InfiniteData } from '@tanstack/react-query'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
 
-export const Route = createFileRoute('/')({ component: App })
+const DOCUMENTS_PER_PAGE = 10
+
+type DocumentPage = {
+  page: Array<Doc<'documents'>>
+  continueCursor: string
+  isDone: boolean
+}
+
+export const Route = createFileRoute('/')({
+  component: App,
+})
 
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Suspense
-        fallback={
-          <div className="p-8 text-muted-foreground">Loading documents...</div>
-        }
-      >
-        <DocumentList />
-      </Suspense>
+      <DocumentList />
     </div>
   )
 }
 
 function DocumentList() {
-  const { data: documents } = useSuspenseQuery(
-    convexQuery(api.documents.list, {}),
-  )
+  const { isAuthenticated } = useConvexAuth()
+  const convex = useConvex()
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error: queryError,
+  } = useInfiniteQuery({
+    queryKey: ['documents', 'list'],
+    queryFn: async ({ pageParam }) => {
+      const results = await convex.query(api.documents.list, {
+        paginationOpts: {
+          numItems: DOCUMENTS_PER_PAGE,
+          cursor: pageParam,
+        },
+      })
+
+      return results
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage: DocumentPage) =>
+      lastPage.isDone ? null : lastPage.continueCursor,
+    enabled: isAuthenticated,
+  })
+
+  const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
+  const { queryClient } = Route.useRouteContext()
+
+  // Prefetch data once authentication is available client-side
+  // This waits for authentication before attempting to prefetch, ensuring
+  // the query succeeds and populates the TanStack Query cache
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Prefetch into TanStack Query cache for better performance
+      queryClient.ensureInfiniteQueryData({
+        queryKey: ['documents', 'list'],
+        queryFn: async ({ pageParam }) => {
+          return await convex.query(api.documents.list, {
+            paginationOpts: {
+              numItems: DOCUMENTS_PER_PAGE,
+              cursor: pageParam,
+            },
+          })
+        },
+        initialPageParam: null as string | null,
+        getNextPageParam: (lastPage: DocumentPage) =>
+          lastPage.isDone ? null : lastPage.continueCursor,
+      })
+    }
+  }, [isAuthenticated, queryClient, convex])
 
   const handleCreate = async () => {
     try {
@@ -56,14 +117,36 @@ function DocumentList() {
   const handleDelete = async (id: Id<'documents'>, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+
+    // Capture current data for rollback
+    const previousData = queryClient.getQueryData(['documents', 'list'])
+
     try {
       await Sentry.startSpan(
         { name: 'DocumentList.delete', op: 'ui.interaction' },
         async () => {
-          await deleteDocument({ id })
+          await deleteDocument.withOptimisticUpdate(() => {
+            // Manually update the TanStack Query cache for the infinite query
+            queryClient.setQueryData<InfiniteData<DocumentPage, string | null>>(
+              ['documents', 'list'],
+              (oldData) => {
+                if (!oldData) return oldData
+                return {
+                  ...oldData,
+                  pages: oldData.pages.map((page) => ({
+                    ...page,
+                    page: page.page.filter((doc) => doc._id !== id),
+                  })),
+                }
+              },
+            )
+          })({ id })
+          toast.success('Document deleted')
         },
       )
     } catch (error) {
+      // Rollback on error
+      queryClient.setQueryData(['documents', 'list'], previousData)
       toast.error('Failed to delete document. Please try again.')
       console.error('Error deleting document:', error)
     }
@@ -71,6 +154,23 @@ function DocumentList() {
 
   const handleSelectStudyMode = (mode: StudyMode) => {
     navigate({ to: '/study', search: { mode } })
+  }
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center p-8 text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading documents...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-screen items-center justify-center p-8 text-destructive">
+        Error loading documents: {queryError.message || 'Unknown error'}
+      </div>
+    )
   }
 
   return (
@@ -137,6 +237,24 @@ function DocumentList() {
               </Button>
             </Link>
           ))}
+
+          {(hasNextPage || isFetchingNextPage) && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="gap-2"
+              >
+                {isFetchingNextPage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                {isFetchingNextPage ? 'Loading more...' : 'Load More'}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
