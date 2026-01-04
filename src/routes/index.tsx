@@ -1,11 +1,16 @@
-import { Suspense, useState } from 'react'
+import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSuspenseQuery } from '@tanstack/react-query'
-import { useMutation } from 'convex/react'
-import { convexQuery } from '@convex-dev/react-query'
+import { useMutation, usePaginatedQuery } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import { FileText, GraduationCap, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  FileText,
+  GraduationCap,
+  Loader2,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { StudyMode } from '@/components/study-mode-dialog'
@@ -18,21 +23,17 @@ export const Route = createFileRoute('/')({ component: App })
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Suspense
-        fallback={
-          <div className="p-8 text-muted-foreground">Loading documents...</div>
-        }
-      >
-        <DocumentList />
-      </Suspense>
+      <DocumentList />
     </div>
   )
 }
 
 function DocumentList() {
-  const { data: documents } = useSuspenseQuery(
-    convexQuery(api.documents.list, {}),
-  )
+  const {
+    results: documents,
+    status,
+    loadMore,
+  } = usePaginatedQuery(api.documents.list, {}, { initialNumItems: 10 })
   const createDocument = useMutation(api.documents.create)
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
@@ -73,6 +74,15 @@ function DocumentList() {
     navigate({ to: '/study', search: { mode } })
   }
 
+  if (status === 'LoadingFirstPage') {
+    return (
+      <div className="flex h-screen items-center justify-center p-8 text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading documents...
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-8 flex items-center justify-between">
@@ -94,7 +104,7 @@ function DocumentList() {
         </div>
       </div>
 
-      {documents.length === 0 ? (
+      {documents.length === 0 && status === 'Exhausted' ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
           <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
@@ -137,6 +147,26 @@ function DocumentList() {
               </Button>
             </Link>
           ))}
+
+          {status === 'CanLoadMore' && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => loadMore(10)}
+                className="gap-2"
+              >
+                <ChevronDown className="h-4 w-4" />
+                Load More
+              </Button>
+            </div>
+          )}
+
+          {status === 'LoadingMore' && (
+            <div className="mt-4 flex justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading more...
+            </div>
+          )}
         </div>
       )}
 

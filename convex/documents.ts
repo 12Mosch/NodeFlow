@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
+import { paginationOptsValidator } from 'convex/server'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
 import { requireDocumentAccess } from './helpers/documentAccess'
@@ -26,8 +27,10 @@ async function getDocumentWithAccess(
 }
 
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
     return await Sentry.startSpan(
       { name: 'documents.list', op: 'convex.query' },
       async () => {
@@ -37,7 +40,7 @@ export const list = query({
           .query('documents')
           .withIndex('by_user_updated', (q) => q.eq('userId', userId))
           .order('desc')
-          .collect()
+          .paginate(args.paginationOpts)
 
         return documents
       },
