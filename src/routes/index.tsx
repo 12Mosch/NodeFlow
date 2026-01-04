@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { convexQuery } from '@convex-dev/react-query'
 import { useConvex, useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
@@ -14,11 +13,19 @@ import {
   Trash2,
 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
+
+const DOCUMENTS_PER_PAGE = 10
+
+type DocumentPage = {
+  page: Array<Doc<'documents'>>
+  continueCursor: string
+  isDone: boolean
+}
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -48,19 +55,20 @@ function DocumentList() {
     queryFn: async ({ pageParam }) => {
       const results = await convex.query(api.documents.list, {
         paginationOpts: {
-          numItems: 10,
+          numItems: DOCUMENTS_PER_PAGE,
           cursor: pageParam,
         },
       })
+
       return results
     },
     initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
+    getNextPageParam: (lastPage: DocumentPage) =>
       lastPage.isDone ? null : lastPage.continueCursor,
     enabled: isAuthenticated,
   })
 
-  const documents = data?.pages.flatMap((p: any) => p.page) || []
+  const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
@@ -73,13 +81,22 @@ function DocumentList() {
   useEffect(() => {
     if (isAuthenticated) {
       // Prefetch into TanStack Query cache for better performance
-      queryClient.ensureQueryData(
-        convexQuery(api.documents.list, {
-          paginationOpts: { numItems: 10, cursor: null },
-        }),
-      )
+      queryClient.ensureInfiniteQueryData({
+        queryKey: ['documents', 'list'],
+        queryFn: async ({ pageParam }) => {
+          return await convex.query(api.documents.list, {
+            paginationOpts: {
+              numItems: DOCUMENTS_PER_PAGE,
+              cursor: pageParam,
+            },
+          })
+        },
+        initialPageParam: null as string | null,
+        getNextPageParam: (lastPage: DocumentPage) =>
+          lastPage.isDone ? null : lastPage.continueCursor,
+      })
     }
-  }, [isAuthenticated, queryClient])
+  }, [isAuthenticated, queryClient, convex])
 
   const handleCreate = async () => {
     try {
