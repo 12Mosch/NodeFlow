@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { InfiniteData } from '@tanstack/react-query'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
@@ -116,14 +117,36 @@ function DocumentList() {
   const handleDelete = async (id: Id<'documents'>, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+
+    // Capture current data for rollback
+    const previousData = queryClient.getQueryData(['documents', 'list'])
+
     try {
       await Sentry.startSpan(
         { name: 'DocumentList.delete', op: 'ui.interaction' },
         async () => {
-          await deleteDocument({ id })
+          await deleteDocument.withOptimisticUpdate(() => {
+            // Manually update the TanStack Query cache for the infinite query
+            queryClient.setQueryData<InfiniteData<DocumentPage, string | null>>(
+              ['documents', 'list'],
+              (oldData) => {
+                if (!oldData) return oldData
+                return {
+                  ...oldData,
+                  pages: oldData.pages.map((page) => ({
+                    ...page,
+                    page: page.page.filter((doc) => doc._id !== id),
+                  })),
+                }
+              },
+            )
+          })({ id })
+          toast.success('Document deleted')
         },
       )
     } catch (error) {
+      // Rollback on error
+      queryClient.setQueryData(['documents', 'list'], previousData)
       toast.error('Failed to delete document. Please try again.')
       console.error('Error deleting document:', error)
     }
