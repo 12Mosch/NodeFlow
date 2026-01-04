@@ -229,7 +229,11 @@ export const storeFile = mutation({
           createdAt: now,
         })
 
-        return fileId
+        // Get the pre-signed URL for the stored file
+        // This URL works without authentication and is the recommended way to serve files
+        const url = await ctx.storage.getUrl(args.storageId)
+
+        return { fileId, url }
       },
     )
   },

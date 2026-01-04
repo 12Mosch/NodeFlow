@@ -290,12 +290,17 @@ function EditorContentWrapper({
   const isMountedRef = useRef(true)
   const editorRef = useRef<Editor | null>(null)
 
-  // Track editor instance and component mount status
+  // Track component mount status separately from editor updates
   useEffect(() => {
-    editorRef.current = editor
+    isMountedRef.current = true
     return () => {
       isMountedRef.current = false
     }
+  }, []) // Empty deps - only runs on mount/unmount
+
+  // Update editor ref when editor changes
+  useEffect(() => {
+    editorRef.current = editor
   }, [editor])
 
   const { uploadImage } = useImageUpload({
