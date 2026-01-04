@@ -8,7 +8,6 @@ import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
 import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import Subscript from '@tiptap/extension-subscript'
@@ -22,6 +21,7 @@ import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
+import { ExtendedImage } from '@/extensions/image'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -204,7 +204,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       },
     }),
     // Image extension for uploaded images
-    Image.configure({
+    ExtendedImage.configure({
       HTMLAttributes: {
         class: 'editor-image',
       },
@@ -309,13 +309,41 @@ function EditorContentWrapper({
       setIsUploading(true)
       toast.loading('Uploading image...', { id: 'image-upload' })
     },
-    onUploadComplete: (url) => {
+    onUploadComplete: (url, dimensions) => {
       setIsUploading(false)
       toast.success('Image uploaded!', { id: 'image-upload' })
       // Check if component is still mounted and editor is valid
       const currentEditor = editorRef.current
       if (isMountedRef.current && currentEditor && !currentEditor.isDestroyed) {
-        currentEditor.chain().focus().setImage({ src: url }).run()
+        try {
+          // Use insertContent to explicitly insert the image as a block-level node
+          const result = currentEditor
+            .chain()
+            .focus()
+            .insertContent({
+              type: 'image',
+              attrs: {
+                src: url,
+                width: dimensions.width,
+                height: dimensions.height,
+              },
+            })
+            .run()
+
+          if (!result) {
+            console.error('Failed to insert image: command returned false')
+            Sentry.captureMessage('Failed to insert image into editor', {
+              level: 'error',
+              extra: { url, dimensions },
+            })
+          }
+        } catch (error) {
+          console.error('Error inserting image:', error)
+          Sentry.captureException(error, {
+            extra: { url, dimensions },
+          })
+          toast.error('Failed to insert image into editor')
+        }
       }
     },
     onUploadError: (error) => {

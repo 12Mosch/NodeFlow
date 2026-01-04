@@ -7,13 +7,47 @@ import type { Id } from '../../convex/_generated/dataModel'
 interface UseImageUploadOptions {
   documentId: Id<'documents'>
   onUploadStart?: () => void
-  onUploadComplete?: (url: string) => void
+  onUploadComplete?: (url: string, dimensions: ImageDimensions) => void
   onUploadError?: (error: Error) => void
+}
+
+interface ImageDimensions {
+  width: number
+  height: number
 }
 
 interface UploadResult {
   url: string
   storageId: Id<'_storage'>
+  dimensions: ImageDimensions
+}
+
+/**
+ * Gets the dimensions of an image file.
+ *
+ * @param file - The image file
+ * @returns Promise resolving to image dimensions
+ */
+function getImageDimensions(file: File): Promise<ImageDimensions> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      })
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Failed to load image to get dimensions'))
+    }
+
+    img.src = objectUrl
+  })
 }
 
 export function useImageUpload({
@@ -49,10 +83,14 @@ export function useImageUpload({
       return await Sentry.startSpan(
         { name: 'ImageUpload.upload', op: 'file.upload' },
         async () => {
-          // Step 1: Get upload URL from Convex
+          // Step 1: Get image dimensions before upload
+          // This allows us to set width/height attributes to prevent layout shifts
+          const dimensions = await getImageDimensions(file)
+
+          // Step 2: Get upload URL from Convex
           const uploadUrl = await generateUploadUrl()
 
-          // Step 2: Upload file to Convex storage
+          // Step 3: Upload file to Convex storage
           const response = await fetch(uploadUrl, {
             method: 'POST',
             headers: { 'Content-Type': file.type },
@@ -79,9 +117,9 @@ export function useImageUpload({
           // This URL works without authentication, unlike our custom HTTP endpoint
           const url = result.url
 
-          onUploadComplete?.(url)
+          onUploadComplete?.(url, dimensions)
 
-          return { url, storageId }
+          return { url, storageId, dimensions }
         },
       )
     } catch (error) {
