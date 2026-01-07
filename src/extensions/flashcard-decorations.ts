@@ -113,19 +113,17 @@ function findFlashcardSyntax(text: string): Array<SyntaxMatch> {
     return b.text.length - a.text.length // Longer matches first
   })
 
-  // Remove overlapping matches - keep only the longest match at each position
+  // Remove overlapping matches in a single pass (O(N))
+  // Since matches are sorted by start position (and longer matches come first
+  // at the same position), we can simply track the last accepted match's end
   const filteredMatches: Array<SyntaxMatch> = []
-  for (const match of matches) {
-    // Check if this match overlaps with any already accepted match
-    const overlaps = filteredMatches.some(
-      (existing) =>
-        (match.from >= existing.from && match.from < existing.to) ||
-        (match.to > existing.from && match.to <= existing.to) ||
-        (match.from <= existing.from && match.to >= existing.to),
-    )
+  let lastEnd = -1
 
-    if (!overlaps) {
+  for (const match of matches) {
+    // If this match starts at or after the last match ended, it doesn't overlap
+    if (match.from >= lastEnd) {
       filteredMatches.push(match)
+      lastEnd = match.to
     }
   }
 
