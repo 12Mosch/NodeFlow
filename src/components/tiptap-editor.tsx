@@ -43,6 +43,7 @@ import {
   triggerImageDropPaste,
 } from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
+import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { useImageUpload } from '@/hooks/use-image-upload'
 
@@ -256,6 +257,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       onBlocksDelete: handleBlocksDelete,
       onInitialSync: handleInitialSync,
     }),
+    // Flashcard decorations for visual indicators
+    FlashcardDecorations,
     extension,
   ]
 
