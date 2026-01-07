@@ -266,7 +266,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     <div className="w-full">
       <EditorProvider
         content={initialContent}
-        extensions={extensions as any}
+        extensions={extensions}
         immediatelyRender={false}
       >
         <EditorContentWrapper
@@ -303,7 +303,6 @@ function EditorContentWrapper({
 
   // Update editor ref when editor changes
   useEffect(() => {
-    // @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations
     editorRef.current = editor
   }, [editor])
 
@@ -426,7 +425,6 @@ function EditorContentWrapper({
   // Notify parent when editor is ready
   useEffect(() => {
     if (editor && onEditorReady) {
-      // @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations
       onEditorReady(editor)
     }
   }, [editor, onEditorReady])
@@ -510,7 +508,6 @@ function EditorContentWrapper({
         onChange={handleFileInputChange}
         disabled={isUploading}
       />
-      {/* @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations */}
       <DragHandle editor={editor} className="drag-handle">
         <GripVertical className="h-4 w-4" />
       </DragHandle>

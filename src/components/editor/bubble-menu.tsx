@@ -120,7 +120,6 @@ export function EditorBubbleMenu() {
       className="bubble-menu"
     >
       {/* Block type dropdown */}
-      {/* @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations */}
       <BlockTypeMenu editor={editor} />
 
       <div className="bubble-menu-divider" />
