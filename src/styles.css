@@ -778,3 +778,95 @@ code {
   height: 1.75rem;
   padding: 0;
 }
+
+/* Flashcard Icon Styles */
+.flashcard-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0.25rem;
+  padding: 0.125rem;
+  border-radius: 0.25rem;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+  cursor: default;
+  user-select: none;
+}
+
+.flashcard-icon svg {
+  display: block;
+}
+
+/* Basic card - Blue */
+.flashcard-icon-basic {
+  color: oklch(0.55 0.15 250);
+  background: oklch(0.55 0.15 250 / 0.1);
+}
+
+.dark .flashcard-icon-basic {
+  color: oklch(0.7 0.15 250);
+  background: oklch(0.7 0.15 250 / 0.15);
+}
+
+/* Concept card - Amber */
+.flashcard-icon-concept {
+  color: oklch(0.65 0.18 85);
+  background: oklch(0.65 0.18 85 / 0.1);
+}
+
+.dark .flashcard-icon-concept {
+  color: oklch(0.75 0.16 85);
+  background: oklch(0.75 0.16 85 / 0.15);
+}
+
+/* Descriptor card - Green */
+.flashcard-icon-descriptor {
+  color: oklch(0.55 0.15 150);
+  background: oklch(0.55 0.15 150 / 0.1);
+}
+
+.dark .flashcard-icon-descriptor {
+  color: oklch(0.65 0.14 150);
+  background: oklch(0.65 0.14 150 / 0.15);
+}
+
+/* Cloze card - Purple */
+.flashcard-icon-cloze {
+  color: oklch(0.55 0.18 290);
+  background: oklch(0.55 0.18 290 / 0.1);
+}
+
+.dark .flashcard-icon-cloze {
+  color: oklch(0.7 0.16 290);
+  background: oklch(0.7 0.16 290 / 0.15);
+}
+
+/* Disabled card - Muted */
+.flashcard-icon-disabled {
+  color: var(--muted-foreground);
+  background: var(--muted);
+  opacity: 0.6;
+}
+
+/* Hover state */
+.flashcard-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+/* Hide flashcard syntax when icon is shown */
+.flashcard-syntax-hidden {
+  display: none;
+}
+
+/* Highlight cloze content */
+.flashcard-cloze-content {
+  background: oklch(0.55 0.18 290 / 0.15);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.dark .flashcard-cloze-content {
+  background: oklch(0.7 0.16 290 / 0.2);
+}

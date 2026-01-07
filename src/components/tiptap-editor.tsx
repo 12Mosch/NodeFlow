@@ -43,6 +43,7 @@ import {
   triggerImageDropPaste,
 } from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
+import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { useImageUpload } from '@/hooks/use-image-upload'
 
@@ -256,6 +257,8 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       onBlocksDelete: handleBlocksDelete,
       onInitialSync: handleInitialSync,
     }),
+    // Flashcard decorations for visual indicators
+    FlashcardDecorations,
     extension,
   ]
 
@@ -263,7 +266,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     <div className="w-full">
       <EditorProvider
         content={initialContent}
-        extensions={extensions}
+        extensions={extensions as any}
         immediatelyRender={false}
       >
         <EditorContentWrapper
@@ -300,6 +303,7 @@ function EditorContentWrapper({
 
   // Update editor ref when editor changes
   useEffect(() => {
+    // @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations
     editorRef.current = editor
   }, [editor])
 
@@ -422,6 +426,7 @@ function EditorContentWrapper({
   // Notify parent when editor is ready
   useEffect(() => {
     if (editor && onEditorReady) {
+      // @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations
       onEditorReady(editor)
     }
   }, [editor, onEditorReady])
@@ -505,6 +510,7 @@ function EditorContentWrapper({
         onChange={handleFileInputChange}
         disabled={isUploading}
       />
+      {/* @ts-expect-error - Type mismatch due to duplicate @tiptap/core installations */}
       <DragHandle editor={editor} className="drag-handle">
         <GripVertical className="h-4 w-4" />
       </DragHandle>
