@@ -146,6 +146,21 @@ function isCursorInNode(
   )
 }
 
+// Get the position of the text block containing the cursor
+function getCursorNodePos(state: EditorState): number | null {
+  let nodePos: number | null = null
+
+  state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+    if (nodePos !== null) return false // Already found
+    if (node.isTextblock && isCursorInNode(state, pos, node)) {
+      nodePos = pos
+      return false // Stop searching
+    }
+  })
+
+  return nodePos
+}
+
 // Build decorations for a document
 function buildDecorations(state: EditorState): DecorationSet {
   const decorations: Array<Decoration> = []
@@ -254,18 +269,38 @@ export const FlashcardDecorations = Extension.create({
   name: 'flashcardDecorations',
 
   addProseMirrorPlugins() {
+    // Track the cursor node position to avoid unnecessary rebuilds
+    let lastCursorNodePos: number | null = null
+
     return [
       new Plugin({
         key: flashcardDecorationsPluginKey,
         state: {
           init(_, state) {
+            lastCursorNodePos = getCursorNodePos(state)
             return buildDecorations(state)
           },
           apply(tr, oldDecorationSet, _oldState, newState) {
-            // If document or selection changed, rebuild decorations
-            if (tr.docChanged || tr.selectionSet) {
+            // Always rebuild on document changes
+            if (tr.docChanged) {
+              lastCursorNodePos = getCursorNodePos(newState)
               return buildDecorations(newState)
             }
+
+            // For selection changes, only rebuild if cursor moved to a different node
+            if (tr.selectionSet) {
+              const currentCursorNodePos = getCursorNodePos(newState)
+
+              // Rebuild if cursor moved between different nodes
+              if (currentCursorNodePos !== lastCursorNodePos) {
+                lastCursorNodePos = currentCursorNodePos
+                return buildDecorations(newState)
+              }
+
+              // Cursor is in the same node, no rebuild needed
+              return oldDecorationSet
+            }
+
             // Otherwise, map old decorations to new positions
             return oldDecorationSet.map(tr.mapping, tr.doc)
           },
