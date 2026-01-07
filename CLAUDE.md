@@ -35,7 +35,7 @@ Every document consists of granular **blocks** stored individually in Convex. Ea
 - `type`: ProseMirror node type (paragraph, heading, etc.)
 - `content`: Full ProseMirror JSON node
 - `textContent`: Plain text for search
-- Flashcard fields: `isCard`, `cardType`, `cardDirection`, `cardFront`, `cardBack`
+- Flashcard fields: `isCard`, `cardType`, `cardDirection`, `cardFront`, `cardBack`, `clozeOcclusions`
 
 ### Data Flow
 
@@ -98,7 +98,7 @@ export const myMutation = mutation({
 
 Wrap server function implementations with spans:
 
-```tsx
+```ts
 import * as Sentry from '@sentry/tanstackstart-react'
 
 Sentry.startSpan({ name: 'Operation name' }, async () => {
