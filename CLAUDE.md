@@ -82,13 +82,13 @@ const update = useMutation(api.blocks.update).withOptimisticUpdate(...)
 ### Auth in Backend Functions
 
 ```ts
-import { requireUser } from './auth'
+import { mutation } from './_generated/server'
 import { requireDocumentAccess } from './helpers/documentAccess'
 
 export const myMutation = mutation({
   handler: async (ctx, args) => {
-    const userId = await requireUser(ctx)
-    await requireDocumentAccess(ctx, userId, args.documentId)
+    // requireDocumentAccess calls requireUser internally
+    const { document, userId } = await requireDocumentAccess(ctx, args.documentId)
     // ...
   }
 })
