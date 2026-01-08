@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -12,12 +12,14 @@ import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import Subscript from '@tiptap/extension-subscript'
 import Superscript from '@tiptap/extension-superscript'
+import { Mathematics } from '@tiptap/extension-mathematics'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
@@ -58,10 +60,52 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
 
+  // Store editor instance for math onClick handlers
+  const editorRef = useRef<Editor | null>(null)
+
   // Mutations for block-level sync
   const upsertBlock = useMutation(api.blocks.upsertBlock)
   const deleteBlocks = useMutation(api.blocks.deleteBlocks)
   const syncBlocks = useMutation(api.blocks.syncBlocks)
+
+  // Wrap onEditorReady to also set our ref
+  const handleEditorReady = useCallback(
+    (editor: Editor) => {
+      editorRef.current = editor
+      onEditorReady?.(editor)
+    },
+    [onEditorReady],
+  )
+
+  // Math onClick handlers factory - creates handlers that capture editor ref safely
+  // These are only called during user interaction (onClick), never during render
+  const createMathHandlers = useCallback(
+    () => ({
+      handleInlineMathClick: (node: ProseMirrorNode, pos: number) => {
+        const editor = editorRef.current
+        if (!editor) return
+
+        const currentLatex = node.attrs.latex || ''
+        const newLatex = window.prompt('Edit LaTeX:', currentLatex)
+
+        if (newLatex !== null) {
+          editor.commands.updateInlineMath({ latex: newLatex, pos })
+        }
+      },
+      handleBlockMathClick: (node: ProseMirrorNode, pos: number) => {
+        const editor = editorRef.current
+        if (!editor) return
+
+        const currentLatex = node.attrs.latex || ''
+        const newLatex = window.prompt('Edit LaTeX:', currentLatex)
+
+        if (newLatex !== null) {
+          editor.commands.updateBlockMath({ latex: newLatex, pos })
+        }
+      },
+    }),
+    [],
+  )
 
   // Callbacks for block sync extension
   const handleBlockUpdate = useCallback(
@@ -157,6 +201,116 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     }
   }, [isLoading, initialContent, create])
 
+  // Memoize extensions array (must be before early returns to satisfy hooks rules)
+  const extensions = useMemo(() => {
+    const mathHandlers = createMathHandlers()
+    return [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+        link: false,
+      }),
+      Placeholder.configure({
+        placeholder: 'Start writing...',
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      // Text styling extensions
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TextStyle,
+      Color,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline cursor-pointer',
+        },
+      }),
+      // Image extension for uploaded images
+      ExtendedImage.configure({
+        HTMLAttributes: {
+          class: 'editor-image',
+        },
+        allowBase64: false,
+      }),
+      // File handler for drag/drop and paste of images
+      FileHandler.configure({
+        allowedMimeTypes: [
+          'image/png',
+          'image/jpeg',
+          'image/gif',
+          'image/webp',
+          'image/svg+xml',
+          'image/bmp',
+          'image/tiff',
+          'image/heic',
+          'image/heif',
+        ],
+        onDrop: (_editor, files, pos) => {
+          // Trigger upload via custom event (handled by EditorContentWrapper)
+          triggerImageDropPaste(files, pos)
+        },
+        onPaste: (_editor, files) => {
+          // Trigger upload via custom event (handled by EditorContentWrapper)
+          triggerImageDropPaste(files)
+        },
+      }),
+      Superscript,
+      Subscript,
+      // Mathematics extension for LaTeX formulas
+      // ESLint warning is a false positive: mathHandlers callbacks only access editorRef
+      // when invoked by user interaction (onClick), never during render phase
+      // eslint-disable-next-line react-hooks/refs
+      Mathematics.configure({
+        katexOptions: {
+          throwOnError: false,
+        },
+        inlineOptions: {
+          onClick: mathHandlers.handleInlineMathClick,
+        },
+        blockOptions: {
+          onClick: mathHandlers.handleBlockMathClick,
+        },
+      }),
+      // Callout block extension
+      Callout,
+      // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
+      OutlinerKeys,
+      // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
+      LinkKeys,
+      // Slash commands menu for quick block insertion
+      SlashCommands,
+      // UniqueID extension to assign block IDs to block-level nodes
+      UniqueID.configure({
+        attributeName: 'blockId',
+        types: BLOCK_TYPES_WITH_IDS,
+      }),
+      // BlockSync extension to track and persist block changes
+      BlockSync.configure({
+        documentId,
+        attributeName: 'blockId',
+        debounceMs: 300,
+        onBlockUpdate: handleBlockUpdate,
+        onBlocksDelete: handleBlocksDelete,
+        onInitialSync: handleInitialSync,
+      }),
+      // Flashcard decorations for visual indicators
+      FlashcardDecorations,
+      extension,
+    ].filter((ext): ext is NonNullable<typeof ext> => ext !== null)
+  }, [
+    documentId,
+    handleBlockUpdate,
+    handleBlocksDelete,
+    handleInitialSync,
+    createMathHandlers,
+    extension,
+  ])
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -178,90 +332,6 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     )
   }
 
-  const extensions = [
-    StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3],
-      },
-      link: false,
-    }),
-    Placeholder.configure({
-      placeholder: 'Start writing...',
-    }),
-    TaskList,
-    TaskItem.configure({
-      nested: true,
-    }),
-    // Text styling extensions
-    Highlight.configure({
-      multicolor: true,
-    }),
-    TextStyle,
-    Color,
-    Link.configure({
-      openOnClick: false,
-      HTMLAttributes: {
-        class: 'text-primary underline cursor-pointer',
-      },
-    }),
-    // Image extension for uploaded images
-    ExtendedImage.configure({
-      HTMLAttributes: {
-        class: 'editor-image',
-      },
-      allowBase64: false,
-    }),
-    // File handler for drag/drop and paste of images
-    FileHandler.configure({
-      allowedMimeTypes: [
-        'image/png',
-        'image/jpeg',
-        'image/gif',
-        'image/webp',
-        'image/svg+xml',
-        'image/bmp',
-        'image/tiff',
-        'image/heic',
-        'image/heif',
-      ],
-      onDrop: (_editor, files, pos) => {
-        // Trigger upload via custom event (handled by EditorContentWrapper)
-        triggerImageDropPaste(files, pos)
-      },
-      onPaste: (_editor, files) => {
-        // Trigger upload via custom event (handled by EditorContentWrapper)
-        triggerImageDropPaste(files)
-      },
-    }),
-    Superscript,
-    Subscript,
-    // Callout block extension
-    Callout,
-    // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
-    OutlinerKeys,
-    // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
-    LinkKeys,
-    // Slash commands menu for quick block insertion
-    SlashCommands,
-    // UniqueID extension to assign block IDs to block-level nodes
-    UniqueID.configure({
-      attributeName: 'blockId',
-      types: BLOCK_TYPES_WITH_IDS,
-    }),
-    // BlockSync extension to track and persist block changes
-    BlockSync.configure({
-      documentId,
-      attributeName: 'blockId',
-      debounceMs: 300,
-      onBlockUpdate: handleBlockUpdate,
-      onBlocksDelete: handleBlocksDelete,
-      onInitialSync: handleInitialSync,
-    }),
-    // Flashcard decorations for visual indicators
-    FlashcardDecorations,
-    extension,
-  ]
-
   return (
     <div className="w-full">
       <EditorProvider
@@ -271,7 +341,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       >
         <EditorContentWrapper
           documentId={documentId}
-          onEditorReady={onEditorReady}
+          onEditorReady={handleEditorReady}
         />
       </EditorProvider>
     </div>

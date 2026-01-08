@@ -2,6 +2,8 @@
 
 @import 'tw-animate-css';
 
+@import 'katex/dist/katex.min.css';
+
 @custom-variant dark (&:is(.dark *));
 
 body {
@@ -292,6 +294,44 @@ code {
     border-radius: 0.5rem;
     margin: 1rem auto;
     display: block;
+  }
+
+  /* Math node styles */
+  [data-type='inline-math'] {
+    display: inline-block;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    background: var(--muted);
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--accent);
+    }
+  }
+
+  [data-type='block-math'] {
+    display: block;
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: var(--muted);
+    overflow-x: auto;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background: var(--accent);
+    }
+  }
+
+  /* KaTeX font rendering */
+  .katex {
+    font-size: 1.05em;
+  }
+
+  .katex-display {
+    margin: 0;
   }
 }
 
