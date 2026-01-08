@@ -19,6 +19,7 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
@@ -76,27 +77,11 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     [onEditorReady],
   )
 
-  // Helper function to find a node's position in the document
-  const findNodePosition = useCallback(
-    (editor: Editor, targetNode: any): number | undefined => {
-      let foundPosition: number | undefined
-      editor.state.doc.descendants((node, pos) => {
-        if (node === targetNode) {
-          foundPosition = pos
-          return false // Stop searching
-        }
-        return true // Continue searching
-      })
-      return foundPosition
-    },
-    [],
-  )
-
   // Math onClick handlers factory - creates handlers that capture editor ref safely
   // These are only called during user interaction (onClick), never during render
   const createMathHandlers = useCallback(
     () => ({
-      handleInlineMathClick: (node: any, pos: number) => {
+      handleInlineMathClick: (node: ProseMirrorNode, pos: number) => {
         const editor = editorRef.current
         if (!editor) return
 
@@ -107,23 +92,19 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
           editor.commands.updateInlineMath({ latex: newLatex, pos })
         }
       },
-      handleBlockMathClick: (node: any) => {
+      handleBlockMathClick: (node: ProseMirrorNode, pos: number) => {
         const editor = editorRef.current
         if (!editor) return
 
         const currentLatex = node.attrs.latex || ''
         const newLatex = window.prompt('Edit LaTeX:', currentLatex)
 
-        if (newLatex === null) return
-
-        // Find the position of the block node in the document
-        const pos = findNodePosition(editor, node)
-        if (pos !== undefined) {
+        if (newLatex !== null) {
           editor.commands.updateBlockMath({ latex: newLatex, pos })
         }
       },
     }),
-    [findNodePosition],
+    [],
   )
 
   // Callbacks for block sync extension
