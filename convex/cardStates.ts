@@ -16,14 +16,6 @@ import type { Id } from './_generated/dataModel'
 // Direction validator
 const directionValidator = v.union(v.literal('forward'), v.literal('reverse'))
 
-// State validator
-const stateValidator = v.union(
-  v.literal('new'),
-  v.literal('learning'),
-  v.literal('review'),
-  v.literal('relearning'),
-)
-
 /**
  * Get or create card state for a block+direction combination
  */
