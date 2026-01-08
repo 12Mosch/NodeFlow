@@ -13,6 +13,7 @@ import {
   Minus,
   Pilcrow,
   Quote,
+  Sigma,
 } from 'lucide-react'
 import type { SuggestionOptions } from '@tiptap/suggestion'
 import type { Editor } from '@tiptap/core'
@@ -172,6 +173,26 @@ export const slashCommands: Array<SlashCommand> = [
     command: () => {
       // Trigger the image upload dialog via custom event
       triggerImageUpload()
+    },
+  },
+  {
+    title: 'Math Block',
+    description: 'LaTeX math formula',
+    icon: Sigma,
+    category: 'other',
+    aliases: ['math', 'equation', 'latex', 'formula'],
+    command: (editor) => {
+      editor.commands.insertBlockMath({ latex: 'E = mc^2' })
+    },
+  },
+  {
+    title: 'Inline Math',
+    description: 'Inline LaTeX formula',
+    icon: Sigma,
+    category: 'other',
+    aliases: ['inline-math', 'inline-equation'],
+    command: (editor) => {
+      editor.commands.insertInlineMath({ latex: 'x^2' })
     },
   },
 ]
