@@ -31,6 +31,7 @@ To run a single test file: `bun run test src/path/to/file.test.ts`
 ### Block-Based Document Model
 
 Every document consists of granular **blocks** stored individually in Convex. Each block has:
+
 - `nodeId`: Unique identifier for tracking
 - `type`: ProseMirror node type (paragraph, heading, etc.)
 - `content`: Full ProseMirror JSON node
@@ -56,6 +57,7 @@ Every document consists of granular **blocks** stored individually in Convex. Ea
 Tables: `users`, `documents`, `blocks`, `cardStates`, `reviewLogs`, `files`
 
 Key patterns:
+
 - `userId` is denormalized on blocks for efficient querying
 - Cards have separate `cardStates` entries per direction (forward/reverse)
 - `reviewLogs` provides audit trail for analytics
@@ -88,9 +90,12 @@ import { requireDocumentAccess } from './helpers/documentAccess'
 export const myMutation = mutation({
   handler: async (ctx, args) => {
     // requireDocumentAccess calls requireUser internally
-    const { document, userId } = await requireDocumentAccess(ctx, args.documentId)
+    const { document, userId } = await requireDocumentAccess(
+      ctx,
+      args.documentId,
+    )
     // ...
-  }
+  },
 })
 ```
 
