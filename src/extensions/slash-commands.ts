@@ -45,6 +45,21 @@ export function triggerImageDropPaste(files: Array<File>, pos?: number) {
   )
 }
 
+// Custom event for math editing
+export const MATH_EDIT_EVENT = 'nodeflow:math-edit'
+
+export function triggerMathEdit(data: {
+  nodeType: 'inlineMath' | 'blockMath'
+  pos: number
+  latex: string
+}) {
+  window.dispatchEvent(
+    new CustomEvent(MATH_EDIT_EVENT, {
+      detail: data,
+    }),
+  )
+}
+
 export const slashCommands: Array<SlashCommand> = [
   {
     title: 'Text',

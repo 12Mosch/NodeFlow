@@ -43,12 +43,15 @@ import { LinkKeys } from '@/extensions/link-keys'
 import {
   IMAGE_DROP_PASTE_EVENT,
   IMAGE_UPLOAD_EVENT,
+  MATH_EDIT_EVENT,
   SlashCommands,
   triggerImageDropPaste,
+  triggerMathEdit,
 } from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
 import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
+import { MathEditorPopover } from '@/components/editor/math-editor-popover'
 import { useImageUpload } from '@/hooks/use-image-upload'
 
 interface TiptapEditorProps {
@@ -84,26 +87,20 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   const createMathHandlers = useCallback(
     () => ({
       handleInlineMathClick: (node: ProseMirrorNode, pos: number) => {
-        const editor = editorRef.current
-        if (!editor) return
-
         const currentLatex = node.attrs.latex || ''
-        const newLatex = window.prompt('Edit LaTeX:', currentLatex)
-
-        if (newLatex !== null) {
-          editor.commands.updateInlineMath({ latex: newLatex, pos })
-        }
+        triggerMathEdit({
+          nodeType: 'inlineMath',
+          pos,
+          latex: currentLatex,
+        })
       },
       handleBlockMathClick: (node: ProseMirrorNode, pos: number) => {
-        const editor = editorRef.current
-        if (!editor) return
-
         const currentLatex = node.attrs.latex || ''
-        const newLatex = window.prompt('Edit LaTeX:', currentLatex)
-
-        if (newLatex !== null) {
-          editor.commands.updateBlockMath({ latex: newLatex, pos })
-        }
+        triggerMathEdit({
+          nodeType: 'blockMath',
+          pos,
+          latex: currentLatex,
+        })
       },
     }),
     [],
@@ -264,9 +261,6 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
       Superscript,
       Subscript,
       // Mathematics extension for LaTeX formulas
-      // ESLint warning is a false positive: mathHandlers callbacks only access editorRef
-      // when invoked by user interaction (onClick), never during render phase
-      // eslint-disable-next-line react-hooks/refs
       Mathematics.configure({
         katexOptions: {
           throwOnError: false,
@@ -350,6 +344,14 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   )
 }
 
+interface MathEditorState {
+  isOpen: boolean
+  nodeType: 'inlineMath' | 'blockMath' | null
+  position: number | null
+  currentLatex: string
+  anchorRect: DOMRect | null
+}
+
 function EditorContentWrapper({
   documentId,
   onEditorReady,
@@ -361,6 +363,13 @@ function EditorContentWrapper({
   const [showLinkWarning, setShowLinkWarning] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null)
+  const [mathEditor, setMathEditor] = useState<MathEditorState>({
+    isOpen: false,
+    nodeType: null,
+    position: null,
+    currentLatex: '',
+    anchorRect: null,
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isMountedRef = useRef(true)
   const editorRef = useRef<Editor | null>(null)
@@ -494,6 +503,85 @@ function EditorContentWrapper({
     }
   }, [uploadImage])
 
+  // Listen for math edit events
+  useEffect(() => {
+    const handleMathEdit = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        nodeType: 'inlineMath' | 'blockMath'
+        pos: number
+        latex: string
+      }>
+      const { nodeType, pos, latex } = customEvent.detail
+      const currentEditor = editorRef.current
+      if (!currentEditor) return
+
+      // Get DOM rect for positioning using nodeDOM which returns the node view's DOM element
+      try {
+        const mathElement = currentEditor.view.nodeDOM(
+          pos,
+        ) as HTMLElement | null
+        if (mathElement) {
+          const rect = mathElement.getBoundingClientRect()
+          setMathEditor({
+            isOpen: true,
+            nodeType,
+            position: pos,
+            currentLatex: latex,
+            anchorRect: rect,
+          })
+        }
+      } catch (error) {
+        console.error('Error opening math editor:', error)
+        Sentry.captureException(error, {
+          extra: { nodeType, pos, latex },
+        })
+      }
+    }
+
+    window.addEventListener(MATH_EDIT_EVENT, handleMathEdit)
+    return () => {
+      window.removeEventListener(MATH_EDIT_EVENT, handleMathEdit)
+    }
+  }, [])
+
+  // Update math editor anchor position on scroll/resize to prevent stale positioning
+  useEffect(() => {
+    if (!mathEditor.isOpen || mathEditor.position === null) return
+
+    const updateAnchorPosition = () => {
+      const currentEditor = editorRef.current
+      if (!currentEditor) return
+
+      try {
+        const mathElement = currentEditor.view.nodeDOM(
+          mathEditor.position as number,
+        ) as HTMLElement | null
+        if (mathElement) {
+          const rect = mathElement.getBoundingClientRect()
+          setMathEditor((prev) => ({ ...prev, anchorRect: rect }))
+        }
+      } catch {
+        // Node may have been removed, close the popover
+        setMathEditor((prev) => ({ ...prev, isOpen: false }))
+      }
+    }
+
+    // Listen for scroll on the editor container and window
+    const editorContainer = editorRef.current?.view.dom.closest(
+      '.editor-scroll-container',
+    )
+
+    window.addEventListener('scroll', updateAnchorPosition, true)
+    window.addEventListener('resize', updateAnchorPosition)
+    editorContainer?.addEventListener('scroll', updateAnchorPosition)
+
+    return () => {
+      window.removeEventListener('scroll', updateAnchorPosition, true)
+      window.removeEventListener('resize', updateAnchorPosition)
+      editorContainer?.removeEventListener('scroll', updateAnchorPosition)
+    }
+  }, [mathEditor.isOpen, mathEditor.position])
+
   // Notify parent when editor is ready
   useEffect(() => {
     if (editor && onEditorReady) {
@@ -612,6 +700,26 @@ function EditorContentWrapper({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Math editor popover */}
+      {mathEditor.isOpen &&
+        mathEditor.anchorRect &&
+        mathEditor.nodeType &&
+        mathEditor.position !== null && (
+          <MathEditorPopover
+            editor={editor}
+            isOpen={mathEditor.isOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setMathEditor((prev) => ({ ...prev, isOpen: false }))
+              }
+            }}
+            nodeType={mathEditor.nodeType}
+            position={mathEditor.position}
+            initialLatex={mathEditor.currentLatex}
+            anchorRect={mathEditor.anchorRect}
+          />
+        )}
     </>
   )
 }

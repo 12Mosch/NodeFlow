@@ -819,6 +819,250 @@ code {
   padding: 0;
 }
 
+/* Math Editor Popover Styles */
+.math-editor-anchor {
+  position: fixed;
+  pointer-events: none;
+}
+
+.math-editor-popover {
+  padding: 0.75rem;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.math-editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.math-editor-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.math-editor-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.math-editor-input-container {
+  position: relative;
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+
+  &:focus-within {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+}
+
+.math-editor-highlight,
+.math-editor-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.math-editor-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--foreground);
+}
+
+.math-editor-textarea {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--foreground);
+  border: none;
+  resize: vertical;
+  min-height: 60px;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &::selection {
+    background: oklch(0.5 0.15 250 / 0.4);
+  }
+}
+
+/* LaTeX syntax highlighting colors */
+.latex-command {
+  color: oklch(0.7 0.25 300); /* Vibrant purple for commands */
+}
+
+.latex-greek {
+  color: oklch(0.85 0.12 140); /* Light green for Greek letters (variables) */
+}
+
+.latex-brace {
+  color: oklch(0.55 0 0); /* Neutral grey for braces */
+}
+
+.latex-bracket {
+  color: oklch(0.5 0 0); /* Darker grey for brackets */
+}
+
+.latex-number {
+  color: oklch(0.75 0.15 195); /* Cyan for numbers */
+}
+
+.latex-special {
+  color: oklch(0.75 0.18 55); /* Orange for ^, _, & */
+}
+
+/* Math Templates Tabs Styles */
+.math-templates-tabs {
+  width: 100%;
+}
+
+.math-templates-tabs-list {
+  display: flex;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  background: var(--muted);
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.math-templates-tab {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.375rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.math-tab-icon {
+  font-family: 'Times New Roman', serif;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.math-templates-tab-content {
+  padding: 0.75rem 0;
+}
+
+.math-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+}
+
+.math-template-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 3rem;
+
+  &:hover {
+    background: var(--accent);
+    border-color: var(--ring);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.math-template-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  color: var(--foreground);
+}
+
+/* Math Symbols Styles */
+.math-symbols-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.math-symbols-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.math-symbols-category-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.math-symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2rem, 1fr));
+  gap: 0.25rem;
+}
+
+.math-symbol-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 1rem;
+
+  &:hover {
+    background: var(--accent);
+    border-color: var(--ring);
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(1.05);
+  }
+}
+
 /* Flashcard Icon Styles */
 .flashcard-icon {
   display: inline-flex;
