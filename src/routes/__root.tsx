@@ -3,6 +3,7 @@ import {
   Scripts,
   createRootRouteWithContext,
   useLocation,
+  useMatches,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
@@ -61,19 +62,30 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [storeUser])
 
+  const matches = useMatches()
   const { pathname } = useLocation()
 
-  useEffect(() => {
-    if (!isLoading && !user && pathname !== '/callback') {
-      signIn()
-    }
-  }, [isLoading, user, signIn, pathname])
+  // Check if this is a public share route using TanStack Router's route matching
+  const isPublicRoute = matches.some(
+    (match) => match.routeId === '/share/$slug',
+  )
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isPublicRoute && !isLoading && !user && pathname !== '/callback') {
+      signIn()
+    }
+  }, [isPublicRoute, isLoading, user, signIn, pathname])
+
+  useEffect(() => {
+    if (!isPublicRoute && isAuthenticated) {
       void storeUserRef.current({})
     }
-  }, [isAuthenticated])
+  }, [isPublicRoute, isAuthenticated])
+
+  // Allow public share routes without authentication
+  if (isPublicRoute) {
+    return <>{children}</>
+  }
 
   if (
     (isLoading || isConvexLoading || !user || !isAuthenticated) &&

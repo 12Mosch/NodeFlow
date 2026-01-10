@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
 
 const StudyRoute = StudyRouteImport.update({
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShareSlugRoute = ShareSlugRouteImport.update({
+  id: '/share/$slug',
+  path: '/share/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocDocIdRoute = DocDocIdRouteImport.update({
   id: '/doc/$docId',
   path: '/doc/$docId',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
+  '/share/$slug': typeof ShareSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
+  '/share/$slug': typeof ShareSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
   '/doc/$docId': typeof DocDocIdRoute
+  '/share/$slug': typeof ShareSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/callback' | '/study' | '/doc/$docId'
+  fullPaths: '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/callback' | '/study' | '/doc/$docId'
-  id: '__root__' | '/' | '/callback' | '/study' | '/doc/$docId'
+  to: '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
+  id: '__root__' | '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   CallbackRoute: typeof CallbackRoute
   StudyRoute: typeof StudyRoute
   DocDocIdRoute: typeof DocDocIdRoute
+  ShareSlugRoute: typeof ShareSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/share/$slug': {
+      id: '/share/$slug'
+      path: '/share/$slug'
+      fullPath: '/share/$slug'
+      preLoaderRoute: typeof ShareSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/doc/$docId': {
       id: '/doc/$docId'
       path: '/doc/$docId'
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   CallbackRoute: CallbackRoute,
   StudyRoute: StudyRoute,
   DocDocIdRoute: DocDocIdRoute,
+  ShareSlugRoute: ShareSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

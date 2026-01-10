@@ -62,6 +62,33 @@ export const get = query({
   },
 })
 
+export const getPublic = query({
+  args: {
+    slug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'documents.getPublic', op: 'convex.query' },
+      async () => {
+        const document = await ctx.db
+          .query('documents')
+          .withIndex('by_public_slug', (q) => q.eq('publicSlug', args.slug))
+          .unique()
+
+        if (!document || !document.isPublic) {
+          return null
+        }
+
+        return {
+          _id: document._id,
+          title: document.title,
+          permission: document.publicPermission ?? 'view',
+        }
+      },
+    )
+  },
+})
+
 export const create = mutation({
   args: {
     title: v.optional(v.string()),

@@ -1,6 +1,6 @@
 import { ProsemirrorSync } from '@convex-dev/prosemirror-sync'
 import { components } from './_generated/api'
-import { requireDocumentAccess } from './helpers/documentAccess'
+import { checkDocumentAccess } from './helpers/documentAccess'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 
 export const prosemirrorSync = new ProsemirrorSync(components.prosemirrorSync)
@@ -14,9 +14,11 @@ export const {
   submitSteps,
 } = prosemirrorSync.syncApi({
   checkRead: async (ctx: QueryCtx, documentId: string) => {
-    await requireDocumentAccess(ctx, documentId)
+    // Allow public read access
+    await checkDocumentAccess(ctx, documentId)
   },
   checkWrite: async (ctx: MutationCtx, documentId: string) => {
-    await requireDocumentAccess(ctx, documentId)
+    // Check for write permission (owner or public-edit)
+    await checkDocumentAccess(ctx, documentId, { requireWrite: true })
   },
 })

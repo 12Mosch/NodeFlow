@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
-import { requireDocumentAccess } from './helpers/documentAccess'
+import { checkDocumentAccess } from './helpers/documentAccess'
 import { createNewCardState } from './helpers/fsrs'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -171,7 +171,8 @@ export const listByDocument = query({
     return await Sentry.startSpan(
       { name: 'blocks.listByDocument', op: 'convex.query' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        // Allow public read access
+        await checkDocumentAccess(ctx, args.documentId)
 
         const blocks = await ctx.db
           .query('blocks')
@@ -209,7 +210,13 @@ export const upsertBlock = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.upsertBlock', op: 'convex.mutation' },
       async () => {
-        const { userId } = await requireDocumentAccess(ctx, args.documentId)
+        const { document, userId } = await checkDocumentAccess(
+          ctx,
+          args.documentId,
+          { requireWrite: true },
+        )
+        // For public edit, use document owner's userId for blocks
+        const effectiveUserId: Id<'users'> = userId ?? document.userId
 
         // Check if block exists
         const existingBlock = await ctx.db
@@ -227,7 +234,7 @@ export const upsertBlock = mutation({
             textContent: args.textContent,
             position: args.position,
             attrs: args.attrs,
-            userId, // Ensure userId is set (in case it was missing)
+            userId: effectiveUserId, // Ensure userId is set (in case it was missing)
             // Flashcard fields
             isCard: args.isCard,
             cardType: args.cardType,
@@ -259,7 +266,12 @@ export const upsertBlock = mutation({
 
               if (!existingState) {
                 // Create new card state with FSRS defaults
-                await createCardState(ctx, existingBlock._id, userId, direction)
+                await createCardState(
+                  ctx,
+                  existingBlock._id,
+                  effectiveUserId,
+                  direction,
+                )
               }
             }
           }
@@ -269,7 +281,7 @@ export const upsertBlock = mutation({
           // Create new block
           const id = await ctx.db.insert('blocks', {
             documentId: args.documentId,
-            userId,
+            userId: effectiveUserId,
             nodeId: args.nodeId,
             type: args.type,
             content: args.content,
@@ -289,7 +301,7 @@ export const upsertBlock = mutation({
           if (args.isCard && args.cardDirection !== 'disabled') {
             const directions = getDirectionsForCard(args.cardDirection)
             for (const direction of directions) {
-              await createCardState(ctx, id, userId, direction)
+              await createCardState(ctx, id, effectiveUserId, direction)
             }
           }
 
@@ -310,7 +322,8 @@ export const deleteBlock = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.deleteBlock', op: 'convex.mutation' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        // Require write access (owner or public-edit)
+        await checkDocumentAccess(ctx, args.documentId, { requireWrite: true })
 
         const block = await ctx.db
           .query('blocks')
@@ -337,7 +350,8 @@ export const deleteBlocks = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.deleteBlocks', op: 'convex.mutation' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        // Require write access (owner or public-edit)
+        await checkDocumentAccess(ctx, args.documentId, { requireWrite: true })
 
         // Batch-fetch all document blocks once
         const existingBlocks = await ctx.db
@@ -388,7 +402,13 @@ export const syncBlocks = mutation({
     return await Sentry.startSpan(
       { name: 'blocks.syncBlocks', op: 'convex.mutation' },
       async () => {
-        const { userId } = await requireDocumentAccess(ctx, args.documentId)
+        const { document, userId } = await checkDocumentAccess(
+          ctx,
+          args.documentId,
+          { requireWrite: true },
+        )
+        // For public edit, use document owner's userId for blocks
+        const effectiveUserId: Id<'users'> = userId ?? document.userId
 
         // Get existing blocks
         const existingBlocks = await ctx.db
@@ -421,7 +441,7 @@ export const syncBlocks = mutation({
               textContent: block.textContent,
               position: block.position,
               attrs: block.attrs,
-              userId, // Ensure userId is set (in case it was missing)
+              userId: effectiveUserId, // Ensure userId is set (in case it was missing)
               // Flashcard fields
               isCard: block.isCard,
               cardType: block.cardType,
@@ -453,14 +473,19 @@ export const syncBlocks = mutation({
 
                 if (!existingState) {
                   // Create new card state with FSRS defaults
-                  await createCardState(ctx, existing._id, userId, direction)
+                  await createCardState(
+                    ctx,
+                    existing._id,
+                    effectiveUserId,
+                    direction,
+                  )
                 }
               }
             }
           } else {
             const blockId = await ctx.db.insert('blocks', {
               documentId: args.documentId,
-              userId,
+              userId: effectiveUserId,
               nodeId: block.nodeId,
               type: block.type,
               content: block.content,
@@ -480,7 +505,7 @@ export const syncBlocks = mutation({
             if (block.isCard && block.cardDirection !== 'disabled') {
               const directions = getDirectionsForCard(block.cardDirection)
               for (const direction of directions) {
-                await createCardState(ctx, blockId, userId, direction)
+                await createCardState(ctx, blockId, effectiveUserId, direction)
               }
             }
           }
@@ -499,7 +524,8 @@ export const listFlashcards = query({
     return await Sentry.startSpan(
       { name: 'blocks.listFlashcards', op: 'convex.query' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        // Allow public read access
+        await checkDocumentAccess(ctx, args.documentId)
 
         const blocks = await ctx.db
           .query('blocks')
@@ -529,7 +555,8 @@ export const countFlashcards = query({
     return await Sentry.startSpan(
       { name: 'blocks.countFlashcards', op: 'convex.query' },
       async () => {
-        await requireDocumentAccess(ctx, args.documentId)
+        // Allow public read access
+        await checkDocumentAccess(ctx, args.documentId)
 
         const blocks = await ctx.db
           .query('blocks')

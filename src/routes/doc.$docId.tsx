@@ -13,6 +13,7 @@ import type { FlashcardWithDocument } from '@/components/flashcards'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import { DocumentLearnQuiz } from '@/components/document-learn-quiz'
 import { FlashcardQuiz } from '@/components/flashcards'
+import { ShareDialog } from '@/components/share-dialog'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Badge } from '@/components/ui/badge'
@@ -97,6 +98,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const [isStudying, setIsStudying] = useState(false)
   const [studyMode, setStudyMode] = useState<StudyMode | null>(null)
   const [showStudyModeDialog, setShowStudyModeDialog] = useState(false)
+  const [showShareDialog, setShowShareDialog] = useState(false)
 
   const flashcardCount = flashcards?.length ?? 0
 
@@ -191,6 +193,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         editor={editor}
         flashcardCount={flashcardCount}
         onStudy={handleStudyClick}
+        onShare={() => setShowShareDialog(true)}
       />
 
       {/* Study mode dialog */}
@@ -198,6 +201,13 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         open={showStudyModeDialog}
         onOpenChange={setShowStudyModeDialog}
         onSelectMode={handleSelectStudyMode}
+      />
+
+      {/* Share dialog */}
+      <ShareDialog
+        documentId={docId}
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
       />
 
       {/* Document title */}
@@ -215,10 +225,12 @@ function MinimalHeader({
   editor,
   flashcardCount,
   onStudy,
+  onShare,
 }: {
   editor: Editor | null
   flashcardCount: number
   onStudy: () => void
+  onShare: () => void
 }) {
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
@@ -275,6 +287,7 @@ function MinimalHeader({
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             title="Share"
+            onClick={onShare}
           >
             <Share2 className="h-4 w-4" />
           </Button>

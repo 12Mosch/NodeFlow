@@ -20,9 +20,14 @@ export default defineSchema({
     title: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // Sharing fields
+    isPublic: v.optional(v.boolean()),
+    publicSlug: v.optional(v.string()),
+    publicPermission: v.optional(v.union(v.literal('view'), v.literal('edit'))),
   })
     .index('by_user', ['userId'])
-    .index('by_user_updated', ['userId', 'updatedAt']),
+    .index('by_user_updated', ['userId', 'updatedAt'])
+    .index('by_public_slug', ['publicSlug']),
 
   // Individual blocks within documents (for block-level tracking)
   blocks: defineTable({
