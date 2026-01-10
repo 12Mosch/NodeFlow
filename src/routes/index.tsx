@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useInfiniteQuery } from '@tanstack/react-query'
 import { useConvex, useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
@@ -16,6 +15,7 @@ import { api } from '../../convex/_generated/api'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { InfiniteData } from '@tanstack/react-query'
 import type { StudyMode } from '@/components/study-mode-dialog'
+import { useDocumentList } from '@/hooks/use-document-list'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
@@ -51,23 +51,7 @@ function DocumentList() {
     isLoading,
     isError,
     error: queryError,
-  } = useInfiniteQuery({
-    queryKey: ['documents', 'list'],
-    queryFn: async ({ pageParam }) => {
-      const results = await convex.query(api.documents.list, {
-        paginationOpts: {
-          numItems: DOCUMENTS_PER_PAGE,
-          cursor: pageParam,
-        },
-      })
-
-      return results
-    },
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage: DocumentPage) =>
-      lastPage.isDone ? null : lastPage.continueCursor,
-    enabled: isAuthenticated,
-  })
+  } = useDocumentList({ numItems: DOCUMENTS_PER_PAGE })
 
   const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
@@ -83,7 +67,7 @@ function DocumentList() {
     if (isAuthenticated) {
       // Prefetch into TanStack Query cache for better performance
       queryClient.ensureInfiniteQueryData({
-        queryKey: ['documents', 'list'],
+        queryKey: ['documents', 'list', DOCUMENTS_PER_PAGE],
         queryFn: async ({ pageParam }) => {
           return await convex.query(api.documents.list, {
             paginationOpts: {
@@ -119,7 +103,11 @@ function DocumentList() {
     e.stopPropagation()
 
     // Capture current data for rollback
-    const previousData = queryClient.getQueryData(['documents', 'list'])
+    const previousData = queryClient.getQueryData([
+      'documents',
+      'list',
+      DOCUMENTS_PER_PAGE,
+    ])
 
     try {
       await Sentry.startSpan(
@@ -128,7 +116,7 @@ function DocumentList() {
           await deleteDocument.withOptimisticUpdate(() => {
             // Manually update the TanStack Query cache for the infinite query
             queryClient.setQueryData<InfiniteData<DocumentPage, string | null>>(
-              ['documents', 'list'],
+              ['documents', 'list', DOCUMENTS_PER_PAGE],
               (oldData) => {
                 if (!oldData) return oldData
                 return {
@@ -146,7 +134,10 @@ function DocumentList() {
       )
     } catch (error) {
       // Rollback on error
-      queryClient.setQueryData(['documents', 'list'], previousData)
+      queryClient.setQueryData(
+        ['documents', 'list', DOCUMENTS_PER_PAGE],
+        previousData,
+      )
       toast.error('Failed to delete document. Please try again.')
       console.error('Error deleting document:', error)
     }

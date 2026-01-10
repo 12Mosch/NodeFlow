@@ -329,7 +329,7 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
   }
 
   return (
-    <div className="w-full">
+    <div className="flex w-full flex-1 flex-col">
       <EditorProvider
         content={initialContent}
         extensions={extensions}
@@ -658,7 +658,7 @@ function EditorContentWrapper({
   }
 
   return (
-    <>
+    <div className="flex flex-1 flex-col">
       {/* Hidden file input for image uploads triggered by slash commands */}
       <input
         ref={fileInputRef}
@@ -674,7 +674,7 @@ function EditorContentWrapper({
       <EditorBubbleMenu />
       <EditorContent
         editor={editor}
-        className="prose prose-zinc dark:prose-invert min-h-[400px] max-w-none focus:outline-none [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:outline-none"
+        className="prose prose-zinc dark:prose-invert flex max-w-none flex-1 flex-col focus:outline-none [&_.ProseMirror]:flex-1 [&_.ProseMirror]:p-4 [&_.ProseMirror]:outline-none"
       />
       <AlertDialog open={showLinkWarning} onOpenChange={setShowLinkWarning}>
         <AlertDialogContent>
@@ -720,6 +720,6 @@ function EditorContentWrapper({
             anchorRect={mathEditor.anchorRect}
           />
         )}
-    </>
+    </div>
   )
 }
