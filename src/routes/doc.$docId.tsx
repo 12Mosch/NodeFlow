@@ -17,7 +17,9 @@ import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
+import { DocumentSidebar } from '@/components/sidebar'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -67,15 +69,18 @@ function DocumentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Suspense
-        fallback={
-          <div className="p-8 text-muted-foreground">Loading document...</div>
-        }
-      >
-        <DocumentContent docId={docId as Id<'documents'>} />
-      </Suspense>
-    </div>
+    <DocumentSidebar>
+      <SidebarInset className="min-h-screen bg-background text-foreground">
+        <Suspense
+          fallback={
+            <div className="p-8 text-muted-foreground">Loading document...</div>
+          }
+        >
+          {/* Key forces React to remount when docId changes, avoiding DOM reconciliation issues with Tiptap */}
+          <DocumentContent key={docId} docId={docId as Id<'documents'>} />
+        </Suspense>
+      </SidebarInset>
+    </DocumentSidebar>
   )
 }
 
@@ -180,7 +185,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
       {/* Minimal header */}
       <MinimalHeader
         editor={editor}
@@ -198,8 +203,8 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       {/* Document title */}
       <DocumentTitle document={document} />
 
-      {/* Editor without border wrapper */}
-      <div className="px-8 pb-8">
+      {/* Editor - grows to fill remaining space */}
+      <div className="flex flex-1 flex-col pb-8">
         <TiptapEditor documentId={docId} onEditorReady={setEditor} />
       </div>
     </div>
@@ -217,63 +222,66 @@ function MinimalHeader({
 }) {
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-end gap-1 px-4 py-2">
-        {/* Study button - only show if there are flashcards */}
-        {flashcardCount > 0 && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-              onClick={onStudy}
-              title="Study flashcards"
-            >
-              <GraduationCap className="h-4 w-4" />
-              Study
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                {flashcardCount}
-              </Badge>
-            </Button>
-            <div className="mx-1 h-4 w-px bg-border" />
-          </>
-        )}
+      <div className="flex items-center justify-between gap-1 px-4 py-2">
+        <SidebarTrigger />
+        <div className="flex items-center gap-1">
+          {/* Study button - only show if there are flashcards */}
+          {flashcardCount > 0 && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={onStudy}
+                title="Study flashcards"
+              >
+                <GraduationCap className="h-4 w-4" />
+                Study
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {flashcardCount}
+                </Badge>
+              </Button>
+              <div className="mx-1 h-4 w-px bg-border" />
+            </>
+          )}
 
-        {/* Undo/Redo */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={() => editor?.chain().focus().undo().run()}
-          disabled={!editor?.can().undo()}
-          title="Undo"
-        >
-          <Undo className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={() => editor?.chain().focus().redo().run()}
-          disabled={!editor?.can().redo()}
-          title="Redo"
-        >
-          <Redo className="h-4 w-4" />
-        </Button>
+          {/* Undo/Redo */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => editor?.chain().focus().undo().run()}
+            disabled={!editor?.can().undo()}
+            title="Undo"
+          >
+            <Undo className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => editor?.chain().focus().redo().run()}
+            disabled={!editor?.can().redo()}
+            title="Redo"
+          >
+            <Redo className="h-4 w-4" />
+          </Button>
 
-        <div className="mx-1 h-4 w-px bg-border" />
+          <div className="mx-1 h-4 w-px bg-border" />
 
-        {/* Share button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title="Share"
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
+          {/* Share button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Share"
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
 
-        {/* Theme toggle */}
-        <ModeToggle />
+          {/* Theme toggle */}
+          <ModeToggle />
+        </div>
       </div>
     </header>
   )
@@ -336,7 +344,7 @@ function DocumentTitle({
   }
 
   return (
-    <div className="px-8 pt-8 pb-2">
+    <div className="pt-8 pb-2">
       {isEditing ? (
         <input
           ref={inputRefCallback}
