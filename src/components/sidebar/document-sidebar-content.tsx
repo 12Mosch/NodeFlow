@@ -2,6 +2,7 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
+import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { DocumentListItem } from './document-list-item'
 import { useDocumentList } from '@/hooks/use-document-list'
@@ -31,13 +32,19 @@ export function DocumentSidebarContent() {
   const documents = data?.pages.flatMap((p) => p.page) || []
 
   const handleCreateDocument = async () => {
-    await Sentry.startSpan(
-      { name: 'DocumentSidebar.createDocument', op: 'ui.interaction' },
-      async () => {
-        const id = await createDocument({})
-        navigate({ to: '/doc/$docId', params: { docId: id } })
-      },
-    )
+    try {
+      await Sentry.startSpan(
+        { name: 'DocumentSidebar.createDocument', op: 'ui.interaction' },
+        async () => {
+          const id = await createDocument({})
+          navigate({ to: '/doc/$docId', params: { docId: id } })
+        },
+      )
+    } catch (error) {
+      Sentry.captureException(error)
+      toast.error('Failed to create document. Please try again.')
+      console.error('Error creating document:', error)
+    }
   }
 
   return (
@@ -52,24 +59,22 @@ export function DocumentSidebarContent() {
             <Plus className="h-4 w-4" />
             New Document
           </Button>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => navigate({ to: '/' })}
-              tooltip="Home"
-              className="flex items-center gap-2"
-            >
-              <Home className="h-4 w-4" />
-              <span>Home</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <SidebarMenuButton
+            onClick={() => navigate({ to: '/' })}
+            tooltip="Home"
+            className="flex items-center gap-2"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </SidebarMenuButton>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="flex flex-col">
+        <SidebarGroup className="flex flex-1 flex-col">
           <SidebarGroupLabel>Documents</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <ScrollArea className="h-[calc(100vh-12rem)]">
+          <SidebarGroupContent className="flex flex-1 flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
               <SidebarMenu>
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">

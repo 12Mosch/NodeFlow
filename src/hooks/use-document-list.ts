@@ -3,9 +3,9 @@ import { useConvex, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
 
-type DocumentPage = {
+export type DocumentPage = {
   page: Array<Doc<'documents'>>
-  continueCursor: string
+  continueCursor: string | null
   isDone: boolean
 }
 
