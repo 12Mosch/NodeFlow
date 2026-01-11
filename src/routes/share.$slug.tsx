@@ -2,7 +2,6 @@ import { Suspense } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { getRequest } from '@tanstack/react-start/server'
 import { api } from '../../convex/_generated/api'
 import { Badge } from '@/components/ui/badge'
 import { PublicDocumentViewer } from '@/components/public-document-viewer'
@@ -10,7 +9,9 @@ import { TiptapEditor } from '@/components/tiptap-editor'
 
 export const Route = createFileRoute('/share/$slug')({
   component: SharedDocumentPage,
-  head: ({ params }) => {
+  head: async ({ params }) => {
+    // Import server-only utilities inside the head function to avoid client bundling
+    const { getRequest } = await import('@tanstack/react-start/server')
     const req = getRequest()
 
     // Derive origin in a server-safe way
