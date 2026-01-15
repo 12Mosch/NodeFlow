@@ -5,6 +5,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Layers,
   List,
   ListOrdered,
   ListTodo,
@@ -109,19 +110,191 @@ const blockTypes: Array<BlockType> = [
   },
 ]
 
+// Map for robust lookup by id instead of fragile array indices
+const blockTypeById = new Map(blockTypes.map((bt) => [bt.id, bt]))
+
+// Special block type for multiple selections
+const multipleBlockType: BlockType = {
+  id: 'multiple',
+  label: 'Multiple',
+  icon: Layers,
+  isActive: () => false,
+  command: () => {}, // No-op, selecting from dropdown will convert all
+}
+
 interface BlockTypeMenuProps {
   editor: Editor
+}
+
+// Map of node type names to block type IDs
+const nodeTypeToBlockId: Record<
+  string,
+  string | ((attrs: Record<string, unknown>) => string)
+> = {
+  codeBlock: 'codeBlock',
+  blockquote: 'blockquote',
+  taskList: 'taskList',
+  orderedList: 'orderedList',
+  bulletList: 'bulletList',
+  heading: (attrs) => `heading${attrs.level ?? 1}`,
+  paragraph: 'paragraph',
+}
+
+// Block-level node types we care about (in priority order)
+const blockNodeTypes = new Set([
+  'codeBlock',
+  'blockquote',
+  'taskList',
+  'orderedList',
+  'bulletList',
+  'heading',
+  'paragraph',
+])
+
+// List types that wrap paragraphs
+const listTypes = ['bulletList', 'orderedList', 'taskList'] as const
+
+// Block types that return their type name directly
+const directBlockTypes = ['blockquote', 'codeBlock'] as const
+
+function getBlockTypeFromPos(
+  state: Editor['state'],
+  pos: number,
+): string | null {
+  const $pos = state.doc.resolve(pos)
+
+  // Walk up from the current position to find the relevant block type
+  // Check from deepest to shallowest
+  for (let depth = $pos.depth; depth >= 0; depth--) {
+    const node = $pos.node(depth)
+    const typeName = node.type.name
+
+    // Check for list types first (they wrap paragraphs)
+    if (listTypes.includes(typeName as (typeof listTypes)[number])) {
+      return typeName
+    }
+
+    // Check for heading (needs level attribute)
+    if (typeName === 'heading') {
+      return `heading${node.attrs.level ?? 1}`
+    }
+
+    // Check for other block types that return their name directly
+    if (
+      directBlockTypes.includes(typeName as (typeof directBlockTypes)[number])
+    ) {
+      return typeName
+    }
+  }
+
+  // Default to paragraph
+  return 'paragraph'
+}
+
+function getActiveBlockType(editor: Editor): BlockType {
+  const { state } = editor
+  const { from, to } = state.selection
+
+  // For single position (cursor), just get the block type at that position
+  if (from === to) {
+    const typeId = getBlockTypeFromPos(state, from)
+    const found = blockTypes.find((bt) => bt.id === typeId)
+    return found ?? blockTypes[0]
+  }
+
+  // For range selection, collect block types at multiple positions
+  const blockTypeIds = new Set<string>()
+
+  // Get block type at start
+  const startType = getBlockTypeFromPos(state, from)
+  if (startType) blockTypeIds.add(startType)
+
+  // Get block type at end
+  const endType = getBlockTypeFromPos(state, to)
+  if (endType) blockTypeIds.add(endType)
+
+  // Also check positions in between for selections spanning multiple blocks
+  // Walk through top-level blocks that intersect with the selection
+  state.doc.nodesBetween(from, to, (node, _pos) => {
+    if (!blockNodeTypes.has(node.type.name)) {
+      return true // Continue to children
+    }
+
+    const mapping = nodeTypeToBlockId[node.type.name]
+    if (mapping) {
+      const typeId =
+        typeof mapping === 'function'
+          ? mapping(node.attrs as Record<string, unknown>)
+          : mapping
+      // Don't add paragraph if we're inside a list (list takes precedence)
+      if (
+        typeId === 'paragraph' &&
+        listTypes.some((t) => blockTypeIds.has(t))
+      ) {
+        return false // Don't descend into this paragraph
+      }
+      blockTypeIds.add(typeId)
+    }
+
+    // Don't descend into block nodes (we found the type)
+    return false
+  })
+
+  // If multiple different block types found, return multiple indicator
+  if (blockTypeIds.size > 1) {
+    return multipleBlockType
+  }
+
+  // Return the single block type found
+  if (blockTypeIds.size === 1) {
+    const typeId = Array.from(blockTypeIds)[0]
+    const found = blockTypes.find((bt) => bt.id === typeId)
+    if (found) return found
+  }
+
+  // Fallback to isActive checks for edge cases
+  if (editor.isActive('codeBlock'))
+    return blockTypeById.get('codeBlock') ?? blockTypes[0]
+  if (editor.isActive('blockquote'))
+    return blockTypeById.get('blockquote') ?? blockTypes[0]
+  if (editor.isActive('taskList'))
+    return blockTypeById.get('taskList') ?? blockTypes[0]
+  if (editor.isActive('orderedList'))
+    return blockTypeById.get('orderedList') ?? blockTypes[0]
+  if (editor.isActive('bulletList'))
+    return blockTypeById.get('bulletList') ?? blockTypes[0]
+  if (editor.isActive('heading', { level: 3 }))
+    return blockTypeById.get('heading3') ?? blockTypes[0]
+  if (editor.isActive('heading', { level: 2 }))
+    return blockTypeById.get('heading2') ?? blockTypes[0]
+  if (editor.isActive('heading', { level: 1 }))
+    return blockTypeById.get('heading1') ?? blockTypes[0]
+  return blockTypes[0] // paragraph/text
 }
 
 export function BlockTypeMenu({ editor }: BlockTypeMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [activeBlockType, setActiveBlockType] = useState<BlockType>(
+    blockTypes[0],
+  )
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  // Get current active block type
-  const activeBlockType =
-    blockTypes.find((type) => type.isActive(editor)) ?? blockTypes[0]
+  // Update active block type when selection or content changes
+  useEffect(() => {
+    const handleUpdate = () => {
+      setActiveBlockType(getActiveBlockType(editor))
+    }
+    handleUpdate()
+    editor.on('selectionUpdate', handleUpdate)
+    editor.on('transaction', handleUpdate)
+    return () => {
+      editor.off('selectionUpdate', handleUpdate)
+      editor.off('transaction', handleUpdate)
+    }
+  }, [editor])
+
   const ActiveIcon = activeBlockType.icon
 
   // Stable handleSelect function
