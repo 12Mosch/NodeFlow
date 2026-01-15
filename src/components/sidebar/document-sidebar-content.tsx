@@ -51,14 +51,14 @@ export function DocumentSidebarContent() {
     <>
       <SidebarHeader className="border-b border-sidebar-border p-2">
         <div className="flex flex-col gap-1">
-          <Button
+          <SidebarMenuButton
             onClick={handleCreateDocument}
-            className="w-full justify-start gap-2"
-            size="sm"
+            tooltip="New Document"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
           >
             <Plus className="h-4 w-4" />
-            New Document
-          </Button>
+            <span>New Document</span>
+          </SidebarMenuButton>
           <SidebarMenuButton
             onClick={() => navigate({ to: '/' })}
             tooltip="Home"
