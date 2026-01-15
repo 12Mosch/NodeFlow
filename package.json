@@ -81,6 +81,9 @@
     "vite-tsconfig-paths": "^6.0.3",
     "zod": "^4.3.5"
   },
+  "overrides": {
+    "unplugin": "^2.3.0"
+  },
   "devDependencies": {
     "@sentry/vite-plugin": "^4.6.1",
     "@tanstack/devtools-vite": "^0.4.1",

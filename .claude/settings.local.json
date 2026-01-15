@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun pm:*)",
+      "Bash(bun view:*)",
+      "Bash(npm view:*)"
+    ]
+  }
+}
