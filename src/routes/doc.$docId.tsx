@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
@@ -232,6 +232,34 @@ function MinimalHeader({
   onStudy: () => void
   onShare: () => void
 }) {
+  // Track undo/redo availability reactively
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+
+  useEffect(() => {
+    if (!editor) {
+      // Reset state when editor becomes unavailable
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCanUndo(false)
+
+      setCanRedo(false)
+      return
+    }
+
+    const updateUndoRedo = () => {
+      setCanUndo(editor.can().undo())
+      setCanRedo(editor.can().redo())
+    }
+
+    // Set initial state and subscribe to transactions
+    updateUndoRedo()
+    editor.on('transaction', updateUndoRedo)
+
+    return () => {
+      editor.off('transaction', updateUndoRedo)
+    }
+  }, [editor])
+
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-1 px-4 py-2">
@@ -263,7 +291,7 @@ function MinimalHeader({
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={() => editor?.chain().focus().undo().run()}
-            disabled={!editor?.can().undo()}
+            disabled={!canUndo}
             title="Undo"
           >
             <Undo className="h-4 w-4" />
@@ -273,7 +301,7 @@ function MinimalHeader({
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={() => editor?.chain().focus().redo().run()}
-            disabled={!editor?.can().redo()}
+            disabled={!canRedo}
             title="Redo"
           >
             <Redo className="h-4 w-4" />
