@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/tanstackstart-react'
 import { requireUser } from '../auth'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -76,10 +75,9 @@ export async function checkDocumentAccess(
       }
     } catch (error) {
       // Database errors should be logged and rethrown
-      // This indicates a real problem, not just unauthenticated access
-      Sentry.captureException(error, {
-        tags: { operation: 'checkDocumentAccess.userQuery' },
-        extra: { documentId, workosId: identity.subject },
+      console.error('Database error while checking user access:', error, {
+        documentId,
+        workosId: identity.subject,
       })
       throw new Error('Database error while checking user access')
     }
