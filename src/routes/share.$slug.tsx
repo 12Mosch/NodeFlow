@@ -1,75 +1,80 @@
-import { Suspense } from 'react'
+import { Suspense, useSyncExternalStore } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { Badge } from '@/components/ui/badge'
 import { PublicDocumentViewer } from '@/components/public-document-viewer'
 import { TiptapEditor } from '@/components/tiptap-editor'
 
+const getOrigin = createServerFn({ method: 'GET' }).handler(() => {
+  const request = getRequest()
+  // Derive origin in a server-safe way from the request
+  let origin = ''
+  try {
+    origin = new URL(request.url).origin
+  } catch {
+    // Fall back to building origin from headers
+    const proto =
+      request.headers.get('x-forwarded-proto') ??
+      request.headers.get('x-forwarded-protocol') ??
+      'https'
+    const host = request.headers.get('host') ?? ''
+    origin = host ? `${proto}://${host}` : ''
+  }
+  return origin
+})
+
 export const Route = createFileRoute('/share/$slug')({
   component: SharedDocumentPage,
-  head: async ({ params }) => {
-    // Import server-only utilities inside the head function to avoid client bundling
-    const { getRequest } = await import('@tanstack/react-start/server')
-    const req = getRequest()
-
-    // Derive origin in a server-safe way
-    let origin = ''
-    try {
-      origin = new URL(req.url).origin
-    } catch {
-      // Fall back to building origin from headers
-      const proto =
-        req.headers.get('x-forwarded-proto') ??
-        req.headers.get('x-forwarded-protocol') ??
-        'https'
-      const host = req.headers.get('host') ?? ''
-      origin = host ? `${proto}://${host}` : ''
-    }
-
-    return {
-      meta: [
-        {
-          title: 'Shared Document - NodeFlow',
-        },
-        {
-          name: 'description',
-          content: 'View a shared document on NodeFlow',
-        },
-        // Open Graph tags for social media sharing
-        {
-          property: 'og:type',
-          content: 'article',
-        },
-        {
-          property: 'og:title',
-          content: 'Shared Document - NodeFlow',
-        },
-        {
-          property: 'og:description',
-          content: 'View a shared document on NodeFlow',
-        },
-        {
-          property: 'og:url',
-          content: `${origin}/share/${params.slug}`,
-        },
-        // Twitter Card tags
-        {
-          name: 'twitter:card',
-          content: 'summary',
-        },
-        {
-          name: 'twitter:title',
-          content: 'Shared Document - NodeFlow',
-        },
-        {
-          name: 'twitter:description',
-          content: 'View a shared document on NodeFlow',
-        },
-      ],
-    }
+  loader: async () => {
+    const origin = await getOrigin()
+    return { origin }
   },
+  head: ({ loaderData, params }) => ({
+    meta: [
+      {
+        title: 'Shared Document - NodeFlow',
+      },
+      {
+        name: 'description',
+        content: 'View a shared document on NodeFlow',
+      },
+      // Open Graph tags for social media sharing
+      {
+        property: 'og:type',
+        content: 'article',
+      },
+      {
+        property: 'og:title',
+        content: 'Shared Document - NodeFlow',
+      },
+      {
+        property: 'og:description',
+        content: 'View a shared document on NodeFlow',
+      },
+      {
+        property: 'og:url',
+        content: `${loaderData?.origin ?? ''}/share/${params.slug}`,
+      },
+      // Twitter Card tags
+      {
+        name: 'twitter:card',
+        content: 'summary',
+      },
+      {
+        name: 'twitter:title',
+        content: 'Shared Document - NodeFlow',
+      },
+      {
+        name: 'twitter:description',
+        content: 'View a shared document on NodeFlow',
+      },
+    ],
+  }),
 })
 
 function SharedDocumentPage() {
@@ -143,9 +148,37 @@ function SharedDocumentContent() {
         {isReadOnly ? (
           <PublicDocumentViewer documentId={document._id} />
         ) : (
-          <TiptapEditor documentId={document._id} />
+          <ClientOnlyEditor documentId={document._id} />
         )}
       </div>
     </div>
   )
+}
+
+// Helpers for useSyncExternalStore to detect client-side rendering
+const emptySubscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
+/**
+ * Wrapper to render TiptapEditor only on the client.
+ * This is necessary because @convex-dev/prosemirror-sync uses sessionStorage
+ * which doesn't exist during server-side rendering.
+ */
+function ClientOnlyEditor({ documentId }: { documentId: Id<'documents'> }) {
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    getClientSnapshot,
+    getServerSnapshot,
+  )
+
+  if (!isClient) {
+    return (
+      <div className="animate-pulse text-muted-foreground">
+        Loading editor...
+      </div>
+    )
+  }
+
+  return <TiptapEditor documentId={documentId} />
 }

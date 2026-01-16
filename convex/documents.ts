@@ -1,5 +1,4 @@
 import { v } from 'convex/values'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { paginationOptsValidator } from 'convex/server'
 import { mutation, query } from './_generated/server'
 import { requireUser } from './auth'
@@ -31,20 +30,15 @@ export const list = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.list', op: 'convex.query' },
-      async () => {
-        const userId = await requireUser(ctx)
+    const userId = await requireUser(ctx)
 
-        const documents = await ctx.db
-          .query('documents')
-          .withIndex('by_user_updated', (q) => q.eq('userId', userId))
-          .order('desc')
-          .paginate(args.paginationOpts)
+    const documents = await ctx.db
+      .query('documents')
+      .withIndex('by_user_updated', (q) => q.eq('userId', userId))
+      .order('desc')
+      .paginate(args.paginationOpts)
 
-        return documents
-      },
-    )
+    return documents
   },
 })
 
@@ -53,12 +47,7 @@ export const get = query({
     id: v.id('documents'),
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.get', op: 'convex.query' },
-      async () => {
-        return await getDocumentWithAccess(ctx, args.id)
-      },
-    )
+    return await getDocumentWithAccess(ctx, args.id)
   },
 })
 
@@ -67,25 +56,20 @@ export const getPublic = query({
     slug: v.string(),
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.getPublic', op: 'convex.query' },
-      async () => {
-        const document = await ctx.db
-          .query('documents')
-          .withIndex('by_public_slug', (q) => q.eq('publicSlug', args.slug))
-          .unique()
+    const document = await ctx.db
+      .query('documents')
+      .withIndex('by_public_slug', (q) => q.eq('publicSlug', args.slug))
+      .unique()
 
-        if (!document || !document.isPublic) {
-          return null
-        }
+    if (!document || !document.isPublic) {
+      return null
+    }
 
-        return {
-          _id: document._id,
-          title: document.title,
-          permission: document.publicPermission ?? 'view',
-        }
-      },
-    )
+    return {
+      _id: document._id,
+      title: document.title,
+      permission: document.publicPermission ?? 'view',
+    }
   },
 })
 
@@ -94,22 +78,17 @@ export const create = mutation({
     title: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.create', op: 'convex.mutation' },
-      async () => {
-        const userId = await requireUser(ctx)
-        const now = Date.now()
+    const userId = await requireUser(ctx)
+    const now = Date.now()
 
-        const id = await ctx.db.insert('documents', {
-          userId,
-          title: args.title ?? 'Untitled',
-          createdAt: now,
-          updatedAt: now,
-        })
+    const id = await ctx.db.insert('documents', {
+      userId,
+      title: args.title ?? 'Untitled',
+      createdAt: now,
+      updatedAt: now,
+    })
 
-        return id
-      },
-    )
+    return id
   },
 })
 
@@ -119,17 +98,12 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.updateTitle', op: 'convex.mutation' },
-      async () => {
-        await requireDocumentAccess(ctx, args.id)
+    await requireDocumentAccess(ctx, args.id)
 
-        await ctx.db.patch(args.id, {
-          title: args.title,
-          updatedAt: Date.now(),
-        })
-      },
-    )
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      updatedAt: Date.now(),
+    })
   },
 })
 
@@ -138,65 +112,56 @@ export const deleteDocument = mutation({
     id: v.id('documents'),
   },
   handler: async (ctx, args) => {
-    return await Sentry.startSpan(
-      { name: 'documents.deleteDocument', op: 'convex.mutation' },
-      async () => {
-        await requireDocumentAccess(ctx, args.id)
+    await requireDocumentAccess(ctx, args.id)
 
-        // Query for all files and blocks associated with this document
-        const files = await ctx.db
-          .query('files')
-          .withIndex('by_document', (q) => q.eq('documentId', args.id))
-          .collect()
+    // Query for all files and blocks associated with this document
+    const files = await ctx.db
+      .query('files')
+      .withIndex('by_document', (q) => q.eq('documentId', args.id))
+      .collect()
 
-        const blocks = await ctx.db
-          .query('blocks')
-          .withIndex('by_document', (q) => q.eq('documentId', args.id))
-          .collect()
+    const blocks = await ctx.db
+      .query('blocks')
+      .withIndex('by_document', (q) => q.eq('documentId', args.id))
+      .collect()
 
-        // Delete all database records first (files, blocks, document)
-        // This ensures that if any database operation fails, the transaction
-        // rolls back and we never delete storage files, preventing broken references
-        for (const file of files) {
-          await ctx.db.delete(file._id)
-        }
+    // Delete all database records first (files, blocks, document)
+    // This ensures that if any database operation fails, the transaction
+    // rolls back and we never delete storage files, preventing broken references
+    for (const file of files) {
+      await ctx.db.delete(file._id)
+    }
 
-        for (const block of blocks) {
-          await ctx.db.delete(block._id)
-        }
+    for (const block of blocks) {
+      await ctx.db.delete(block._id)
+    }
 
-        await ctx.db.delete(args.id)
+    await ctx.db.delete(args.id)
 
-        // Delete storage files in parallel after all database operations succeed
-        // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
-        // This is acceptable since the database records are already deleted
-        const storageDeletionResults = await Promise.allSettled(
-          files.map((file) => ctx.storage.delete(file.storageId)),
-        )
-
-        // Log any failures for monitoring
-        const failures = storageDeletionResults
-          .map((result, index) => ({ result, file: files[index] }))
-          .filter(({ result }) => result.status === 'rejected')
-
-        for (const { result, file } of failures) {
-          const error = result.status === 'rejected' ? result.reason : undefined
-          console.error('Failed to delete file from storage:', error)
-          Sentry.captureException(error, {
-            tags: {
-              operation: 'storage.delete',
-              fileId: file._id,
-              documentId: args.id,
-            },
-          })
-        }
-
-        if (failures.length > 0) {
-          console.warn(
-            `Failed to delete ${failures.length} of ${files.length} storage files`,
-          )
-        }
-      },
+    // Delete storage files in parallel after all database operations succeed
+    // If storage deletion fails, we'll have orphaned storage but no dangling DB reference
+    // This is acceptable since the database records are already deleted
+    const storageDeletionResults = await Promise.allSettled(
+      files.map((file) => ctx.storage.delete(file.storageId)),
     )
+
+    // Log any failures for monitoring
+    const failures = storageDeletionResults
+      .map((result, index) => ({ result, file: files[index] }))
+      .filter(({ result }) => result.status === 'rejected')
+
+    for (const { result, file } of failures) {
+      const error = result.status === 'rejected' ? result.reason : undefined
+      console.error('Failed to delete file from storage:', error, {
+        fileId: file._id,
+        documentId: args.id,
+      })
+    }
+
+    if (failures.length > 0) {
+      console.warn(
+        `Failed to delete ${failures.length} of ${files.length} storage files`,
+      )
+    }
   },
 })

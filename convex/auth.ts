@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { internalQuery } from './_generated/server'
 import { internal } from './_generated/api'
@@ -31,28 +30,23 @@ export const requireUserInternal = internalQuery({
 export async function requireUser(
   ctx: QueryCtx | MutationCtx | ActionCtx,
 ): Promise<Id<'users'>> {
-  return await Sentry.startSpan(
-    { name: 'requireUser', op: 'function' },
-    async () => {
-      const identity = await ctx.auth.getUserIdentity()
-      if (!identity) throw new Error('Not authenticated')
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity) throw new Error('Not authenticated')
 
-      // Check if this is an ActionCtx (lacks db property)
-      // ActionCtx doesn't have db, while QueryCtx and MutationCtx do
-      if (!('db' in ctx)) {
-        // Use runQuery for actions
-        return await ctx.runQuery(internal.auth.requireUserInternal, {
-          subject: identity.subject,
-        })
-      } else {
-        // Use direct db access for queries and mutations
-        const user = await ctx.db
-          .query('users')
-          .withIndex('workosId', (q) => q.eq('workosId', identity.subject))
-          .unique()
-        if (!user) throw new Error('User not found')
-        return user._id
-      }
-    },
-  )
+  // Check if this is an ActionCtx (lacks db property)
+  // ActionCtx doesn't have db, while QueryCtx and MutationCtx do
+  if (!('db' in ctx)) {
+    // Use runQuery for actions
+    return await ctx.runQuery(internal.auth.requireUserInternal, {
+      subject: identity.subject,
+    })
+  } else {
+    // Use direct db access for queries and mutations
+    const user = await ctx.db
+      .query('users')
+      .withIndex('workosId', (q) => q.eq('workosId', identity.subject))
+      .unique()
+    if (!user) throw new Error('User not found')
+    return user._id
+  }
 }
