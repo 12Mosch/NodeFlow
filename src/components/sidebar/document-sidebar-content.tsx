@@ -4,11 +4,13 @@ import { Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
+import { AccountMenu } from '../account-menu'
 import { DocumentListItem } from './document-list-item'
 import { useDocumentList } from '@/hooks/use-document-list'
 import { Button } from '@/components/ui/button'
 import {
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -120,6 +122,10 @@ export function DocumentSidebarContent() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border">
+        <AccountMenu />
+      </SidebarFooter>
     </>
   )
 }
