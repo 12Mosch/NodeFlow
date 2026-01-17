@@ -23,7 +23,7 @@ import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/core'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
 import { ExtendedImage } from '@/extensions/image'
 import {
@@ -53,15 +53,22 @@ import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { MathEditorPopover } from '@/components/editor/math-editor-popover'
 import { useImageUpload } from '@/hooks/use-image-upload'
+import { DocumentPreview } from '@/components/document-preview'
 
 interface TiptapEditorProps {
   documentId: Id<'documents'>
   onEditorReady?: (editor: Editor) => void
+  /** Cached blocks to show as preview while editor loads */
+  previewBlocks?: Array<Doc<'blocks'>>
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
-export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
+export function TiptapEditor({
+  documentId,
+  onEditorReady,
+  previewBlocks,
+}: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
 
@@ -307,22 +314,20 @@ export function TiptapEditor({ documentId, onEditorReady }: TiptapEditorProps) {
     extension,
   ])
 
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading document...
+  if (isLoading || initialContent === null) {
+    // Show cached preview content if available, otherwise show loading indicator
+    if (previewBlocks && previewBlocks.length > 0) {
+      return (
+        <div className="flex w-full flex-1 flex-col">
+          <DocumentPreview blocks={previewBlocks} />
         </div>
-      </div>
-    )
-  }
+      )
+    }
 
-  // Still waiting for document to be created
-  if (initialContent === null) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
-          Initializing document...
+          {isLoading ? 'Loading document...' : 'Initializing document...'}
         </div>
       </div>
     )
