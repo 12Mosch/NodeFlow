@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
@@ -28,6 +28,8 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [reviewedCount, setReviewedCount] = useState(0)
   const [isReviewing, setIsReviewing] = useState(false)
+  const [activeRating, setActiveRating] = useState<Rating | null>(null)
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const cards = (sessionCards ?? []) as Array<LearnCardType>
   const currentCard = cards[currentIndex] as LearnCardType | undefined
@@ -96,6 +98,24 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         return
       }
 
+      // Helper to flash button and then rate
+      const flashAndRate = (rating: Rating) => {
+        // Clear any pending flash timeout to prevent stale ratings from firing
+        if (flashTimeoutRef.current !== null) {
+          clearTimeout(flashTimeoutRef.current)
+          flashTimeoutRef.current = null
+        }
+        // Reset before applying new flash to ensure clean state
+        setActiveRating(null)
+        setActiveRating(rating)
+        // Show flash for 200ms before triggering action (loading overlay would hide it)
+        flashTimeoutRef.current = setTimeout(() => {
+          flashTimeoutRef.current = null
+          setActiveRating(null)
+          handleRate(rating)
+        }, 200)
+      }
+
       switch (event.key) {
         case ' ': // Space to toggle answer
           event.preventDefault()
@@ -104,32 +124,39 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         case '1': // Again
           if (isExpanded && !isReviewing) {
             event.preventDefault()
-            handleRate(1)
+            flashAndRate(1)
           }
           break
         case '2': // Hard
           if (isExpanded && !isReviewing) {
             event.preventDefault()
-            handleRate(2)
+            flashAndRate(2)
           }
           break
         case '3': // Good
           if (isExpanded && !isReviewing) {
             event.preventDefault()
-            handleRate(3)
+            flashAndRate(3)
           }
           break
         case '4': // Easy
           if (isExpanded && !isReviewing) {
             event.preventDefault()
-            handleRate(4)
+            flashAndRate(4)
           }
           break
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      // Clear any pending flash timeout on cleanup
+      if (flashTimeoutRef.current !== null) {
+        clearTimeout(flashTimeoutRef.current)
+        flashTimeoutRef.current = null
+      }
+    }
   }, [isComplete, isExpanded, isReviewing, handleRate, currentCard])
 
   // Loading state
@@ -189,7 +216,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   const progress = (currentIndex / totalCards) * 100
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
@@ -218,6 +245,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         onRate={handleRate}
         isExpanded={isExpanded}
         onExpandedChange={setIsExpanded}
+        activeRating={activeRating}
       />
 
       {/* Keyboard shortcuts hint */}

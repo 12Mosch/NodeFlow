@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { RatingButtons } from './rating-buttons'
 import type { LearnCard as LearnCardType, Rating } from './types'
+import { detectListKind, renderList } from '@/components/flashcards/utils'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +13,8 @@ interface LearnCardProps {
   onRate: (rating: Rating) => void
   isExpanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  /** Rating that was just triggered via keyboard - causes a flash effect */
+  activeRating?: Rating | null
 }
 
 export function LearnCard({
@@ -18,6 +22,7 @@ export function LearnCard({
   onRate,
   isExpanded: controlledExpanded,
   onExpandedChange,
+  activeRating,
 }: LearnCardProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const isExpanded =
@@ -30,54 +35,6 @@ export function LearnCard({
 
   const isCloze = block.cardType === 'cloze'
 
-  type ListKind = 'ul' | 'ol'
-
-  const detectListKind = (text: string): ListKind | null => {
-    const firstLine = text
-      .split('\n')
-      .map((l) => l.trim())
-      .find((l) => l.length > 0)
-    if (!firstLine) return null
-    if (firstLine.startsWith('• ')) return 'ul'
-    if (/^\d+\.\s+/.test(firstLine)) return 'ol'
-    return null
-  }
-
-  const renderList = (kind: ListKind, text: string) => {
-    const rawLines = text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-
-    if (rawLines.length === 0) return null
-
-    if (kind === 'ul') {
-      const items = rawLines.map((l) => l.replace(/^•\s+/, ''))
-      return (
-        <ul className="list-disc space-y-1 pl-6 text-lg leading-relaxed">
-          {items.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ul>
-      )
-    }
-
-    // ordered list
-    const firstNumMatch = rawLines[0]?.match(/^(\d+)\.\s+/)
-    const start = firstNumMatch ? Number(firstNumMatch[1]) : 1
-    const items = rawLines.map((l) => l.replace(/^\d+\.\s+/, ''))
-    return (
-      <ol
-        className="list-decimal space-y-1 pl-6 text-lg leading-relaxed"
-        start={start}
-      >
-        {items.map((item, i) => (
-          <li key={i}>{item}</li>
-        ))}
-      </ol>
-    )
-  }
-
   // Render cloze text with highlighted answers
   const renderClozeAnswer = () => {
     if (!isCloze) return null
@@ -85,7 +42,7 @@ export function LearnCard({
     // Replace {{text}} with highlighted spans
     const parts = block.textContent.split(/(\{\{[^}]+\}\})/)
     return (
-      <p className="text-lg leading-relaxed whitespace-pre-line">
+      <p className="text-xl leading-relaxed whitespace-pre-line">
         {parts.map((part, i) => {
           if (part.startsWith('{{') && part.endsWith('}}')) {
             const answer = part.slice(2, -2)
@@ -142,13 +99,12 @@ export function LearnCard({
   }
 
   const cardTypeColors = {
-    basic: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    basic: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
     concept:
-      'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
     descriptor:
-      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    cloze:
-      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+    cloze: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
   }
 
   const stateLabels = {
@@ -159,77 +115,90 @@ export function LearnCard({
   }
 
   const stateColors = {
-    new: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+    new: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
     learning:
       'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
     review:
-      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
     relearning:
-      'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+      'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
   }
 
   return (
-    <Card className="overflow-hidden transition-all duration-300 ease-out">
+    <Card className="overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5">
       <CardContent className="p-0">
-        {/* Front of card - always visible */}
-        <div className="p-6">
-          {/* Header with metadata */}
-          <div className="mb-4 flex items-center justify-between">
-            <span className="max-w-50 truncate text-sm text-muted-foreground">
-              {doc?.title || 'Untitled'}
-            </span>
-            <div className="flex items-center gap-2">
+        {/* Header with metadata */}
+        <div className="flex items-center justify-between border-b border-border/50 px-8 py-4">
+          <span className="max-w-50 truncate text-sm text-muted-foreground">
+            {doc?.title || 'Untitled'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn('text-xs', stateColors[cardState.state])}
+            >
+              {stateLabels[cardState.state]}
+            </Badge>
+            {block.cardType && (
               <Badge
                 variant="outline"
-                className={cn('text-xs', stateColors[cardState.state])}
+                className={cn('text-xs', cardTypeColors[block.cardType])}
               >
-                {stateLabels[cardState.state]}
+                {cardTypeLabels[block.cardType]}
               </Badge>
-              {block.cardType && (
-                <Badge
-                  variant="outline"
-                  className={cn('text-xs', cardTypeColors[block.cardType])}
-                >
-                  {cardTypeLabels[block.cardType]}
-                </Badge>
-              )}
-              {direction === 'reverse' && (
-                <Badge variant="outline" className="text-xs">
-                  Reverse
-                </Badge>
-              )}
-            </div>
+            )}
+            {direction === 'reverse' && (
+              <Badge variant="outline" className="text-xs">
+                Reverse
+              </Badge>
+            )}
           </div>
+        </div>
 
-          {/* Question */}
+        {/* Front of card - question area */}
+        <button
+          onClick={() => !isExpanded && setIsExpanded(true)}
+          disabled={isExpanded}
+          className={cn(
+            'flex w-full flex-col items-center justify-center p-8 text-center transition-all duration-300',
+            !isExpanded && 'min-h-48 cursor-pointer hover:bg-muted/30',
+            isExpanded && 'min-h-32',
+          )}
+        >
+          {/* Question - larger when answer is hidden for emphasis */}
           {questionListKind ? (
-            <div className="text-lg leading-relaxed font-medium">
+            <div
+              className={cn(
+                'leading-snug font-semibold transition-all duration-300',
+                isExpanded ? 'text-xl' : 'text-3xl',
+              )}
+            >
               {renderList(questionListKind, front)}
             </div>
           ) : (
-            <p className="text-lg leading-relaxed font-medium whitespace-pre-line">
+            <p
+              className={cn(
+                'leading-snug font-semibold whitespace-pre-line transition-all duration-300',
+                isExpanded ? 'text-xl' : 'text-3xl',
+              )}
+            >
               {front}
             </p>
           )}
-        </div>
-
-        {/* Accordion trigger */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-expanded={isExpanded}
-          aria-controls="flashcard-answer"
-          className="flex w-full items-center justify-center gap-2 border-t bg-muted/50 px-6 py-3 transition-colors hover:bg-muted"
-        >
-          <span className="text-sm text-muted-foreground">
-            {isExpanded ? 'Hide answer' : 'Show answer'}
-          </span>
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform duration-200',
-              isExpanded && 'rotate-180',
-            )}
-          />
         </button>
+
+        {/* Reveal button - only shown when collapsed */}
+        {!isExpanded && (
+          <div className="px-8 pb-8">
+            <Button
+              onClick={() => setIsExpanded(true)}
+              className="w-full gap-2 py-6 text-base shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+            >
+              Reveal Answer
+              <ChevronDown className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
 
         {/* Back of card - collapsible */}
         <div
@@ -240,29 +209,39 @@ export function LearnCard({
           )}
         >
           <div className="overflow-hidden">
-            <div className="border-t bg-muted/30 p-6 pt-4">
-              {isCloze ? (
-                renderClozeAnswer()
-              ) : answerListKind ? (
-                renderList(answerListKind, back)
-              ) : (
-                <p className="text-lg leading-relaxed whitespace-pre-line">
-                  {back}
-                </p>
-              )}
+            <div className="border-t border-dashed border-border/50 bg-muted/30">
+              {/* Answer content */}
+              <div
+                className={cn(
+                  'flex min-h-32 flex-col p-8',
+                  // Center short answers, left-align long ones with extra margins
+                  back.length > 120 || answerListKind || isCloze
+                    ? 'items-start justify-center px-12'
+                    : 'items-center justify-center text-center',
+                )}
+              >
+                {isCloze ? (
+                  renderClozeAnswer()
+                ) : answerListKind ? (
+                  renderList(answerListKind, back)
+                ) : (
+                  <p className="text-xl leading-relaxed whitespace-pre-line">
+                    {back}
+                  </p>
+                )}
+              </div>
+
+              {/* Rating buttons */}
+              <div className="px-8 pb-8">
+                <RatingButtons
+                  intervalPreviews={intervalPreviews}
+                  onRate={onRate}
+                  activeRating={activeRating}
+                />
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Rating buttons */}
-        {isExpanded && (
-          <div className="bg-muted/30 p-6 pt-0">
-            <RatingButtons
-              intervalPreviews={intervalPreviews}
-              onRate={onRate}
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   )
