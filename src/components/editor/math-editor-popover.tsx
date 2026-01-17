@@ -52,7 +52,7 @@ function highlightLatex(code: string): string {
 
   // Highlight commands (backslash followed by letters)
   // Greek letters get variable styling, other commands get command styling
-  highlighted = highlighted.replace(/\\([a-zA-Z]+)/g, (match, name) => {
+  highlighted = highlighted.replace(/\\([a-zA-Z]+)/g, (_match, name) => {
     if (GREEK_LETTERS.has(name)) {
       return `<span class="latex-greek">\\${name}</span>`
     }

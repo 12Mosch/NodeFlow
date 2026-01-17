@@ -175,7 +175,7 @@ export function LearnCard({
         <div className="p-6">
           {/* Header with metadata */}
           <div className="mb-4 flex items-center justify-between">
-            <span className="max-w-[200px] truncate text-sm text-muted-foreground">
+            <span className="max-w-50 truncate text-sm text-muted-foreground">
               {doc?.title || 'Untitled'}
             </span>
             <div className="flex items-center gap-2">

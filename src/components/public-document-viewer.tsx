@@ -85,7 +85,7 @@ export function PublicDocumentViewer({
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-100 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
           Loading document...
         </div>
@@ -97,7 +97,7 @@ export function PublicDocumentViewer({
   // This component is read-only, so we can't create the document
   if (!initialContent) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-100 items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground">
             This document hasn't been initialized yet.
@@ -111,7 +111,7 @@ export function PublicDocumentViewer({
   }
 
   return (
-    <div className="min-h-[400px]">
+    <div className="min-h-100">
       <EditorProvider
         content={initialContent}
         extensions={extensions}

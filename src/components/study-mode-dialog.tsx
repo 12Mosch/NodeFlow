@@ -131,7 +131,7 @@ export function StudyModeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         key={dialogInstance}
-        className="sm:max-w-[600px]"
+        className="sm:max-w-150"
         onOpenAutoFocus={handleOpenAutoFocus}
       >
         <DialogHeader>
