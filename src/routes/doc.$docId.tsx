@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -336,6 +336,7 @@ function DocumentTitle({
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(document.title)
   const updateTitle = useMutation(api.documents.updateTitle)
+  const queryClient = useQueryClient()
   const isSavingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -345,6 +346,8 @@ function DocumentTitle({
       async () => {
         await updateTitle({ id: document._id, title: title || 'Untitled' })
         setIsEditing(false)
+        // Invalidate the document list query to update the sidebar
+        await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
       },
     )
     isSavingRef.current = false
