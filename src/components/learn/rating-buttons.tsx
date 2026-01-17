@@ -12,19 +12,24 @@ interface RatingButtonsProps {
   }
   onRate: (rating: Rating) => void
   disabled?: boolean
+  /** Rating that was just triggered via keyboard - causes a flash effect */
+  activeRating?: Rating | null
 }
 
 export function RatingButtons({
   intervalPreviews,
   onRate,
   disabled = false,
+  activeRating,
 }: RatingButtonsProps) {
   const buttons: Array<{
     rating: Rating
     label: string
     interval: string
     icon: typeof RotateCcw
-    className: string
+    baseClassName: string
+    hoverClassName: string
+    activeClassName: string
     keyHint: string
   }> = [
     {
@@ -32,8 +37,11 @@ export function RatingButtons({
       label: 'Again',
       interval: intervalPreviews.again,
       icon: RotateCcw,
-      className:
-        'border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:text-red-400',
+      baseClassName: 'border-red-500/30 text-red-600 dark:text-red-400',
+      hoverClassName:
+        'hover:bg-red-500/15 hover:border-red-500/50 hover:shadow-[0_0_12px_rgba(239,68,68,0.15)] dark:hover:shadow-[0_0_12px_rgba(239,68,68,0.25)]',
+      activeClassName:
+        'bg-red-500/20 border-red-500/60 shadow-[0_0_16px_rgba(239,68,68,0.3)]',
       keyHint: '1',
     },
     {
@@ -41,8 +49,12 @@ export function RatingButtons({
       label: 'Hard',
       interval: intervalPreviews.hard,
       icon: ThumbsDown,
-      className:
-        'border-orange-500/30 text-orange-600 hover:bg-orange-500/10 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-400',
+      baseClassName:
+        'border-orange-500/30 text-orange-600 dark:text-orange-400',
+      hoverClassName:
+        'hover:bg-orange-500/15 hover:border-orange-500/50 hover:shadow-[0_0_12px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_0_12px_rgba(249,115,22,0.25)]',
+      activeClassName:
+        'bg-orange-500/20 border-orange-500/60 shadow-[0_0_16px_rgba(249,115,22,0.3)]',
       keyHint: '2',
     },
     {
@@ -50,8 +62,12 @@ export function RatingButtons({
       label: 'Good',
       interval: intervalPreviews.good,
       icon: ThumbsUp,
-      className:
-        'border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400',
+      baseClassName:
+        'border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+      hoverClassName:
+        'hover:bg-emerald-500/15 hover:border-emerald-500/50 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] dark:hover:shadow-[0_0_12px_rgba(16,185,129,0.25)]',
+      activeClassName:
+        'bg-emerald-500/20 border-emerald-500/60 shadow-[0_0_16px_rgba(16,185,129,0.3)]',
       keyHint: '3',
     },
     {
@@ -59,20 +75,37 @@ export function RatingButtons({
       label: 'Easy',
       interval: intervalPreviews.easy,
       icon: Zap,
-      className:
-        'border-blue-500/30 text-blue-600 hover:bg-blue-500/10 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-400',
+      baseClassName: 'border-sky-500/30 text-sky-600 dark:text-sky-400',
+      hoverClassName:
+        'hover:bg-sky-500/15 hover:border-sky-500/50 hover:shadow-[0_0_12px_rgba(14,165,233,0.15)] dark:hover:shadow-[0_0_12px_rgba(14,165,233,0.25)]',
+      activeClassName:
+        'bg-sky-500/20 border-sky-500/60 shadow-[0_0_16px_rgba(14,165,233,0.3)]',
       keyHint: '4',
     },
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-4 gap-3">
       {buttons.map(
-        ({ rating, label, interval, icon: Icon, className, keyHint }) => (
+        ({
+          rating,
+          label,
+          interval,
+          icon: Icon,
+          baseClassName,
+          hoverClassName,
+          activeClassName,
+          keyHint,
+        }) => (
           <Button
             key={rating}
             variant="outline"
-            className={cn('flex h-auto flex-col gap-1 py-3', className)}
+            className={cn(
+              'flex h-auto flex-col gap-1 rounded-xl py-4 transition-all duration-150',
+              baseClassName,
+              hoverClassName,
+              activeRating === rating && activeClassName,
+            )}
             onClick={() => onRate(rating)}
             disabled={disabled}
           >
