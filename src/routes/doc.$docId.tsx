@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -87,11 +87,17 @@ function DocumentPage() {
 
 function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const navigate = useNavigate()
-  const { data: document, isLoading } = useQuery({
+  const isRestoring = useIsRestoring()
+  const { data: document, isPending } = useQuery({
     ...convexQuery(api.documents.get, { id: docId }),
   })
   const { data: flashcards } = useQuery({
     ...convexQuery(api.blocks.listFlashcards, { documentId: docId }),
+    enabled: !!document,
+  })
+  // Query blocks for instant preview while editor loads
+  const { data: blocks } = useQuery({
+    ...convexQuery(api.blocks.listByDocument, { documentId: docId }),
     enabled: !!document,
   })
   const [editor, setEditor] = useState<Editor | null>(null)
@@ -128,7 +134,14 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     setIsStudying(true)
   }
 
-  if (isLoading) {
+  // During cache restoration from IndexedDB, wait briefly to see if cached data is available
+  // This prevents showing loading/not-found states before we check the persisted cache
+  if (isRestoring) {
+    return null
+  }
+
+  // Show loading only when there's no cached data and we're fetching
+  if (isPending) {
     return <div className="p-8 text-muted-foreground">Loading document...</div>
   }
 
@@ -215,7 +228,11 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
 
       {/* Editor - grows to fill remaining space */}
       <div className="flex flex-1 flex-col pb-8">
-        <TiptapEditor documentId={docId} onEditorReady={setEditor} />
+        <TiptapEditor
+          documentId={docId}
+          onEditorReady={setEditor}
+          previewBlocks={blocks}
+        />
       </div>
     </div>
   )
