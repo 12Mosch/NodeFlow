@@ -1,9 +1,9 @@
+import * as Sentry from '@sentry/tanstackstart-react'
 import { del, get, set } from 'idb-keyval'
 import type {
   PersistedClient,
   Persister,
 } from '@tanstack/react-query-persist-client'
-import * as Sentry from '@sentry/tanstackstart-react'
 
 const IDB_KEY = 'nodeflow-query-cache'
 

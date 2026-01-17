@@ -121,7 +121,7 @@ export function QuizResults({
               tabIndex={0}
               role="region"
               aria-label="Review results"
-              className="max-h-[400px] divide-y overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="max-h-100 divide-y overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {results.map((result, index) => (
                 <div
