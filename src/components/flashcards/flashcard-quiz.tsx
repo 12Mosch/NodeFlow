@@ -194,7 +194,7 @@ export function FlashcardQuiz({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
