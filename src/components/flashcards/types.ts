@@ -23,3 +23,12 @@ export interface QuizResult {
 }
 
 export type QuizState = 'selecting' | 'studying' | 'results'
+
+export interface FlashcardBaseData {
+  documentTitle: string
+  direction: 'forward' | 'reverse'
+  cardType: 'basic' | 'concept' | 'descriptor' | 'cloze' | null | undefined
+  cardFront: string | null | undefined
+  cardBack: string | null | undefined
+  textContent: string
+}
