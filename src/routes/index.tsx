@@ -3,20 +3,14 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import {
-  ChevronDown,
-  FileText,
-  GraduationCap,
-  Loader2,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { FileText, GraduationCap, Loader2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { InfiniteData } from '@tanstack/react-query'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import type { DocumentPage } from '@/hooks/use-document-list'
 import { useDocumentList } from '@/hooks/use-document-list'
+import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
@@ -49,6 +43,11 @@ function DocumentList() {
 
   const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
+
+  const sentinelRef = useIntersectionObserver({
+    onIntersect: () => fetchNextPage(),
+    enabled: hasNextPage && !isFetchingNextPage,
+  })
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
@@ -200,21 +199,10 @@ function DocumentList() {
             </Link>
           ))}
 
-          {(hasNextPage || isFetchingNextPage) && (
+          {hasNextPage && <div ref={sentinelRef} className="h-1" />}
+          {isFetchingNextPage && (
             <div className="mt-4 flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="gap-2"
-              >
-                {isFetchingNextPage ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-                {isFetchingNextPage ? 'Loading more...' : 'Load More'}
-              </Button>
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           )}
         </div>
