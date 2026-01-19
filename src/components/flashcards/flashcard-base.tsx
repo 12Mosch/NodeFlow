@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { CARD_TYPE_COLORS, CARD_TYPE_LABELS } from './constants'
 import { detectListKind, renderClozeText, renderList } from './utils'
+import { RenderLatexText } from './latex-renderer'
 import type { ReactNode } from 'react'
 import type { FlashcardBaseData } from './types'
 import { Card, CardContent } from '@/components/ui/card'
@@ -139,7 +140,7 @@ export function FlashcardBase({
                 isExpanded ? 'text-xl' : 'text-3xl',
               )}
             >
-              {front}
+              <RenderLatexText text={front} />
             </p>
           )}
         </button>
@@ -184,7 +185,7 @@ export function FlashcardBase({
                   renderList(answerListKind, back)
                 ) : (
                   <p className="text-xl leading-relaxed whitespace-pre-line">
-                    {back}
+                    <RenderLatexText text={back} />
                   </p>
                 )}
               </div>
