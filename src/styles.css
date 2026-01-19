@@ -1154,3 +1154,45 @@ code {
 .dark .flashcard-cloze-content {
   background: oklch(0.7 0.16 290 / 0.2);
 }
+
+/* Flashcard LaTeX Rendering Styles */
+.latex-inline {
+  display: inline;
+}
+
+.latex-inline .katex {
+  font-size: 1em;
+}
+
+.latex-block {
+  display: block;
+  margin: 0.75rem 0;
+  text-align: center;
+}
+
+.latex-block .katex-display {
+  margin: 0;
+}
+
+.latex-error {
+  color: oklch(0.6 0.2 25);
+  font-family: monospace;
+  font-size: 0.875em;
+  background: oklch(0.6 0.2 25 / 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.dark .latex-error {
+  color: oklch(0.75 0.18 25);
+  background: oklch(0.75 0.18 25 / 0.15);
+}
+
+.latex-render-error {
+  border: 1px dashed oklch(0.6 0.2 25 / 0.5);
+  border-radius: 0.25rem;
+}
+
+.dark .latex-render-error {
+  border-color: oklch(0.75 0.18 25 / 0.5);
+}

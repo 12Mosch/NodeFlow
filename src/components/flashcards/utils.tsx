@@ -1,3 +1,4 @@
+import { RenderLatexText } from './latex-renderer'
 import type React from 'react'
 
 export type ListKind = 'ul' | 'ol'
@@ -35,7 +36,9 @@ export function renderList(
     return (
       <ul className="list-disc space-y-1.5 pl-6 text-xl leading-relaxed">
         {items.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li key={i}>
+            <RenderLatexText text={item} />
+          </li>
         ))}
       </ul>
     )
@@ -51,7 +54,9 @@ export function renderList(
       start={start}
     >
       {items.map((item, i) => (
-        <li key={i}>{item}</li>
+        <li key={i}>
+          <RenderLatexText text={item} />
+        </li>
       ))}
     </ol>
   )
@@ -114,10 +119,10 @@ export function renderClozeText(
       {parts.map((part, i) =>
         part.isAnswer ? (
           <mark key={i} className={markClassName}>
-            {part.text}
+            <RenderLatexText text={part.text} />
           </mark>
         ) : (
-          <span key={i}>{part.text}</span>
+          <RenderLatexText key={i} text={part.text} />
         ),
       )}
     </>

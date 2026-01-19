@@ -45,6 +45,17 @@ function serializeNodeTextForFlashcards(node: ProseMirrorNode): string {
     return '\n'
   }
 
+  // Math nodes: preserve LaTeX delimiters for flashcard rendering
+  if (type === 'inlineMath') {
+    const latex = node.attrs.latex || ''
+    return latex ? `$${latex}$` : ''
+  }
+
+  if (type === 'blockMath') {
+    const latex = node.attrs.latex || ''
+    return latex ? `$$${latex}$$` : ''
+  }
+
   const serializeChildren = (separator = ''): string => {
     const parts: Array<string> = []
     node.forEach((child) => {
