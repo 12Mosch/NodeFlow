@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { LearnCard } from './learn-card'
@@ -19,6 +19,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   const {
     data: sessionCards,
     isLoading,
+    isError,
     refetch,
   } = useQuery(convexQuery(api.cardStates.getLearnSession, {}))
 
@@ -27,11 +28,39 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [reviewedCount, setReviewedCount] = useState(0)
-  const [isReviewing, setIsReviewing] = useState(false)
+  // Track the index at which we last rated - if it matches currentIndex, we can't rate again
+  const [ratedAtIndex, setRatedAtIndex] = useState<number | null>(null)
   const [activeRating, setActiveRating] = useState<Rating | null>(null)
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const cards = (sessionCards ?? []) as Array<LearnCardType>
+  // Derived state: can't rate if we already rated at this index
+  const ratedCurrentCard = ratedAtIndex === currentIndex
+
+  // Store cards in local state to prevent Convex subscription updates from
+  // causing double-advances (subscription removes reviewed card + we increment index)
+  const [stableCards, setStableCards] = useState<Array<LearnCardType> | null>(
+    null,
+  )
+  const hasInitializedRef = useRef(false)
+
+  // Initialize stable cards on first load - intentional one-time sync from async data
+  // Also handle the case where loading completes with no data (error or empty)
+  useEffect(() => {
+    if (hasInitializedRef.current) return
+
+    if (sessionCards) {
+      hasInitializedRef.current = true
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time initialization
+      setStableCards(sessionCards as Array<LearnCardType>)
+    } else if (!isLoading) {
+      // Loading finished but no data (error or undefined) - treat as empty
+      hasInitializedRef.current = true
+
+      setStableCards([])
+    }
+  }, [sessionCards, isLoading])
+
+  const cards = stableCards ?? []
   const currentCard = cards[currentIndex] as LearnCardType | undefined
   const totalCards = cards.length
 
@@ -39,48 +68,41 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
 
   // Handle rating submission
   const handleRate = useCallback(
-    async (rating: Rating) => {
-      if (!currentCard || isReviewing) return
+    (rating: Rating) => {
+      if (!currentCard || ratedCurrentCard) return
 
-      setIsReviewing(true)
-      try {
-        try {
-          await reviewCardMutation({
-            cardStateId: currentCard.cardState._id,
-            rating,
+      const cardStateId = currentCard.cardState._id
+
+      // Mark current index as rated (prevents double-rating via rapid clicks)
+      setRatedAtIndex(currentIndex)
+      setReviewedCount((prev) => prev + 1)
+      setIsExpanded(false)
+
+      // Fire mutation without awaiting
+      reviewCardMutation({ cardStateId, rating }).catch((error) => {
+        console.error('Failed to review card:', error)
+        toast.error('Rating may not have been saved. Check your connection.')
+      })
+
+      // Advance immediately for all ratings
+      if (rating === 1) {
+        // For "Again", refetch in background to requeue card at the end
+        refetch()
+          .then((result) => {
+            if (result.data) {
+              setStableCards(result.data as Array<LearnCardType>)
+            }
           })
-        } catch (error) {
-          console.error('Failed to review card:', error)
-          toast.error('Failed to save your rating. Please try again.')
-          return
-        }
-
-        setReviewedCount((prev) => prev + 1)
-        setIsExpanded(false)
-
-        // If rating is "Again", the card will be re-queued
-        // We need to refetch to get updated card list
-        if (rating === 1) {
-          // Await refetch to ensure UI updates with fresh data before allowing next interaction
-          // This prevents race conditions where the UI might show stale data if user interacts quickly
-          const result = await refetch()
-          if (result.error) {
-            console.error('Failed to refetch cards:', result.error)
-            toast.error('Failed to refresh cards. Please try again.')
-            return
-          }
-          // Stay on current index since new cards were fetched
-        } else {
-          // Move to next card
-          setCurrentIndex((prev) => prev + 1)
-        }
-      } finally {
-        setIsReviewing(false)
+          .catch((error) => {
+            console.error('Failed to refetch cards:', error)
+            toast.error('Failed to refresh cards. Check your connection.')
+          })
       }
+      setCurrentIndex((prev) => prev + 1)
     },
     // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
     // eslint-disable-next-line @tanstack/query/no-unstable-deps
-    [currentCard, isReviewing, reviewCardMutation, refetch],
+    [currentCard, ratedCurrentCard, currentIndex, reviewCardMutation, refetch],
   )
 
   // Keyboard shortcuts
@@ -122,25 +144,25 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
           setIsExpanded((prev) => !prev)
           break
         case '1': // Again
-          if (isExpanded && !isReviewing) {
+          if (isExpanded && !ratedCurrentCard) {
             event.preventDefault()
             flashAndRate(1)
           }
           break
         case '2': // Hard
-          if (isExpanded && !isReviewing) {
+          if (isExpanded && !ratedCurrentCard) {
             event.preventDefault()
             flashAndRate(2)
           }
           break
         case '3': // Good
-          if (isExpanded && !isReviewing) {
+          if (isExpanded && !ratedCurrentCard) {
             event.preventDefault()
             flashAndRate(3)
           }
           break
         case '4': // Easy
-          if (isExpanded && !isReviewing) {
+          if (isExpanded && !ratedCurrentCard) {
             event.preventDefault()
             flashAndRate(4)
           }
@@ -157,10 +179,29 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         flashTimeoutRef.current = null
       }
     }
-  }, [isComplete, isExpanded, isReviewing, handleRate, currentCard])
+  }, [isComplete, isExpanded, ratedCurrentCard, handleRate, currentCard])
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="py-12 text-center">
+        <AlertCircle className="mx-auto h-16 w-16 text-destructive" />
+        <h2 className="mt-4 text-2xl font-bold">Failed to load cards</h2>
+        <p className="mt-2 text-muted-foreground">
+          Something went wrong while loading your cards.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Button onClick={() => refetch()} variant="outline">
+            Try Again
+          </Button>
+          <Button onClick={onGoHome}>Go Home</Button>
+        </div>
+      </div>
+    )
+  }
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || stableCards === null) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -264,13 +305,6 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         </kbd>{' '}
         to rate
       </p>
-
-      {/* Loading overlay while reviewing */}
-      {isReviewing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/50">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      )}
     </div>
   )
 }
