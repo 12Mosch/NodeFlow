@@ -7,7 +7,7 @@ import { api } from '../../../convex/_generated/api'
 import { AccountMenu } from '../account-menu'
 import { DocumentListItem } from './document-list-item'
 import { useDocumentList } from '@/hooks/use-document-list'
-import { Button } from '@/components/ui/button'
+import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import {
   SidebarContent,
   SidebarFooter,
@@ -35,6 +35,11 @@ export function DocumentSidebarContent() {
   const createDocument = useMutation(api.documents.create)
 
   const documents = data?.pages.flatMap((p) => p.page) || []
+
+  const sentinelRef = useIntersectionObserver({
+    onIntersect: () => fetchNextPage(),
+    enabled: !isCollapsed && hasNextPage && !isFetchingNextPage,
+  })
 
   const handleCreateDocument = async () => {
     try {
@@ -99,24 +104,16 @@ export function DocumentSidebarContent() {
                           isActive={doc._id === currentDocId}
                         />
                       ))}
-                      {hasNextPage && (
+                      {(hasNextPage || isFetchingNextPage) && (
                         <SidebarMenuItem>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => fetchNextPage()}
-                            disabled={isFetchingNextPage}
-                            className="w-full"
-                          >
-                            {isFetchingNextPage ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              'Load more'
-                            )}
-                          </Button>
+                          {hasNextPage && (
+                            <div ref={sentinelRef} className="h-1" />
+                          )}
+                          {isFetchingNextPage && (
+                            <div className="flex items-center justify-center py-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          )}
                         </SidebarMenuItem>
                       )}
                     </>
