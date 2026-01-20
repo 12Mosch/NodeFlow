@@ -3,7 +3,14 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
-import { FileText, GraduationCap, Loader2, Plus, Trash2 } from 'lucide-react'
+import {
+  FileText,
+  GraduationCap,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { InfiniteData } from '@tanstack/react-query'
@@ -14,6 +21,7 @@ import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
+import { useSearch } from '@/components/search-provider'
 
 const DOCUMENTS_PER_PAGE = 10
 
@@ -51,6 +59,7 @@ function DocumentList() {
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
+  const { open: openSearch } = useSearch()
   const { queryClient } = Route.useRouteContext()
 
   const handleCreate = async () => {
@@ -140,6 +149,15 @@ function DocumentList() {
         <h1 className="text-3xl font-bold">Documents</h1>
         <div className="flex items-center gap-2">
           <ModeToggle />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={openSearch}
+            title="Search (Ctrl+F)"
+            aria-label="Open search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             className="gap-2"

@@ -4,7 +4,7 @@ import { useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
-import { GraduationCap, Redo, Share2, Undo } from 'lucide-react'
+import { GraduationCap, Redo, Search, Share2, Undo } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import type { Editor } from '@tiptap/core'
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { DocumentSidebar } from '@/components/sidebar'
+import { useSearch } from '@/components/search-provider'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -249,6 +250,7 @@ function MinimalHeader({
   onStudy: () => void
   onShare: () => void
 }) {
+  const { open: openSearch } = useSearch()
   // Track undo/redo availability reactively
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -325,6 +327,18 @@ function MinimalHeader({
           </Button>
 
           <div className="mx-1 h-4 w-px bg-border" />
+
+          {/* Search button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Search (Ctrl+F)"
+            aria-label="Open search"
+            onClick={openSearch}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
 
           {/* Share button */}
           <Button

@@ -33,6 +33,33 @@ export interface BlockSyncOptions {
 
 export const blockSyncPluginKey = new PluginKey('blockSync')
 
+// Serialize node text for search indexing - includes LaTeX content from math nodes
+function serializeNodeTextForSearch(node: ProseMirrorNode): string {
+  const type = node.type.name
+
+  // Text leaf
+  if (type === 'text') {
+    return node.textContent
+  }
+
+  if (type === 'hardBreak') {
+    return ' '
+  }
+
+  // Math nodes: include LaTeX content for search (without delimiters)
+  if (type === 'inlineMath' || type === 'blockMath') {
+    return node.attrs.latex || ''
+  }
+
+  // Recursively serialize children
+  const parts: Array<string> = []
+  node.forEach((child) => {
+    const s = serializeNodeTextForSearch(child)
+    if (s) parts.push(s)
+  })
+  return parts.join(' ')
+}
+
 function serializeNodeTextForFlashcards(node: ProseMirrorNode): string {
   const type = node.type.name
 
@@ -126,10 +153,10 @@ function extractBlockData(
   const nodeId = node.attrs[attributeName]
   if (!nodeId) return null
 
-  // Keep a compact textContent for search/indexing, but parse flashcards from a
-  // newline-preserving representation so multi-line cards (e.g. list children)
-  // can roundtrip as `\n` instead of concatenated words.
-  const textContent = node.textContent
+  // Use serializeNodeTextForSearch to include LaTeX content from math nodes,
+  // but parse flashcards from a newline-preserving representation so multi-line
+  // cards (e.g. list children) can roundtrip as `\n` instead of concatenated words.
+  const textContent = serializeNodeTextForSearch(node)
   let textForFlashcardParsing = serializeNodeTextForFlashcards(node)
 
   // If the block itself is a list item, include the bullet/number marker on the

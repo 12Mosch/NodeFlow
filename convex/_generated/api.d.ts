@@ -17,6 +17,7 @@ import type * as helpers_documentAccess from "../helpers/documentAccess.js";
 import type * as helpers_fsrs from "../helpers/fsrs.js";
 import type * as http from "../http.js";
 import type * as prosemirrorSync from "../prosemirrorSync.js";
+import type * as search from "../search.js";
 import type * as sharing from "../sharing.js";
 import type * as users from "../users.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   "helpers/fsrs": typeof helpers_fsrs;
   http: typeof http;
   prosemirrorSync: typeof prosemirrorSync;
+  search: typeof search;
   sharing: typeof sharing;
   users: typeof users;
 }>;

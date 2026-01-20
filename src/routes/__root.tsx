@@ -18,6 +18,9 @@ import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { Toaster } from '../components/ui/sonner'
 import { ThemeProvider } from '../components/theme-provider'
+import { SearchProvider } from '../components/search-provider'
+import { SearchDialog } from '../components/search-dialog'
+import { useSearchShortcut } from '../hooks/use-search-shortcut'
 
 import appCss from '../styles.css?url'
 
@@ -82,7 +85,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isPublicRoute, isAuthenticated])
 
-  // Allow public share routes without authentication
+  // Allow public share routes without authentication (no search)
   if (isPublicRoute) {
     return <>{children}</>
   }
@@ -100,7 +103,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return <>{children}</>
+  // Only enable search for authenticated users
+  return (
+    <SearchProvider>
+      <SearchShortcutHandler />
+      {children}
+      <SearchDialog />
+    </SearchProvider>
+  )
+}
+
+function SearchShortcutHandler() {
+  useSearchShortcut()
+  return null
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
