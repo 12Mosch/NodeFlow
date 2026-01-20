@@ -27,7 +27,11 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_updated', ['userId', 'updatedAt'])
-    .index('by_public_slug', ['publicSlug']),
+    .index('by_public_slug', ['publicSlug'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['userId'],
+    }),
 
   // Individual blocks within documents (for block-level tracking)
   blocks: defineTable({
@@ -66,7 +70,11 @@ export default defineSchema({
     .index('by_nodeId', ['documentId', 'nodeId'])
     .index('by_document_isCard', ['documentId', 'isCard'])
     .index('by_document_cardType', ['documentId', 'cardType'])
-    .index('by_user_isCard', ['userId', 'isCard']), // Optimized index for listAllFlashcards
+    .index('by_user_isCard', ['userId', 'isCard']) // Optimized index for listAllFlashcards
+    .searchIndex('search_textContent', {
+      searchField: 'textContent',
+      filterFields: ['userId'],
+    }),
 
   // FSRS card states - tracks spaced repetition memory state per card
   cardStates: defineTable({
