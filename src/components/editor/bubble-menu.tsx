@@ -111,6 +111,11 @@ export function EditorBubbleMenu() {
           return false
         }
 
+        // Don't show when image is selected (use ImageBubbleMenu instead)
+        if (bubbleEditor.isActive('image')) {
+          return false
+        }
+
         // Only show when there's a text selection
         const { from, to } = state.selection
         const hasSelection = from !== to

@@ -1,9 +1,22 @@
 import Image from '@tiptap/extension-image'
 import { mergeAttributes } from '@tiptap/core'
+import { ReactNodeViewRenderer } from '@tiptap/react'
+import { ImageView } from '@/components/editor/image-view'
+
+export type ImageAlignment = 'left' | 'center' | 'right'
+
+declare module '@tiptap/core' {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  interface Commands<ReturnType> {
+    extendedImage: {
+      setImageAlignment: (alignment: ImageAlignment) => ReturnType
+    }
+  }
+}
 
 /**
- * Extended Image extension that supports width and height attributes
- * to prevent layout shifts when images load.
+ * Extended Image extension that supports width, height, and align attributes
+ * to prevent layout shifts when images load and allow horizontal positioning.
  */
 export const ExtendedImage = Image.extend({
   addAttributes() {
@@ -39,6 +52,13 @@ export const ExtendedImage = Image.extend({
           }
         },
       },
+      align: {
+        default: 'center',
+        parseHTML: (element) => element.getAttribute('data-align') || 'center',
+        renderHTML: (attributes) => ({
+          'data-align': attributes.align,
+        }),
+      },
     }
   },
 
@@ -54,5 +74,19 @@ export const ExtendedImage = Image.extend({
     }
 
     return ['img', attributes]
+  },
+
+  addCommands() {
+    return {
+      setImageAlignment:
+        (alignment: ImageAlignment) =>
+        ({ commands }) => {
+          return commands.updateAttributes('image', { align: alignment })
+        },
+    }
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageView)
   },
 })
