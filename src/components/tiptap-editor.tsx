@@ -51,6 +51,7 @@ import {
 import { Callout } from '@/extensions/callout'
 import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
+import { ImageBubbleMenu } from '@/components/editor/image-bubble-menu'
 import { MathEditorPopover } from '@/components/editor/math-editor-popover'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { DocumentPreview } from '@/components/document-preview'
@@ -677,6 +678,7 @@ function EditorContentWrapper({
         <GripVertical className="h-4 w-4" />
       </DragHandle>
       <EditorBubbleMenu />
+      <ImageBubbleMenu />
       <EditorContent
         editor={editor}
         className="prose prose-zinc dark:prose-invert flex max-w-none flex-1 flex-col focus:outline-none [&_.ProseMirror]:flex-1 [&_.ProseMirror]:p-4 [&_.ProseMirror]:outline-none"
