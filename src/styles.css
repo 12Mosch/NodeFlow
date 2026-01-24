@@ -1278,3 +1278,80 @@ code {
 .dark .latex-render-error {
   border-color: oklch(0.75 0.18 25 / 0.5);
 }
+
+/* Presence Cursor Styles */
+.presence-cursor {
+  position: relative;
+  display: inline;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid var(--presence-color);
+  border-radius: 1px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 50;
+  animation: presence-cursor-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes presence-cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presence-cursor {
+    animation: none;
+  }
+}
+
+.presence-cursor-label {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: -1px;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  border-radius: 0.25rem 0.25rem 0.25rem 0;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  pointer-events: auto;
+}
+
+/* Selection highlight for remote users */
+.presence-selection {
+  border-radius: 2px;
+}
+
+/* Node selection for atom nodes (math, images, etc.) */
+.presence-selection-node {
+  position: relative !important;
+  outline: 2px solid var(--presence-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+  overflow: visible !important;
+}
+
+/* Name label positioned at top-right of selected node via pseudo-element */
+.presence-selection-node::after {
+  content: attr(data-presence-name);
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  transform: translateY(-100%);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  border-radius: 0.25rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  pointer-events: none;
+  z-index: 100;
+  background-color: var(--presence-color);
+}

@@ -6,9 +6,12 @@ import { getRequest } from '@tanstack/react-start/server'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
+import type { PresenceUser } from '@/hooks/use-presence'
 import { Badge } from '@/components/ui/badge'
 import { PublicDocumentViewer } from '@/components/public-document-viewer'
 import { TiptapEditor } from '@/components/tiptap-editor'
+import { usePresence } from '@/hooks/use-presence'
+import { CollaboratorAvatars } from '@/components/presence/collaborator-avatars'
 
 const getOrigin = createServerFn({ method: 'GET' }).handler(() => {
   const request = getRequest()
@@ -121,6 +124,33 @@ function SharedDocumentContent() {
     )
   }
 
+  return <SharedDocumentWithPresence document={document} />
+}
+
+type SharedDocument = {
+  _id: Id<'documents'>
+  title: string
+  permission: 'view' | 'edit'
+}
+
+function SharedDocumentWithPresence({
+  document,
+}: {
+  document: SharedDocument
+}) {
+  const { collaborators, updateCursor } = usePresence({
+    documentId: document._id,
+    isAnonymous: true,
+  })
+
+  const handleCursorChange = (
+    position: number,
+    selectionFrom: number,
+    selectionTo: number,
+  ) => {
+    updateCursor(position, selectionFrom, selectionTo)
+  }
+
   const isReadOnly = document.permission === 'view'
 
   return (
@@ -137,9 +167,14 @@ function SharedDocumentContent() {
             </Link>
             <h1 className="text-xl font-bold">{document.title}</h1>
           </div>
-          <Badge variant={isReadOnly ? 'secondary' : 'default'}>
-            {isReadOnly ? 'View only' : 'Can edit'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {collaborators.length > 0 && (
+              <CollaboratorAvatars collaborators={collaborators} />
+            )}
+            <Badge variant={isReadOnly ? 'secondary' : 'default'}>
+              {isReadOnly ? 'View only' : 'Can edit'}
+            </Badge>
+          </div>
         </div>
       </header>
 
@@ -148,7 +183,11 @@ function SharedDocumentContent() {
         {isReadOnly ? (
           <PublicDocumentViewer documentId={document._id} />
         ) : (
-          <ClientOnlyEditor documentId={document._id} />
+          <ClientOnlyEditor
+            documentId={document._id}
+            collaborators={collaborators}
+            onCursorChange={handleCursorChange}
+          />
         )}
       </div>
     </div>
@@ -165,7 +204,19 @@ const getServerSnapshot = () => false
  * This is necessary because @convex-dev/prosemirror-sync uses sessionStorage
  * which doesn't exist during server-side rendering.
  */
-function ClientOnlyEditor({ documentId }: { documentId: Id<'documents'> }) {
+function ClientOnlyEditor({
+  documentId,
+  collaborators,
+  onCursorChange,
+}: {
+  documentId: Id<'documents'>
+  collaborators?: Array<PresenceUser>
+  onCursorChange?: (
+    position: number,
+    selectionFrom: number,
+    selectionTo: number,
+  ) => void
+}) {
   const isClient = useSyncExternalStore(
     emptySubscribe,
     getClientSnapshot,
@@ -180,5 +231,11 @@ function ClientOnlyEditor({ documentId }: { documentId: Id<'documents'> }) {
     )
   }
 
-  return <TiptapEditor documentId={documentId} />
+  return (
+    <TiptapEditor
+      documentId={documentId}
+      collaborators={collaborators}
+      onCursorChange={onCursorChange}
+    />
+  )
 }
