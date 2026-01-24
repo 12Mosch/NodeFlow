@@ -10,6 +10,7 @@ import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
+import { useNavigate } from '@tanstack/react-router'
 import FileHandler from '@tiptap/extension-file-handler'
 import { DragHandle } from '@tiptap/extension-drag-handle-react'
 import Subscript from '@tiptap/extension-subscript'
@@ -17,6 +18,8 @@ import Superscript from '@tiptap/extension-superscript'
 import { Mathematics } from '@tiptap/extension-mathematics'
 import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
+import { useQueryClient } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,6 +46,7 @@ import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { LinkKeys } from '@/extensions/link-keys'
 import {
+  DOCUMENT_LINK_EVENT,
   IMAGE_DROP_PASTE_EVENT,
   IMAGE_UPLOAD_EVENT,
   MATH_EDIT_EVENT,
@@ -59,6 +63,8 @@ import {
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { ImageBubbleMenu } from '@/components/editor/image-bubble-menu'
 import { MathEditorPopover } from '@/components/editor/math-editor-popover'
+import { BrokenLinkDialog } from '@/components/editor/broken-link-dialog'
+import { DocumentLinkPopover } from '@/components/editor/document-link-popover'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { DocumentPreview } from '@/components/document-preview'
 
@@ -78,6 +84,29 @@ interface TiptapEditorProps {
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
+
+/**
+ * Extended Link extension that adds documentId attribute for internal document links.
+ * - External links: { href: "https://example.com", documentId: null }
+ * - Document links: { href: "/doc/{docId}", documentId: "{docId}" }
+ */
+const ExtendedLink = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      documentId: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-document-id'),
+        renderHTML: (attributes) => {
+          if (!attributes.documentId) {
+            return {}
+          }
+          return { 'data-document-id': attributes.documentId }
+        },
+      },
+    }
+  },
+})
 
 export function TiptapEditor({
   documentId,
@@ -252,7 +281,7 @@ export function TiptapEditor({
       }),
       TextStyle,
       Color,
-      Link.configure({
+      ExtendedLink.configure({
         openOnClick: false,
         HTMLAttributes: {
           class: 'text-primary underline cursor-pointer',
@@ -392,7 +421,13 @@ function EditorContentWrapper({
   onEditorReady?: (editor: Editor) => void
 }) {
   const { editor } = useCurrentEditor()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [showLinkWarning, setShowLinkWarning] = useState(false)
+  const [showBrokenLinkDialog, setShowBrokenLinkDialog] = useState(false)
+  const [brokenLinkPosition, setBrokenLinkPosition] = useState<number | null>(
+    null,
+  )
   const [isUploading, setIsUploading] = useState(false)
   const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null)
   const [mathEditor, setMathEditor] = useState<MathEditorState>({
@@ -402,7 +437,11 @@ function EditorContentWrapper({
     currentLatex: '',
     anchorRect: null,
   })
+  const [showDocumentLinkPicker, setShowDocumentLinkPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Track pending "Link" placeholder insertion for cleanup on cancel
+  const pendingLinkRangeRef = useRef<{ from: number; to: number } | null>(null)
+  const linkWasAppliedRef = useRef(false)
   const isMountedRef = useRef(true)
   const editorRef = useRef<Editor | null>(null)
 
@@ -586,6 +625,42 @@ function EditorContentWrapper({
     }
   }, [])
 
+  // Listen for document link events from slash commands
+  useEffect(() => {
+    const handleDocumentLinkEvent = () => {
+      const currentEditor = editorRef.current
+      if (!currentEditor) return
+
+      // If there's no selection, insert placeholder text "Link" and select it
+      const { from, to } = currentEditor.state.selection
+      if (from === to) {
+        // Insert "Link" text
+        currentEditor
+          .chain()
+          .focus()
+          .insertContent('Link')
+          .setTextSelection({ from, to: from + 4 })
+          .run()
+        // Track the inserted placeholder range for cleanup on cancel
+        pendingLinkRangeRef.current = { from, to: from + 4 }
+      } else {
+        // Clear any previous pending range when there's already a selection
+        pendingLinkRangeRef.current = null
+      }
+
+      // Reset the link applied flag before opening the picker
+      linkWasAppliedRef.current = false
+
+      // Open the document link picker
+      setShowDocumentLinkPicker(true)
+    }
+
+    window.addEventListener(DOCUMENT_LINK_EVENT, handleDocumentLinkEvent)
+    return () => {
+      window.removeEventListener(DOCUMENT_LINK_EVENT, handleDocumentLinkEvent)
+    }
+  }, [])
+
   // Update math editor anchor position on scroll/resize to prevent stale positioning
   useEffect(() => {
     if (!mathEditor.isOpen || mathEditor.position === null) return
@@ -657,15 +732,46 @@ function EditorContentWrapper({
       const href = linkMarkInstance?.attrs.href as string | undefined
       if (!href) return
 
-      // Prevent default navigation / other click handlers and show warning
+      // Check if this is a document link
+      const linkDocumentId = linkMarkInstance?.attrs.documentId as
+        | string
+        | undefined
+
+      // Prevent default navigation / other click handlers
       mouseEvent.preventDefault()
-      // Ensure no other handlers get a chance to open the link (e.g. via window.open)
       mouseEvent.stopImmediatePropagation()
       mouseEvent.stopPropagation()
-      setPendingLinkUrl(href)
-      setShowLinkWarning(true)
+
+      if (linkDocumentId) {
+        // Document link - check if document exists before navigating
+        void (async () => {
+          try {
+            const doc = await queryClient.fetchQuery(
+              convexQuery(api.documents.get, {
+                id: linkDocumentId as Id<'documents'>,
+              }),
+            )
+            if (doc) {
+              // Document exists - navigate to it
+              navigate({ to: '/doc/$docId', params: { docId: linkDocumentId } })
+            } else {
+              // Document doesn't exist - show broken link dialog
+              setBrokenLinkPosition(pos.pos)
+              setShowBrokenLinkDialog(true)
+            }
+          } catch (error) {
+            console.error('Failed to check document existence:', error)
+            // On error, try to navigate anyway
+            navigate({ to: '/doc/$docId', params: { docId: linkDocumentId } })
+          }
+        })()
+      } else {
+        // External link - show warning dialog
+        setPendingLinkUrl(href)
+        setShowLinkWarning(true)
+      }
     },
-    [editor],
+    [editor, navigate, queryClient],
   )
 
   useEffect(() => {
@@ -673,11 +779,9 @@ function EditorContentWrapper({
 
     // Attach at document level (capture phase) so we run before any other handlers that might open the link.
     const doc = editor.view.dom.ownerDocument
-    doc.addEventListener('pointerdown', handleLinkClick, true)
     doc.addEventListener('click', handleLinkClick, true)
 
     return () => {
-      doc.removeEventListener('pointerdown', handleLinkClick, true)
       doc.removeEventListener('click', handleLinkClick, true)
     }
   }, [editor, handleLinkClick])
@@ -740,6 +844,65 @@ function EditorContentWrapper({
             <AlertDialogAction onClick={handleConfirmOpenLink}>
               Continue
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Broken document link dialog */}
+      <BrokenLinkDialog
+        open={showBrokenLinkDialog}
+        onOpenChange={setShowBrokenLinkDialog}
+        editor={editor}
+        linkPosition={brokenLinkPosition}
+      />
+
+      {/* Document link picker dialog (from slash commands) */}
+      <AlertDialog
+        open={showDocumentLinkPicker}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Clean up placeholder text if picker was canceled (no link applied)
+            if (!linkWasAppliedRef.current && pendingLinkRangeRef.current) {
+              const currentEditor = editorRef.current
+              if (currentEditor && !currentEditor.isDestroyed) {
+                const { from, to } = pendingLinkRangeRef.current
+                try {
+                  const text = currentEditor.state.doc.textBetween(from, to)
+                  if (text === 'Link') {
+                    currentEditor
+                      .chain()
+                      .focus()
+                      .deleteRange({ from, to })
+                      .run()
+                  }
+                } catch {
+                  // Position may be invalid if doc changed, ignore
+                }
+              }
+            }
+            // Reset refs
+            pendingLinkRangeRef.current = null
+            linkWasAppliedRef.current = false
+          }
+          setShowDocumentLinkPicker(open)
+        }}
+      >
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Link to Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Search for a document to link to the selected text.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <DocumentLinkPopover
+            editor={editor}
+            onClose={() => setShowDocumentLinkPicker(false)}
+            onLinkApplied={() => {
+              linkWasAppliedRef.current = true
+            }}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
