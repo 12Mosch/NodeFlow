@@ -11,11 +11,13 @@
 import type * as auth from "../auth.js";
 import type * as blocks from "../blocks.js";
 import type * as cardStates from "../cardStates.js";
+import type * as crons from "../crons.js";
 import type * as documents from "../documents.js";
 import type * as files from "../files.js";
 import type * as helpers_documentAccess from "../helpers/documentAccess.js";
 import type * as helpers_fsrs from "../helpers/fsrs.js";
 import type * as http from "../http.js";
+import type * as presence from "../presence.js";
 import type * as prosemirrorSync from "../prosemirrorSync.js";
 import type * as search from "../search.js";
 import type * as sharing from "../sharing.js";
@@ -31,11 +33,13 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   blocks: typeof blocks;
   cardStates: typeof cardStates;
+  crons: typeof crons;
   documents: typeof documents;
   files: typeof files;
   "helpers/documentAccess": typeof helpers_documentAccess;
   "helpers/fsrs": typeof helpers_fsrs;
   http: typeof http;
+  presence: typeof presence;
   prosemirrorSync: typeof prosemirrorSync;
   search: typeof search;
   sharing: typeof sharing;

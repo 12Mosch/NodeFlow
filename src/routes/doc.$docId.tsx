@@ -11,6 +11,7 @@ import type { Editor } from '@tiptap/core'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { FlashcardWithDocument } from '@/components/flashcards'
 import type { StudyMode } from '@/components/study-mode-dialog'
+import type { PresenceUser } from '@/hooks/use-presence'
 import { DocumentLearnQuiz } from '@/components/document-learn-quiz'
 import { FlashcardQuiz } from '@/components/flashcards'
 import { ShareDialog } from '@/components/share-dialog'
@@ -22,6 +23,8 @@ import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { DocumentSidebar } from '@/components/sidebar'
 import { useSearch } from '@/components/search-provider'
+import { usePresence } from '@/hooks/use-presence'
+import { CollaboratorAvatars } from '@/components/presence/collaborator-avatars'
 
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
@@ -106,6 +109,9 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const [studyMode, setStudyMode] = useState<StudyMode | null>(null)
   const [showStudyModeDialog, setShowStudyModeDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
+
+  // Presence for collaborative editing
+  const { collaborators, updateCursor } = usePresence({ documentId: docId })
 
   const flashcardCount = flashcards?.length ?? 0
 
@@ -208,6 +214,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         flashcardCount={flashcardCount}
         onStudy={handleStudyClick}
         onShare={() => setShowShareDialog(true)}
+        collaborators={collaborators}
       />
 
       {/* Study mode dialog */}
@@ -233,6 +240,8 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
           documentId={docId}
           onEditorReady={setEditor}
           previewBlocks={blocks}
+          collaborators={collaborators}
+          onCursorChange={updateCursor}
         />
       </div>
     </div>
@@ -244,11 +253,13 @@ function MinimalHeader({
   flashcardCount,
   onStudy,
   onShare,
+  collaborators,
 }: {
   editor: Editor | null
   flashcardCount: number
   onStudy: () => void
   onShare: () => void
+  collaborators: Array<PresenceUser>
 }) {
   const { open: openSearch } = useSearch()
   // Track undo/redo availability reactively
@@ -350,6 +361,14 @@ function MinimalHeader({
           >
             <Share2 className="h-4 w-4" />
           </Button>
+
+          {/* Collaborator avatars */}
+          {collaborators.length > 0 && (
+            <>
+              <div className="mx-1 h-4 w-px bg-border" />
+              <CollaboratorAvatars collaborators={collaborators} />
+            </>
+          )}
 
           {/* Theme toggle */}
           <ModeToggle />

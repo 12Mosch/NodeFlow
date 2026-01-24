@@ -20,11 +20,13 @@ import { useMutation } from 'convex/react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
+import { NodeSelection } from '@tiptap/pm/state'
 import { api } from '../../convex/_generated/api'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Editor } from '@tiptap/core'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { BlockData } from '@/extensions/block-sync'
+import type { PresenceUser } from '@/hooks/use-presence'
 import { ExtendedImage } from '@/extensions/image'
 import {
   AlertDialog,
@@ -50,6 +52,10 @@ import {
 } from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
 import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
+import {
+  PresenceExtension,
+  setPresenceCollaborators,
+} from '@/extensions/presence'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { ImageBubbleMenu } from '@/components/editor/image-bubble-menu'
 import { MathEditorPopover } from '@/components/editor/math-editor-popover'
@@ -61,6 +67,14 @@ interface TiptapEditorProps {
   onEditorReady?: (editor: Editor) => void
   /** Cached blocks to show as preview while editor loads */
   previewBlocks?: Array<Doc<'blocks'>>
+  /** Collaborators for presence indicators */
+  collaborators?: Array<PresenceUser>
+  /** Callback when cursor/selection changes */
+  onCursorChange?: (
+    position: number,
+    selectionFrom: number,
+    selectionTo: number,
+  ) => void
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
@@ -69,6 +83,8 @@ export function TiptapEditor({
   documentId,
   onEditorReady,
   previewBlocks,
+  collaborators = [],
+  onCursorChange,
 }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
@@ -208,6 +224,11 @@ export function TiptapEditor({
     }
   }, [isLoading, initialContent, create])
 
+  // Update presence collaborators when they change
+  useEffect(() => {
+    setPresenceCollaborators(collaborators)
+  }, [collaborators])
+
   // Memoize extensions array (must be before early returns to satisfy hooks rules)
   const extensions = useMemo(() => {
     const mathHandlers = createMathHandlers()
@@ -304,6 +325,10 @@ export function TiptapEditor({
       }),
       // Flashcard decorations for visual indicators
       FlashcardDecorations,
+      // Presence extension for collaborative cursor indicators
+      PresenceExtension.configure({
+        onSelectionChange: onCursorChange,
+      }),
       extension,
     ].filter((ext): ext is NonNullable<typeof ext> => ext !== null)
   }, [
@@ -312,6 +337,7 @@ export function TiptapEditor({
     handleBlocksDelete,
     handleInitialSync,
     createMathHandlers,
+    onCursorChange,
     extension,
   ])
 
@@ -528,6 +554,16 @@ function EditorContentWrapper({
         ) as HTMLElement | null
         if (mathElement) {
           const rect = mathElement.getBoundingClientRect()
+
+          // Select the math node so presence indicators show it as selected
+          // This helps collaborators see that someone is editing this math block
+          const { state } = currentEditor.view
+          const node = state.doc.nodeAt(pos)
+          if (node) {
+            const nodeSelection = NodeSelection.create(state.doc, pos)
+            currentEditor.view.dispatch(state.tr.setSelection(nodeSelection))
+          }
+
           setMathEditor({
             isOpen: true,
             nodeType,

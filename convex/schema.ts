@@ -8,6 +8,7 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    presenceColor: v.optional(v.string()), // Consistent color for presence indicators
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -141,4 +142,26 @@ export default defineSchema({
     .index('by_document', ['documentId'])
     .index('by_user', ['userId'])
     .index('by_storage', ['storageId']),
+
+  // Real-time presence for collaborative editing
+  presence: defineTable({
+    documentId: v.id('documents'),
+    userId: v.optional(v.id('users')), // null for anonymous users
+    sessionId: v.string(), // unique per browser tab
+    // Denormalized user info for efficient rendering
+    name: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    color: v.string(),
+    isAnonymous: v.boolean(),
+    // Cursor state
+    cursorPosition: v.optional(v.number()),
+    selectionFrom: v.optional(v.number()),
+    selectionTo: v.optional(v.number()),
+    // Activity
+    lastSeenAt: v.number(),
+    isActive: v.boolean(),
+  })
+    .index('by_document', ['documentId'])
+    .index('by_sessionId', ['sessionId'])
+    .index('by_lastSeenAt', ['lastSeenAt']),
 })
