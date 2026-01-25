@@ -8,7 +8,7 @@ import { getInitials } from '@/lib/utils'
 
 /** Minimal collaborator info needed for avatar display */
 export interface CollaboratorInfo {
-  sessionId: string
+  id: string
   name: string | undefined
   avatarUrl: string | undefined
   color: string
@@ -43,7 +43,7 @@ export function CollaboratorAvatars({
   return (
     <div className="flex items-center -space-x-2">
       {visibleCollaborators.map((user, index) => (
-        <Tooltip key={user.sessionId}>
+        <Tooltip key={user.id}>
           <TooltipTrigger asChild>
             <div
               className="relative rounded-full ring-2 ring-background"
@@ -90,7 +90,7 @@ export function CollaboratorAvatars({
           <TooltipContent side="bottom" sideOffset={8}>
             <div className="flex flex-col gap-1">
               {overflowCollaborators.map((user) => (
-                <span key={user.sessionId}>
+                <span key={user.id}>
                   {user.name || 'Anonymous'}
                   {user.isAnonymous && (
                     <span className="ml-1 text-muted-foreground">(Guest)</span>
