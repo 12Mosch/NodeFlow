@@ -25,7 +25,7 @@ function createCursorElement(user: PresenceUser): HTMLElement {
   const cursor = document.createElement('span')
   cursor.className = 'presence-cursor'
   cursor.style.setProperty('--presence-color', user.color)
-  cursor.setAttribute('data-session-id', user.sessionId)
+  cursor.setAttribute('data-presence-id', user.id)
 
   // Create name label
   const label = document.createElement('span')
@@ -116,7 +116,7 @@ function buildDecorations(
       decorations.push(
         Decoration.widget(pos, cursorElement, {
           side: -1, // Place before text at this position (like a caret)
-          key: `cursor-${user.sessionId}`,
+          key: `cursor-${user.id}`,
         }),
       )
     }

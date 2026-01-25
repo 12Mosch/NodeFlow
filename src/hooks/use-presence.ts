@@ -3,7 +3,7 @@ import { useMutation } from 'convex/react'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { Id } from '../../convex/_generated/dataModel'
 import { getPresenceColor } from '@/lib/presence-colors'
 
 // Heartbeat interval: 10 seconds
@@ -12,7 +12,7 @@ const HEARTBEAT_INTERVAL_MS = 10 * 1000
 const CURSOR_UPDATE_DEBOUNCE_MS = 150
 
 export interface PresenceUser {
-  sessionId: string
+  id: string
   name: string | undefined
   avatarUrl: string | undefined
   color: string
@@ -233,8 +233,9 @@ export function usePresence({
     if (!presenceRecords) return []
 
     return presenceRecords.map(
-      (record: Doc<'presence'>): PresenceUser => ({
-        sessionId: record.sessionId,
+      (record): PresenceUser => ({
+        // Use _id as unique identifier since sessionId is omitted from query response for security
+        id: record._id,
         name: record.name,
         avatarUrl: record.avatarUrl,
         color: record.color,
