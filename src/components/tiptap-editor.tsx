@@ -45,6 +45,7 @@ import { BlockSync } from '@/extensions/block-sync'
 import { BLOCK_TYPES_WITH_IDS, UniqueID } from '@/extensions/unique-id'
 import { OutlinerKeys } from '@/extensions/outliner-keys'
 import { LinkKeys } from '@/extensions/link-keys'
+import { LinkDropHandler } from '@/extensions/link-drop-handler'
 import {
   DOCUMENT_LINK_EVENT,
   IMAGE_DROP_PASTE_EVENT,
@@ -336,6 +337,8 @@ export function TiptapEditor({
       OutlinerKeys,
       // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)
       LinkKeys,
+      // Link drop handler for creating links by dragging URLs onto text
+      LinkDropHandler,
       // Slash commands menu for quick block insertion
       SlashCommands,
       // UniqueID extension to assign block IDs to block-level nodes
