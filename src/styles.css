@@ -287,6 +287,22 @@ code {
     color: oklch(0.7 0.15 250);
   }
 
+  /* Document link styles - dashed underline with arrow icon */
+  a[data-document-id] {
+    text-decoration-style: dashed;
+    text-decoration-thickness: 1.5px;
+  }
+
+  a[data-document-id]::after {
+    content: '↗';
+    font-size: 0.7em;
+    margin-left: 0.15em;
+    opacity: 0.6;
+    vertical-align: super;
+    text-decoration: none;
+    display: inline-block;
+  }
+
   /* Image styles */
   img.editor-image {
     max-width: 100%;

@@ -2,6 +2,7 @@ import { Extension, ReactRenderer } from '@tiptap/react'
 import Suggestion from '@tiptap/suggestion'
 import {
   Code2,
+  FileText,
   Heading1,
   Heading2,
   Heading3,
@@ -58,6 +59,13 @@ export function triggerMathEdit(data: {
       detail: data,
     }),
   )
+}
+
+// Custom event for document link insertion
+export const DOCUMENT_LINK_EVENT = 'nodeflow:document-link'
+
+export function triggerDocumentLink() {
+  window.dispatchEvent(new CustomEvent(DOCUMENT_LINK_EVENT))
 }
 
 export const slashCommands: Array<SlashCommand> = [
@@ -188,6 +196,17 @@ export const slashCommands: Array<SlashCommand> = [
     command: () => {
       // Trigger the image upload dialog via custom event
       triggerImageUpload()
+    },
+  },
+  {
+    title: 'Link to Document',
+    description: 'Link to another document',
+    icon: FileText,
+    category: 'media',
+    aliases: ['document', 'doc', 'internal-link', 'doclink'],
+    command: () => {
+      // Trigger the document link picker via custom event
+      triggerDocumentLink()
     },
   },
   {
