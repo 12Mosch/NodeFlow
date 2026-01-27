@@ -15,6 +15,7 @@ import {
   Pilcrow,
   Quote,
   Sigma,
+  Table2,
 } from 'lucide-react'
 import type { SuggestionOptions } from '@tiptap/suggestion'
 import type { Editor } from '@tiptap/core'
@@ -227,6 +228,16 @@ export const slashCommands: Array<SlashCommand> = [
     aliases: ['inline-math', 'inline-equation'],
     command: (editor) => {
       editor.commands.insertInlineMath({ latex: 'x^2' })
+    },
+  },
+  {
+    title: 'Database',
+    description: 'Table with properties',
+    icon: Table2,
+    category: 'other',
+    aliases: ['table', 'db', 'spreadsheet', 'grid'],
+    command: (editor) => {
+      editor.commands.insertDatabase()
     },
   },
 ]
