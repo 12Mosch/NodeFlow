@@ -113,4 +113,5 @@ export const BLOCK_TYPES_WITH_IDS: Array<string> = [
   'callout',
   'image',
   'blockMath', // Block-level math formulas
+  'database', // Database table blocks
 ]

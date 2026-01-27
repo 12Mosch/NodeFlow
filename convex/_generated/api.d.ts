@@ -12,6 +12,8 @@ import type * as auth from "../auth.js";
 import type * as blocks from "../blocks.js";
 import type * as cardStates from "../cardStates.js";
 import type * as crons from "../crons.js";
+import type * as databaseRows from "../databaseRows.js";
+import type * as databaseSchemas from "../databaseSchemas.js";
 import type * as documents from "../documents.js";
 import type * as files from "../files.js";
 import type * as helpers_documentAccess from "../helpers/documentAccess.js";
@@ -34,6 +36,8 @@ declare const fullApi: ApiFromModules<{
   blocks: typeof blocks;
   cardStates: typeof cardStates;
   crons: typeof crons;
+  databaseRows: typeof databaseRows;
+  databaseSchemas: typeof databaseSchemas;
   documents: typeof documents;
   files: typeof files;
   "helpers/documentAccess": typeof helpers_documentAccess;

@@ -143,6 +143,69 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_storage', ['storageId']),
 
+  // Database block schemas (column definitions)
+  databaseSchemas: defineTable({
+    blockId: v.id('blocks'),
+    documentId: v.id('documents'),
+    userId: v.id('users'),
+    columns: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        type: v.union(
+          v.literal('text'),
+          v.literal('number'),
+          v.literal('select'),
+          v.literal('date'),
+        ),
+        options: v.optional(
+          v.array(
+            v.object({
+              id: v.string(),
+              label: v.string(),
+              color: v.optional(v.string()),
+            }),
+          ),
+        ),
+        width: v.optional(v.number()),
+      }),
+    ),
+    // Persisted view configuration
+    filters: v.optional(
+      v.array(
+        v.object({
+          columnId: v.string(),
+          operator: v.string(), // 'equals', 'contains', 'gt', 'lt', 'isEmpty', etc.
+          value: v.any(),
+        }),
+      ),
+    ),
+    sort: v.optional(
+      v.object({
+        columnId: v.string(),
+        direction: v.union(v.literal('asc'), v.literal('desc')),
+      }),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_block', ['blockId'])
+    .index('by_document', ['documentId']),
+
+  // Database block rows
+  databaseRows: defineTable({
+    databaseBlockId: v.id('blocks'),
+    documentId: v.id('documents'),
+    userId: v.id('users'),
+    position: v.number(),
+    cells: v.any(), // { columnId: value }
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_database', ['databaseBlockId'])
+    .index('by_database_position', ['databaseBlockId', 'position'])
+    .index('by_document', ['documentId']),
+
   // Real-time presence for collaborative editing
   presence: defineTable({
     documentId: v.id('documents'),

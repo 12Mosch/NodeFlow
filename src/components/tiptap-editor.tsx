@@ -56,6 +56,7 @@ import {
   triggerMathEdit,
 } from '@/extensions/slash-commands'
 import { Callout } from '@/extensions/callout'
+import { Database } from '@/extensions/database'
 import { FlashcardDecorations } from '@/extensions/flashcard-decorations'
 import {
   PresenceExtension,
@@ -333,6 +334,10 @@ export function TiptapEditor({
       }),
       // Callout block extension
       Callout,
+      // Database table block extension
+      Database.configure({
+        documentId,
+      }),
       // Outliner keyboard shortcuts (Enter, Shift+Enter, Tab, Shift+Tab)
       OutlinerKeys,
       // Link keyboard shortcuts (Cmd+Shift+K / Ctrl+Shift+K to remove link)

@@ -9,6 +9,41 @@ import type { Doc, Id } from './_generated/dataModel'
 
 type Direction = 'forward' | 'reverse'
 
+// Batch size for deletions to stay under Convex's 16,000 writes/transaction limit
+const DELETE_BATCH_SIZE = 500
+
+/**
+ * Batch delete IDs using Promise.allSettled to surface failures without aborting.
+ * Processes deletions in chunks of DELETE_BATCH_SIZE.
+ * Logs any failed deletions to help diagnose orphaned data issues.
+ */
+async function batchDelete(
+  ctx: MutationCtx,
+  ids: Array<Id<any>>,
+): Promise<void> {
+  for (let i = 0; i < ids.length; i += DELETE_BATCH_SIZE) {
+    const batch = ids.slice(i, i + DELETE_BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map((id) => ctx.db.delete(id)),
+    )
+
+    // Log any failed deletions
+    const failures = results
+      .map((result, index) => ({ result, id: batch[index] }))
+      .filter(
+        (item): item is { result: PromiseRejectedResult; id: Id<any> } =>
+          item.result.status === 'rejected',
+      )
+
+    if (failures.length > 0) {
+      console.error(
+        `batchDelete: ${failures.length} deletion(s) failed:`,
+        failures.map((f) => ({ id: f.id, reason: f.result.reason })),
+      )
+    }
+  }
+}
+
 // Flashcard validators (matching schema.ts)
 const cardTypeValidator = v.optional(
   v.union(
@@ -48,29 +83,61 @@ function getDirectionsForCard(
 
 /**
  * Cascade delete a block and all associated card states and review logs.
- * Deletes in order: reviewLogs → cardStates → block
+ * For database blocks, also deletes schemas and rows.
+ * Uses batched deletions to stay under Convex's 16,000 writes/transaction limit.
+ * Deletes in order: reviewLogs → cardStates → databaseSchema → databaseRows → block
  */
 async function cascadeDeleteBlock(
   ctx: MutationCtx,
   blockId: Id<'blocks'>,
 ): Promise<void> {
-  // Delete associated card states first
+  // Get the block to check its type
+  const block = await ctx.db.get(blockId)
+  if (!block) {
+    return
+  }
+
+  // Collect all card states for this block
   const cardStates = await ctx.db
     .query('cardStates')
     .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
     .collect()
 
+  // Collect all review log IDs for all card states
+  const reviewLogIds: Array<Id<'reviewLogs'>> = []
   for (const cardState of cardStates) {
-    // Delete associated review logs
     const logs = await ctx.db
       .query('reviewLogs')
       .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
       .collect()
+    reviewLogIds.push(...logs.map((log) => log._id))
+  }
 
-    for (const log of logs) {
-      await ctx.db.delete(log._id)
+  // Batch delete review logs first
+  await batchDelete(ctx, reviewLogIds)
+
+  // Batch delete card states
+  const cardStateIds = cardStates.map((cs) => cs._id)
+  await batchDelete(ctx, cardStateIds)
+
+  // If this is a database block, delete associated schema and rows
+  if (block.type === 'database') {
+    // Delete schema
+    const schema = await ctx.db
+      .query('databaseSchemas')
+      .withIndex('by_block', (q) => q.eq('blockId', blockId))
+      .unique()
+    if (schema) {
+      await ctx.db.delete(schema._id)
     }
-    await ctx.db.delete(cardState._id)
+
+    // Collect and batch delete all rows
+    const rows = await ctx.db
+      .query('databaseRows')
+      .withIndex('by_database', (q) => q.eq('databaseBlockId', blockId))
+      .collect()
+    const rowIds = rows.map((row) => row._id)
+    await batchDelete(ctx, rowIds)
   }
 
   await ctx.db.delete(blockId)
@@ -106,6 +173,7 @@ async function createCardState(
 /**
  * Clean up orphaned card states when card direction changes.
  * Deletes card states that are no longer needed based on the new cardDirection.
+ * Uses batched deletions to stay under Convex's 16,000 writes/transaction limit.
  */
 async function cleanupOrphanedCardStates(
   ctx: MutationCtx,
@@ -120,18 +188,22 @@ async function cleanupOrphanedCardStates(
       .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
       .collect()
 
+    // Collect all review log IDs
+    const reviewLogIds: Array<Id<'reviewLogs'>> = []
     for (const cardState of allCardStates) {
-      // Delete associated review logs first
       const logs = await ctx.db
         .query('reviewLogs')
         .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
         .collect()
-
-      for (const log of logs) {
-        await ctx.db.delete(log._id)
-      }
-      await ctx.db.delete(cardState._id)
+      reviewLogIds.push(...logs.map((log) => log._id))
     }
+
+    // Batch delete review logs first
+    await batchDelete(ctx, reviewLogIds)
+
+    // Batch delete card states
+    const cardStateIds = allCardStates.map((cs) => cs._id)
+    await batchDelete(ctx, cardStateIds)
     return
   }
 
@@ -145,21 +217,27 @@ async function cleanupOrphanedCardStates(
     .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
     .collect()
 
-  // Delete card states that are not in the needed directions
-  for (const cardState of existingCardStates) {
-    if (!neededDirectionsSet.has(cardState.direction)) {
-      // Delete associated review logs first
-      const logs = await ctx.db
-        .query('reviewLogs')
-        .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
-        .collect()
+  // Find card states to delete (not in needed directions)
+  const cardStatesToDelete = existingCardStates.filter(
+    (cardState) => !neededDirectionsSet.has(cardState.direction),
+  )
 
-      for (const log of logs) {
-        await ctx.db.delete(log._id)
-      }
-      await ctx.db.delete(cardState._id)
-    }
+  // Collect all review log IDs for card states to delete
+  const reviewLogIds: Array<Id<'reviewLogs'>> = []
+  for (const cardState of cardStatesToDelete) {
+    const logs = await ctx.db
+      .query('reviewLogs')
+      .withIndex('by_cardState', (q) => q.eq('cardStateId', cardState._id))
+      .collect()
+    reviewLogIds.push(...logs.map((log) => log._id))
   }
+
+  // Batch delete review logs first
+  await batchDelete(ctx, reviewLogIds)
+
+  // Batch delete card states
+  const cardStateIds = cardStatesToDelete.map((cs) => cs._id)
+  await batchDelete(ctx, cardStateIds)
 }
 
 // Get all blocks for a document
