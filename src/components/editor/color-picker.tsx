@@ -74,28 +74,31 @@ export function ColorPicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`bubble-menu-button color-picker-trigger ${currentColor ? 'is-active' : ''}`}
-          title={type === 'highlight' ? 'Highlight' : 'Text color'}
-        >
-          <span className="color-picker-icon">
-            {icon}
-            {currentColor && (
-              <span
-                className="color-indicator"
-                style={{
-                  backgroundColor:
-                    type === 'highlight' ? currentColor : 'transparent',
-                  borderBottomColor:
-                    type === 'text' ? currentColor : 'transparent',
-                }}
-              />
-            )}
-          </span>
-          <ChevronDown className="h-3 w-3 opacity-50" />
-        </button>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className={`bubble-menu-button color-picker-trigger ${currentColor ? 'is-active' : ''}`}
+            title={type === 'highlight' ? 'Highlight' : 'Text color'}
+            aria-label={type === 'highlight' ? 'Highlight' : 'Text color'}
+          />
+        }
+      >
+        <span className="color-picker-icon">
+          {icon}
+          {currentColor && (
+            <span
+              className="color-indicator"
+              style={{
+                backgroundColor:
+                  type === 'highlight' ? currentColor : 'transparent',
+                borderBottomColor:
+                  type === 'text' ? currentColor : 'transparent',
+              }}
+            />
+          )}
+        </span>
+        <ChevronDown className="h-3 w-3 opacity-50" />
       </PopoverTrigger>
       <PopoverContent
         className="color-picker-popover"

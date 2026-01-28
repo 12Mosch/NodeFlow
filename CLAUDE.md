@@ -21,7 +21,7 @@ To run a single test file: `bun run test src/path/to/file.test.ts`
 - **Database**: Convex (serverless, real-time subscriptions, ACID transactions)
 - **Auth**: WorkOS via `@convex-dev/workos`
 - **Editor**: Tiptap v3 (ProseMirror-based rich text)
-- **UI**: Shadcn UI + Tailwind CSS 4 + Radix primitives
+- **UI**: Shadcn UI + Tailwind CSS 4 + Base UI
 - **State**: TanStack Query with `@convex-dev/react-query` for SSR
 - **SRS**: ts-fsrs (FSRS v5 algorithm for spaced repetition)
 - **Monitoring**: Sentry

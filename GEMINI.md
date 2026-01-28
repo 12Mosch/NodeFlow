@@ -10,7 +10,7 @@ A highly interactive, local-first, block-based note-taking and Spaced Repetition
 - **Authentication:** `WorkOS` (Enterprise-grade auth and user management).
 - **Data Fetching:** `TanStack Query` (Integrated with Convex for prefetching and caching).
 - **State & Forms:** `TanStack Form` (Type-safe form management for settings and metadata).
-- **UI Components:** `Shadcn UI` (Radix UI + Tailwind CSS).
+- **UI Components:** `Shadcn UI` (Base UI + Tailwind CSS).
 - **Monitoring:** `Sentry` (Error tracking and performance monitoring).
 - **Optimization:** `React Compiler` (Enabled for automatic memoization).
 

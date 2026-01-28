@@ -127,28 +127,31 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <ThemeProvider defaultTheme="system" storageKey="nodeflow-ui-theme">
-          <WorkOSProvider>
-            <ConvexProvider>
-              <TanStackQuery.Provider queryClient={queryClient}>
-                <AuthGuard>{children}</AuthGuard>
-                <Toaster />
-                <TanStackDevtools
-                  config={{
-                    position: 'bottom-right',
-                  }}
-                  plugins={[
-                    {
-                      name: 'Tanstack Router',
-                      render: <TanStackRouterDevtoolsPanel />,
-                    },
-                    TanStackQueryDevtools,
-                  ]}
-                />
-              </TanStackQuery.Provider>
-            </ConvexProvider>
-          </WorkOSProvider>
-        </ThemeProvider>
+        {/* Root wrapper required for @base-ui/react portals/popovers/dialogs to stack correctly */}
+        <div className="root">
+          <ThemeProvider defaultTheme="system" storageKey="nodeflow-ui-theme">
+            <WorkOSProvider>
+              <ConvexProvider>
+                <TanStackQuery.Provider queryClient={queryClient}>
+                  <AuthGuard>{children}</AuthGuard>
+                  <Toaster />
+                  <TanStackDevtools
+                    config={{
+                      position: 'bottom-right',
+                    }}
+                    plugins={[
+                      {
+                        name: 'Tanstack Router',
+                        render: <TanStackRouterDevtoolsPanel />,
+                      },
+                      TanStackQueryDevtools,
+                    ]}
+                  />
+                </TanStackQuery.Provider>
+              </ConvexProvider>
+            </WorkOSProvider>
+          </ThemeProvider>
+        </div>
         <Scripts />
       </body>
     </html>

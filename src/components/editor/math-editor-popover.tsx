@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MathEditorTemplates } from './math-editor-templates'
 import { GREEK_LETTERS } from './math-editor-constants'
 import type { Editor } from '@tiptap/react'
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverContent } from '@/components/ui/popover'
 
 interface MathEditorPopoverProps {
   editor: Editor
@@ -186,38 +186,38 @@ export function MathEditorPopover({
     setLatex(initialLatex)
   }, [initialLatex])
 
-  // Handle focus when popover opens via onOpenAutoFocus callback
-  const handleOpenAutoFocus = useCallback((e: Event) => {
-    // Prevent default Radix autofocus behavior
-    e.preventDefault()
-    // Focus and select textarea content
-    textareaRef.current?.focus()
-    textareaRef.current?.select()
-  }, [])
+  // Focus textarea when popover opens
+  useEffect(() => {
+    if (isOpen && textareaRef.current) {
+      // Use setTimeout to ensure the popover is fully rendered
+      const timeoutId = setTimeout(() => {
+        textareaRef.current?.focus()
+        textareaRef.current?.select()
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isOpen])
 
   // Get highlighted HTML
   const highlightedHtml = useMemo(() => highlightLatex(latex), [latex])
 
+  // Create virtual anchor for the popover positioning
+  // Include contextElement to allow Floating UI to track scroll/position changes
+  const virtualAnchor = useMemo(
+    () => ({
+      getBoundingClientRect: () => anchorRect,
+      contextElement: editor.view.dom,
+    }),
+    [anchorRect, editor.view.dom],
+  )
+
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
-      <PopoverAnchor asChild>
-        <div
-          className="math-editor-anchor"
-          style={{
-            position: 'fixed',
-            left: anchorRect.left,
-            top: anchorRect.top,
-            width: anchorRect.width,
-            height: anchorRect.height,
-            pointerEvents: 'none',
-          }}
-        />
-      </PopoverAnchor>
       <PopoverContent
         className="math-editor-popover"
         align="start"
         sideOffset={8}
-        onOpenAutoFocus={handleOpenAutoFocus}
+        anchor={virtualAnchor}
       >
         <div className="math-editor-content">
           <div className="math-editor-input-wrapper">

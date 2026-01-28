@@ -25,6 +25,7 @@ Built with a state-of-the-art tech stack, NodeFlow provides a "zero-latency" exp
 - **State Management**: [TanStack Query](https://tanstack.com/query) & [Form](https://tanstack.com/form)
 - **Monitoring**: [Sentry](https://sentry.io/) (Error tracking and performance)
 - **Runtime**: [Bun](https://bun.sh/) (Fastest JavaScript all-in-one toolkit)
+- **UI Primitives**: [@base-ui/react](https://base-ui.com/react/overview/quick-start) (Unstyled, accessible component primitives)
 
 ---
 
@@ -115,6 +116,7 @@ bun run format
 - [TanStack Start Documentation](https://tanstack.com/start/latest)
 - [Convex Documentation](https://docs.convex.dev/home)
 - [Tiptap Documentation](https://tiptap.dev/docs)
+- [@base-ui/react Documentation](https://base-ui.com/react/overview/quick-start)
 
 ---
 
