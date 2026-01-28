@@ -44,28 +44,30 @@ export function CollaboratorAvatars({
     <div className="flex items-center -space-x-2">
       {visibleCollaborators.map((user, index) => (
         <Tooltip key={user.id}>
-          <TooltipTrigger asChild>
-            <div
-              className="relative rounded-full ring-2 ring-background"
-              style={{ zIndex: visibleCollaborators.length - index }}
-            >
-              <Avatar className="h-7 w-7">
-                {user.avatarUrl && (
-                  <AvatarImage src={user.avatarUrl} alt={user.name || 'User'} />
-                )}
-                <AvatarFallback
-                  className="text-xs font-medium text-white"
-                  style={{ backgroundColor: user.color }}
-                >
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
-              {/* Color indicator ring */}
-              <span
-                className="absolute inset-0 rounded-full ring-2"
-                style={{ '--tw-ring-color': user.color } as React.CSSProperties}
+          <TooltipTrigger
+            render={
+              <div
+                className="relative rounded-full ring-2 ring-background"
+                style={{ zIndex: visibleCollaborators.length - index }}
               />
-            </div>
+            }
+          >
+            <Avatar className="h-7 w-7">
+              {user.avatarUrl && (
+                <AvatarImage src={user.avatarUrl} alt={user.name || 'User'} />
+              )}
+              <AvatarFallback
+                className="text-xs font-medium text-white"
+                style={{ backgroundColor: user.color }}
+              >
+                {getInitials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            {/* Color indicator ring */}
+            <span
+              className="absolute inset-0 rounded-full ring-2"
+              style={{ '--tw-ring-color': user.color } as React.CSSProperties}
+            />
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={8}>
             <span>{user.name || 'Anonymous'}</span>
@@ -78,14 +80,16 @@ export function CollaboratorAvatars({
 
       {overflowCount > 0 && (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="relative rounded-full ring-2 ring-background">
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-muted text-xs font-medium">
-                  +{overflowCount}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+          <TooltipTrigger
+            render={
+              <div className="relative rounded-full ring-2 ring-background" />
+            }
+          >
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="bg-muted text-xs font-medium">
+                +{overflowCount}
+              </AvatarFallback>
+            </Avatar>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={8}>
             <div className="flex flex-col gap-1">

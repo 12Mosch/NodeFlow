@@ -188,13 +188,15 @@ export function DatabaseTable({
                     )}
 
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <ChevronDown className="h-3 w-3" />
-                        </button>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground"
+                          />
+                        }
+                      >
+                        <ChevronDown className="h-3 w-3" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
                         <DropdownMenuItem
@@ -276,13 +278,15 @@ export function DatabaseTable({
               <td className="px-1 py-0.5">
                 <div className="flex items-center opacity-0 group-hover:opacity-100">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                        />
+                      }
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem

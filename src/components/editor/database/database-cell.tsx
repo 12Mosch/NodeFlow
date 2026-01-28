@@ -170,27 +170,29 @@ function SelectCell({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-6 w-full justify-start px-1 py-0 text-sm font-normal hover:bg-transparent"
-        >
-          {selectedOption ? (
-            <Badge
-              className="font-normal"
-              style={{
-                backgroundColor: getOptionColor(
-                  selectedOption,
-                  options.indexOf(selectedOption),
-                ),
-              }}
-            >
-              {selectedOption.label}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground">Select...</span>
-          )}
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="h-6 w-full justify-start px-1 py-0 text-sm font-normal hover:bg-transparent"
+          />
+        }
+      >
+        {selectedOption ? (
+          <Badge
+            className="font-normal"
+            style={{
+              backgroundColor: getOptionColor(
+                selectedOption,
+                options.indexOf(selectedOption),
+              ),
+            }}
+          >
+            {selectedOption.label}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">Select...</span>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
         {options.length === 0 ? (

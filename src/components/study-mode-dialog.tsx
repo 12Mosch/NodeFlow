@@ -67,14 +67,21 @@ export function StudyModeDialog({
     prevOpenRef.current = open
   }, [open])
 
-  // Handle focus when dialog opens using Radix's onOpenAutoFocus
-  const handleOpenAutoFocus = useCallback((event: Event) => {
-    // Prevent default focus behavior and focus the first card instead
-    event.preventDefault()
-    requestAnimationFrame(() => {
-      cardRefs.current[0]?.focus()
-    })
-  }, [])
+  // Handle focus when dialog opens
+  useEffect(() => {
+    let rafId: number | null = null
+    if (open) {
+      // Focus the first card when dialog opens
+      rafId = requestAnimationFrame(() => {
+        cardRefs.current[0]?.focus()
+      })
+    }
+    return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
+  }, [open, dialogInstance])
 
   // Keyboard navigation
   useEffect(() => {
@@ -129,11 +136,7 @@ export function StudyModeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        key={dialogInstance}
-        className="sm:max-w-150"
-        onOpenAutoFocus={handleOpenAutoFocus}
-      >
+      <DialogContent key={dialogInstance} className="sm:max-w-150">
         <DialogHeader>
           <DialogTitle>Choose Study Mode</DialogTitle>
           <DialogDescription>
