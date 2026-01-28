@@ -136,14 +136,16 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
           }
         }}
       >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={`bubble-menu-button ${isActive ? 'is-active' : ''}`}
-            title="Link"
-          >
-            <Link2 className="h-4 w-4" />
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className={`bubble-menu-button ${isActive ? 'is-active' : ''}`}
+              title="Link"
+            />
+          }
+        >
+          <Link2 className="h-4 w-4" />
         </PopoverTrigger>
         <PopoverContent
           className="link-popover w-72"
