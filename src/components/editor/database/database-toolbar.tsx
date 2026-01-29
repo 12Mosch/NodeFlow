@@ -150,20 +150,22 @@ export function DatabaseToolbar({
     <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
       {/* Filter Button */}
       <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-7 gap-1.5 ${filters.length > 0 ? 'text-primary' : ''}`}
-          >
-            <Filter className="h-3.5 w-3.5" />
-            Filter
-            {filters.length > 0 && (
-              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-xs">
-                {filters.length}
-              </span>
-            )}
-          </Button>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 gap-1.5 ${filters.length > 0 ? 'text-primary' : ''}`}
+            />
+          }
+        >
+          <Filter className="h-3.5 w-3.5" />
+          Filter
+          {filters.length > 0 && (
+            <span className="rounded bg-primary/20 px-1.5 py-0.5 text-xs">
+              {filters.length}
+            </span>
+          )}
         </PopoverTrigger>
         <PopoverContent className="w-96 p-3" align="start">
           <div className="space-y-3">
@@ -203,14 +205,16 @@ export function DatabaseToolbar({
                     >
                       {/* Column selector */}
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 min-w-20 justify-start"
-                          >
-                            {column?.name ?? 'Select'}
-                          </Button>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 min-w-20 justify-start"
+                            />
+                          }
+                        >
+                          {column?.name ?? 'Select'}
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           {columns.map((col) => (
@@ -228,15 +232,17 @@ export function DatabaseToolbar({
 
                       {/* Operator selector */}
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 min-w-24 justify-start"
-                          >
-                            {operators.find((o) => o.value === filter.operator)
-                              ?.label ?? filter.operator}
-                          </Button>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 min-w-24 justify-start"
+                            />
+                          }
+                        >
+                          {operators.find((o) => o.value === filter.operator)
+                            ?.label ?? filter.operator}
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           {operators.map((op) => (

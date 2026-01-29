@@ -13,6 +13,13 @@ body {
     'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Required for @base-ui/react portals/popovers/dialogs to stack correctly */
+  position: relative;
+}
+
+/* Root wrapper for @base-ui/react - creates new stacking context for portals/popovers/dialogs */
+.root {
+  isolation: isolate;
 }
 
 code {
