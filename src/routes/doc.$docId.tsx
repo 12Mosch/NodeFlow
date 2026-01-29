@@ -26,8 +26,17 @@ import { useSearch } from '@/components/search-provider'
 import { usePresence } from '@/hooks/use-presence'
 import { CollaboratorAvatars } from '@/components/presence/collaborator-avatars'
 
+type DocSearch = {
+  q?: string
+}
+
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
+  validateSearch: (search: Record<string, unknown>): DocSearch => {
+    return {
+      q: typeof search.q === 'string' ? search.q : undefined,
+    }
+  },
   errorComponent: () => (
     <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
       <div className="w-full max-w-md space-y-4 rounded-lg border p-8 text-center shadow-sm">
@@ -92,6 +101,7 @@ function DocumentPage() {
 function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const navigate = useNavigate()
   const isRestoring = useIsRestoring()
+  const { q: searchQuery } = Route.useSearch()
   const { data: document, isPending } = useQuery({
     ...convexQuery(api.documents.get, { id: docId }),
   })
@@ -242,6 +252,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
           previewBlocks={blocks}
           collaborators={collaborators}
           onCursorChange={updateCursor}
+          searchQuery={searchQuery}
         />
       </div>
     </div>

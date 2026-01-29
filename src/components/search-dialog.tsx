@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { FileText, Text } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import { SEARCH_HIGHLIGHT_CLASS, escapeRegExp } from '../lib/utils'
 import { useSearch } from './search-provider'
 import {
   CommandDialog,
@@ -13,6 +14,25 @@ import {
   CommandItem,
   CommandList,
 } from './ui/command'
+
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query.trim() || !text) return text
+
+  // Escape regex special characters
+  const escaped = escapeRegExp(query)
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(regex)
+
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.toLowerCase() ? (
+      <span key={i} className={SEARCH_HIGHLIGHT_CLASS}>
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  )
+}
 
 export function SearchDialog() {
   const { isOpen, close } = useSearch()
@@ -35,7 +55,11 @@ export function SearchDialog() {
 
   const handleSelect = (documentId: string) => {
     close()
-    navigate({ to: '/doc/$docId', params: { docId: documentId } })
+    navigate({
+      to: '/doc/$docId',
+      params: { docId: documentId },
+      search: { q: debouncedQuery },
+    })
   }
 
   const hasResults =
@@ -79,7 +103,9 @@ export function SearchDialog() {
                 onSelect={() => handleSelect(doc._id)}
               >
                 <FileText className="mr-2 h-4 w-4" />
-                <span className="truncate">{doc.title || 'Untitled'}</span>
+                <span className="truncate">
+                  {highlightMatch(doc.title || 'Untitled', debouncedQuery)}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -96,9 +122,11 @@ export function SearchDialog() {
                 <Text className="mr-2 h-4 w-4 shrink-0" />
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-xs text-muted-foreground">
-                    {block.documentTitle}
+                    {highlightMatch(block.documentTitle, debouncedQuery)}
                   </span>
-                  <span className="truncate">{block.textContent}</span>
+                  <span className="truncate">
+                    {highlightMatch(block.textContent, debouncedQuery)}
+                  </span>
                 </div>
               </CommandItem>
             ))}
