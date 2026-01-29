@@ -15,6 +15,50 @@ import {
   CommandList,
 } from './ui/command'
 
+const SNIPPET_MAX_LENGTH = 120
+const SNIPPET_CONTEXT_BEFORE = 30
+
+/**
+ * Extract a snippet of text around the first occurrence of the search query.
+ * Returns the snippet with "..." prefix/suffix if the text is truncated.
+ */
+function extractSnippet(text: string, query: string): string {
+  if (!text) {
+    return text
+  }
+
+  // Case-insensitive search for the first occurrence
+  const lowerText = text.toLowerCase()
+  const lowerQuery = query.toLowerCase().trim()
+  const matchIndex = lowerText.indexOf(lowerQuery)
+
+  // If no match found or query not found, return truncated text from start
+  if (matchIndex === -1) {
+    return text.length > SNIPPET_MAX_LENGTH
+      ? text.slice(0, SNIPPET_MAX_LENGTH) + '...'
+      : text
+  }
+
+  // Calculate snippet boundaries around the match
+  const snippetStart = Math.max(0, matchIndex - SNIPPET_CONTEXT_BEFORE)
+  const snippetEnd = Math.min(text.length, snippetStart + SNIPPET_MAX_LENGTH)
+
+  // Extract the snippet
+  let snippet = text.slice(snippetStart, snippetEnd)
+
+  // Add ellipsis at start if we didn't start from the beginning
+  if (snippetStart > 0) {
+    snippet = '...' + snippet
+  }
+
+  // Add ellipsis at end if we didn't reach the end
+  if (snippetEnd < text.length) {
+    snippet = snippet + '...'
+  }
+
+  return snippet
+}
+
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim() || !text) return text
 
@@ -125,7 +169,10 @@ export function SearchDialog() {
                     {highlightMatch(block.documentTitle, debouncedQuery)}
                   </span>
                   <span className="truncate">
-                    {highlightMatch(block.textContent, debouncedQuery)}
+                    {highlightMatch(
+                      extractSnippet(block.textContent, debouncedQuery),
+                      debouncedQuery,
+                    )}
                   </span>
                 </div>
               </CommandItem>
