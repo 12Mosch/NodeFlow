@@ -92,9 +92,11 @@ export function SearchDialog() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  const normalizedQuery = debouncedQuery.trim()
+
   const { data: results, isLoading } = useQuery({
-    ...convexQuery(api.search.search, { query: debouncedQuery }),
-    enabled: debouncedQuery.length >= 2,
+    ...convexQuery(api.search.search, { query: normalizedQuery }),
+    enabled: isOpen && normalizedQuery.length > 0,
   })
 
   const handleSelect = (documentId: string) => {
@@ -102,13 +104,14 @@ export function SearchDialog() {
     navigate({
       to: '/doc/$docId',
       params: { docId: documentId },
-      search: { q: debouncedQuery },
+      search: normalizedQuery.length > 0 ? { q: normalizedQuery } : undefined,
     })
   }
 
   const hasResults =
     (results?.documents.length ?? 0) > 0 || (results?.blocks.length ?? 0) > 0
-  const showEmpty = debouncedQuery.length >= 2 && !isLoading && !hasResults
+  const showEmpty = !isLoading && !hasResults
+  const isEmptyQuery = normalizedQuery.length === 0
 
   return (
     <CommandDialog
@@ -132,14 +135,16 @@ export function SearchDialog() {
       <CommandList>
         {showEmpty && <CommandEmpty>No results found.</CommandEmpty>}
 
-        {isLoading && debouncedQuery.length >= 2 && (
+        {isLoading && (
           <div className="py-6 text-center text-sm text-muted-foreground">
-            Searching...
+            {isEmptyQuery ? 'Loading recent documents...' : 'Searching...'}
           </div>
         )}
 
         {results?.documents && results.documents.length > 0 && (
-          <CommandGroup heading="Documents">
+          <CommandGroup
+            heading={isEmptyQuery ? 'Recent Documents' : 'Documents'}
+          >
             {results.documents.map((doc) => (
               <CommandItem
                 key={doc._id}
@@ -148,14 +153,14 @@ export function SearchDialog() {
               >
                 <FileText className="mr-2 h-4 w-4" />
                 <span className="truncate">
-                  {highlightMatch(doc.title || 'Untitled', debouncedQuery)}
+                  {highlightMatch(doc.title || 'Untitled', normalizedQuery)}
                 </span>
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
-        {results?.blocks && results.blocks.length > 0 && (
+        {results?.blocks && results.blocks.length > 0 && !isEmptyQuery && (
           <CommandGroup heading="Content">
             {results.blocks.map((block) => (
               <CommandItem
@@ -166,24 +171,18 @@ export function SearchDialog() {
                 <Text className="mr-2 h-4 w-4 shrink-0" />
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-xs text-muted-foreground">
-                    {highlightMatch(block.documentTitle, debouncedQuery)}
+                    {highlightMatch(block.documentTitle, normalizedQuery)}
                   </span>
                   <span className="truncate">
                     {highlightMatch(
-                      extractSnippet(block.textContent, debouncedQuery),
-                      debouncedQuery,
+                      extractSnippet(block.textContent, normalizedQuery),
+                      normalizedQuery,
                     )}
                   </span>
                 </div>
               </CommandItem>
             ))}
           </CommandGroup>
-        )}
-
-        {debouncedQuery.length < 2 && (
-          <div className="py-6 text-center text-sm text-muted-foreground">
-            Type at least 2 characters to search...
-          </div>
         )}
       </CommandList>
     </CommandDialog>
