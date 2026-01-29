@@ -21,3 +21,16 @@ export function getInitials(name?: string, email?: string): string {
   }
   return '?'
 }
+
+/**
+ * Escape special regex characters in a string.
+ */
+export function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * CSS class string for search highlight styling.
+ */
+export const SEARCH_HIGHLIGHT_CLASS =
+  'bg-yellow-500/30 font-bold dark:bg-yellow-500/40'

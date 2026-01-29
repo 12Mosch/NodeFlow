@@ -62,6 +62,7 @@ import {
   PresenceExtension,
   setPresenceCollaborators,
 } from '@/extensions/presence'
+import { SearchHighlight, setSearchQuery } from '@/extensions/search-highlight'
 import { EditorBubbleMenu } from '@/components/editor/bubble-menu'
 import { ImageBubbleMenu } from '@/components/editor/image-bubble-menu'
 import { MathEditorPopover } from '@/components/editor/math-editor-popover'
@@ -83,6 +84,8 @@ interface TiptapEditorProps {
     selectionFrom: number,
     selectionTo: number,
   ) => void
+  /** Search query to highlight in the document */
+  searchQuery?: string
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
@@ -116,6 +119,7 @@ export function TiptapEditor({
   previewBlocks,
   collaborators = [],
   onCursorChange,
+  searchQuery,
 }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
@@ -260,6 +264,11 @@ export function TiptapEditor({
     setPresenceCollaborators(collaborators)
   }, [collaborators])
 
+  // Update search query for highlighting when it changes
+  useEffect(() => {
+    setSearchQuery(searchQuery ?? '')
+  }, [searchQuery])
+
   // Memoize extensions array (must be before early returns to satisfy hooks rules)
   const extensions = useMemo(() => {
     const mathHandlers = createMathHandlers()
@@ -366,6 +375,8 @@ export function TiptapEditor({
       PresenceExtension.configure({
         onSelectionChange: onCursorChange,
       }),
+      // Search highlight extension for highlighting search terms
+      SearchHighlight,
       extension,
     ].filter((ext): ext is NonNullable<typeof ext> => ext !== null)
   }, [
