@@ -35,6 +35,23 @@ interface CardPattern {
 
 const CARD_PATTERNS: Array<CardPattern> = [
   // Disabled patterns (must come before non-disabled)
+  // More specific patterns first (descriptor before basic to prevent <>- matching ;<>-)
+  // Descriptor disabled
+  {
+    pattern: /^(.+?)\s*;<>-\s*(.*)$/,
+    type: 'descriptor',
+    direction: 'disabled',
+  },
+  {
+    pattern: /^(.+?)\s*;<-\s*(.*)$/,
+    type: 'descriptor',
+    direction: 'disabled',
+  },
+  {
+    pattern: /^(.+?)\s*;;-\s*(.*)$/,
+    type: 'descriptor',
+    direction: 'disabled',
+  },
   // Basic disabled
   { pattern: /^(.+?)\s*>>-\s*(.*)$/, type: 'basic', direction: 'disabled' },
   { pattern: /^(.+?)\s*<<-\s*(.*)$/, type: 'basic', direction: 'disabled' },
@@ -44,22 +61,6 @@ const CARD_PATTERNS: Array<CardPattern> = [
   { pattern: /^(.+?)\s*::-\s*(.*)$/, type: 'concept', direction: 'disabled' },
   { pattern: /^(.+?)\s*:>-\s*(.*)$/, type: 'concept', direction: 'disabled' },
   { pattern: /^(.+?)\s*:<-\s*(.*)$/, type: 'concept', direction: 'disabled' },
-  // Descriptor disabled
-  {
-    pattern: /^(.+?)\s*;;<>-\s*(.*)$/,
-    type: 'descriptor',
-    direction: 'disabled',
-  },
-  {
-    pattern: /^(.+?)\s*;;<-\s*(.*)$/,
-    type: 'descriptor',
-    direction: 'disabled',
-  },
-  {
-    pattern: /^(.+?)\s*;;-\s*(.*)$/,
-    type: 'descriptor',
-    direction: 'disabled',
-  },
 
   // Multi-line patterns (triple markers)
   // Basic multi-line
