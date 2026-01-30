@@ -71,6 +71,7 @@ export default defineSchema({
     .index('by_nodeId', ['documentId', 'nodeId'])
     .index('by_document_isCard', ['documentId', 'isCard'])
     .index('by_document_cardType', ['documentId', 'cardType'])
+    .index('by_user', ['userId']) // Optimized index for fetching all user blocks
     .index('by_user_isCard', ['userId', 'isCard']) // Optimized index for listAllFlashcards
     .searchIndex('search_textContent', {
       searchField: 'textContent',
