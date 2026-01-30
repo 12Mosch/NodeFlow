@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudyLeechesRouteImport } from './routes/study-leeches'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
 
+const StudyLeechesRoute = StudyLeechesRouteImport.update({
+  id: '/study-leeches',
+  path: '/study-leeches',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
+  '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
   '/share/$slug': typeof ShareSlugRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
+  '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
   '/share/$slug': typeof ShareSlugRoute
 }
@@ -60,27 +68,55 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
+  '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
   '/share/$slug': typeof ShareSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
+  fullPaths:
+    | '/'
+    | '/callback'
+    | '/study'
+    | '/study-leeches'
+    | '/doc/$docId'
+    | '/share/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
-  id: '__root__' | '/' | '/callback' | '/study' | '/doc/$docId' | '/share/$slug'
+  to:
+    | '/'
+    | '/callback'
+    | '/study'
+    | '/study-leeches'
+    | '/doc/$docId'
+    | '/share/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/callback'
+    | '/study'
+    | '/study-leeches'
+    | '/doc/$docId'
+    | '/share/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CallbackRoute: typeof CallbackRoute
   StudyRoute: typeof StudyRoute
+  StudyLeechesRoute: typeof StudyLeechesRoute
   DocDocIdRoute: typeof DocDocIdRoute
   ShareSlugRoute: typeof ShareSlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/study-leeches': {
+      id: '/study-leeches'
+      path: '/study-leeches'
+      fullPath: '/study-leeches'
+      preLoaderRoute: typeof StudyLeechesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/study': {
       id: '/study'
       path: '/study'
@@ -123,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CallbackRoute: CallbackRoute,
   StudyRoute: StudyRoute,
+  StudyLeechesRoute: StudyLeechesRoute,
   DocDocIdRoute: DocDocIdRoute,
   ShareSlugRoute: ShareSlugRoute,
 }

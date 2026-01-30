@@ -17,6 +17,9 @@ export interface LearnCard {
     good: string
     easy: string
   }
+  isLeech: boolean
+  leechReason: string | null
+  retention: number | null
 }
 
 export type Rating = 1 | 2 | 3 | 4

@@ -1,3 +1,7 @@
+import { useMutation } from 'convex/react'
+import { useNavigate } from '@tanstack/react-router'
+import { toast } from 'sonner'
+import { api } from '../../../convex/_generated/api'
 import { RatingButtons } from './rating-buttons'
 import type { LearnCard as LearnCardType, Rating } from './types'
 import type { FlashcardBaseData } from '@/components/flashcards/types'
@@ -24,6 +28,41 @@ export function LearnCard({
 }: LearnCardProps) {
   const { block, document: doc, cardState, intervalPreviews } = card
   const direction = cardState.direction
+  const navigate = useNavigate()
+  const suspendCardMutation = useMutation(
+    api.cardStates.suspendCard,
+  ).withOptimisticUpdate((localStore, args) => {
+    const session = localStore.getQuery(api.cardStates.getLearnSession, {})
+    if (!session) return
+    localStore.setQuery(
+      api.cardStates.getLearnSession,
+      {},
+      session.filter((c) => c.cardState._id !== args.cardStateId),
+    )
+  })
+
+  const handleEditCard = () => {
+    if (!doc) {
+      toast.error('Cannot edit: document not found')
+      return
+    }
+    navigate({
+      to: '/doc/$docId',
+      params: { docId: doc._id },
+    })
+  }
+
+  const handleSuspendCard = async () => {
+    try {
+      await suspendCardMutation({
+        cardStateId: cardState._id,
+        suspend: true,
+      })
+      toast.success('Card suspended')
+    } catch (error) {
+      toast.error('Failed to suspend card')
+    }
+  }
 
   // Normalize LearnCard to FlashcardBaseData
   const baseData: FlashcardBaseData = {
@@ -59,6 +98,10 @@ export function LearnCard({
       onExpandedChange={onExpandedChange}
       renderHeaderBadges={renderHeaderBadges}
       renderActions={renderActions}
+      isLeech={card.isLeech}
+      leechReason={card.leechReason}
+      onEditCard={handleEditCard}
+      onSuspendCard={handleSuspendCard}
     />
   )
 }

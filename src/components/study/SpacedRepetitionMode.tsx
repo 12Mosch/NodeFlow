@@ -3,12 +3,14 @@ import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { Link } from '@tanstack/react-router'
 import {
+  AlertTriangle,
   ArrowLeft,
   BookOpen,
   Brain,
   Calendar,
   CheckCircle2,
   Flame,
+  Settings,
   Sparkles,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
@@ -35,6 +37,9 @@ export function SpacedRepetitionMode({
   )
   const { data: sessionCards } = useSuspenseQuery(
     convexQuery(api.cardStates.getLearnSession, {}),
+  )
+  const { data: leechStats } = useSuspenseQuery(
+    convexQuery(api.cardStates.getLeechStats, {}),
   )
 
   const handleStartLearning = () => {
@@ -156,6 +161,31 @@ export function SpacedRepetitionMode({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Leech alert */}
+            {leechStats.totalLeeches > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                    <AlertTriangle className="h-5 w-5" />
+                    Leech Cards Detected
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    {leechStats.totalLeeches} card
+                    {leechStats.totalLeeches !== 1 ? 's are' : ' is'} showing
+                    difficulty.
+                  </p>
+                  <Link to="/study-leeches">
+                    <Button variant="outline" className="gap-2">
+                      <Settings className="h-4 w-4" />
+                      Manage Leech Cards
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Session preview */}
             <Card>

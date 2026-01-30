@@ -101,11 +101,17 @@ export default defineSchema({
     // For learning/relearning steps
     scheduledDays: v.number(), // Days until next review
     elapsedDays: v.number(), // Days since last review
+    // Leech management
+    suspended: v.optional(v.boolean()), // Default false - card hidden from reviews
+    suspendedAt: v.optional(v.number()), // Suspension timestamp (ms since epoch)
   })
     .index('by_block_direction', ['blockId', 'direction'])
     .index('by_user_due', ['userId', 'due'])
+    .index('by_user_due_suspended', ['userId', 'suspended', 'due'])
     .index('by_user_state', ['userId', 'state'])
-    .index('by_user_state_due', ['userId', 'state', 'due']),
+    .index('by_user_state_due', ['userId', 'state', 'due'])
+    .index('by_user_state_suspended', ['userId', 'state', 'suspended'])
+    .index('by_user_suspended', ['userId', 'suspended']),
 
   // Review logs - audit trail of all reviews for analytics
   reviewLogs: defineTable({

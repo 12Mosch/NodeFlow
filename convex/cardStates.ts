@@ -10,6 +10,7 @@ import {
   previewIntervals,
   processReview,
 } from './helpers/fsrs'
+import { fetchRetentionMap, getLeechReason, isLeech } from './helpers/leech'
 import type { CardState } from './helpers/fsrs'
 import type { Id } from './_generated/dataModel'
 
@@ -67,6 +68,7 @@ export const getOrCreateCardState = mutation({
           state: newState.state,
           scheduledDays: newState.scheduledDays,
           elapsedDays: newState.elapsedDays,
+          suspended: false,
         })
 
         return id
@@ -130,6 +132,7 @@ export const ensureCardStates = mutation({
             state: newState.state,
             scheduledDays: newState.scheduledDays,
             elapsedDays: newState.elapsedDays,
+            suspended: false,
           })
 
           results.push(id)
@@ -233,11 +236,11 @@ export const getDueCards = query({
         const now = Date.now()
         const limit = args.limit ?? 50
 
-        // Get all card states for the user that are due
+        // Get due card states for the user, excluding suspended, limited at DB level
         const dueCards = await ctx.db
           .query('cardStates')
-          .withIndex('by_user_due', (q) =>
-            q.eq('userId', userId).lte('due', now),
+          .withIndex('by_user_due_suspended', (q) =>
+            q.eq('userId', userId).eq('suspended', false).lte('due', now),
           )
           .take(limit)
 
@@ -309,11 +312,11 @@ export const getNewCards = query({
         const userId = await requireUser(ctx)
         const limit = args.limit ?? 20
 
-        // Get new cards
+        // Get new cards, excluding suspended, limited at DB level
         const newCards = await ctx.db
           .query('cardStates')
-          .withIndex('by_user_state', (q) =>
-            q.eq('userId', userId).eq('state', 'new'),
+          .withIndex('by_user_state_suspended', (q) =>
+            q.eq('userId', userId).eq('state', 'new').eq('suspended', false),
           )
           .take(limit)
 
@@ -456,19 +459,19 @@ export const getLearnSession = query({
         const newLimit = args.newLimit ?? 20
         const reviewLimit = args.reviewLimit ?? 100
 
-        // Get due review cards (including learning/relearning)
+        // Get due review cards (including learning/relearning), excluding suspended, limited at DB level
         const dueCards = await ctx.db
           .query('cardStates')
-          .withIndex('by_user_due', (q) =>
-            q.eq('userId', userId).lte('due', now),
+          .withIndex('by_user_due_suspended', (q) =>
+            q.eq('userId', userId).eq('suspended', false).lte('due', now),
           )
           .take(reviewLimit)
 
-        // Get new cards
+        // Get new cards, excluding suspended, limited at DB level
         const newCards = await ctx.db
           .query('cardStates')
-          .withIndex('by_user_state', (q) =>
-            q.eq('userId', userId).eq('state', 'new'),
+          .withIndex('by_user_state_suspended', (q) =>
+            q.eq('userId', userId).eq('state', 'new').eq('suspended', false),
           )
           .take(newLimit)
 
@@ -481,6 +484,9 @@ export const getLearnSession = query({
 
         // Combine and fetch blocks
         const allCardStates = [...dueCards, ...filteredNewCards]
+
+        // Batch-fetch all retention rates in one query
+        const retentionMap = await fetchRetentionMap(ctx, userId)
 
         const cardsWithBlocks = await Promise.all(
           allCardStates.map(async (cardState) => {
@@ -507,6 +513,13 @@ export const getLearnSession = query({
             const retrievability = getRetrievability(state)
             const intervals = previewIntervals(state)
 
+            // Calculate leech status
+            const retention = retentionMap.get(cardState._id) ?? null
+            const isLeechCard = isLeech(cardState, retention)
+            const leechReason = isLeechCard
+              ? getLeechReason(cardState, retention)
+              : null
+
             return {
               cardState,
               block,
@@ -520,6 +533,9 @@ export const getLearnSession = query({
                 good: formatInterval(intervals.good),
                 easy: formatInterval(intervals.easy),
               },
+              isLeech: isLeechCard,
+              leechReason,
+              retention,
             }
           }),
         )
@@ -589,10 +605,10 @@ export const getDocumentLearnSession = query({
           }),
         )
 
-        // Flatten and filter by userId (security check) and due/state
+        // Flatten and filter by userId (security check), suspended status, and due/state
         const allRelevantCards = allCardStatesForBlocks
           .flat()
-          .filter((card) => card.userId === userId)
+          .filter((card) => card.userId === userId && card.suspended !== true)
 
         // Separate due and new cards
         const dueCards = allRelevantCards
@@ -608,6 +624,9 @@ export const getDocumentLearnSession = query({
 
         // Combine and fetch blocks
         const allCardStates = [...dueCards, ...newCards]
+
+        // Batch-fetch all retention rates in one query
+        const retentionMap = await fetchRetentionMap(ctx, userId)
 
         const cardsWithBlocks = await Promise.all(
           allCardStates.map(async (cardState) => {
@@ -634,6 +653,13 @@ export const getDocumentLearnSession = query({
             const retrievability = getRetrievability(state)
             const intervals = previewIntervals(state)
 
+            // Calculate leech status
+            const retention = retentionMap.get(cardState._id) ?? null
+            const isLeechCard = isLeech(cardState, retention)
+            const leechReason = isLeechCard
+              ? getLeechReason(cardState, retention)
+              : null
+
             return {
               cardState,
               block,
@@ -647,6 +673,9 @@ export const getDocumentLearnSession = query({
                 good: formatInterval(intervals.good),
                 easy: formatInterval(intervals.easy),
               },
+              isLeech: isLeechCard,
+              leechReason,
+              retention,
             }
           }),
         )
@@ -746,6 +775,7 @@ export const initializeDocumentCardStates = mutation({
                 state: newState.state,
                 scheduledDays: newState.scheduledDays,
                 elapsedDays: newState.elapsedDays,
+                suspended: false,
               })
               createdCount++
             }
@@ -753,6 +783,88 @@ export const initializeDocumentCardStates = mutation({
         }
 
         return { createdCount }
+      },
+    )
+  },
+})
+
+/**
+ * Suspend or unsuspend a card
+ */
+export const suspendCard = mutation({
+  args: {
+    cardStateId: v.id('cardStates'),
+    suspend: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.suspendCard', op: 'convex.mutation' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get the card state
+        const cardState = await ctx.db.get(args.cardStateId)
+        if (!cardState) {
+          throw new Error('Card state not found')
+        }
+
+        // Verify ownership
+        if (cardState.userId !== userId) {
+          throw new Error('Not authorized to suspend this card')
+        }
+
+        // Update suspension status
+        await ctx.db.patch(args.cardStateId, {
+          suspended: args.suspend,
+          suspendedAt: args.suspend ? Date.now() : undefined,
+        })
+
+        return { success: true }
+      },
+    )
+  },
+})
+
+/**
+ * List all suspended cards for the user
+ */
+export const listSuspendedCards = query({
+  args: {},
+  handler: async (ctx) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.listSuspendedCards', op: 'convex.query' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get all suspended cards
+        const suspendedCards = await ctx.db
+          .query('cardStates')
+          .withIndex('by_user_suspended', (q) =>
+            q.eq('userId', userId).eq('suspended', true),
+          )
+          .collect()
+
+        // Fetch associated blocks and documents
+        const cardsWithContent = await Promise.all(
+          suspendedCards.map(async (cardState) => {
+            const block = await ctx.db.get(cardState.blockId)
+            if (!block) return null
+
+            const document = await ctx.db.get(block.documentId)
+
+            return {
+              cardState,
+              block,
+              document: document
+                ? { _id: document._id, title: document.title }
+                : null,
+            }
+          }),
+        )
+
+        return cardsWithContent.filter(
+          (c): c is NonNullable<typeof c> => c !== null,
+        )
       },
     )
   },
@@ -804,6 +916,161 @@ export const deleteCardStatesForBlock = mutation({
         }
 
         return cardStates.length
+      },
+    )
+  },
+})
+
+/**
+ * List all leech cards (suspended AND unsuspended) with metadata
+ */
+export const listLeechCards = query({
+  args: {},
+  handler: async (ctx) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.listLeechCards', op: 'convex.query' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get all card states for the user
+        const allCards = await ctx.db
+          .query('cardStates')
+          .withIndex('by_user_due', (q) => q.eq('userId', userId))
+          .collect()
+
+        // Batch-fetch all retention rates in one query
+        const retentionMap = await fetchRetentionMap(ctx, userId)
+
+        // Filter for leeches and fetch block/document metadata
+        const leechCardsData = await Promise.all(
+          allCards.map(async (cardState) => {
+            const retention = retentionMap.get(cardState._id) ?? null
+            const isLeechCard = isLeech(cardState, retention)
+
+            if (!isLeechCard) return null
+
+            const leechReason = getLeechReason(cardState, retention)
+            const block = await ctx.db.get(cardState.blockId)
+            if (!block) return null
+
+            const document = await ctx.db.get(block.documentId)
+
+            return {
+              cardState,
+              block,
+              document: document
+                ? { _id: document._id, title: document.title }
+                : null,
+              retention,
+              leechReason,
+            }
+          }),
+        )
+
+        return leechCardsData.filter(
+          (c): c is NonNullable<typeof c> => c !== null,
+        )
+      },
+    )
+  },
+})
+
+/**
+ * Get aggregate statistics for leech cards
+ */
+export const getLeechStats = query({
+  args: {},
+  handler: async (ctx) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.getLeechStats', op: 'convex.query' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Get all card states for the user
+        const allCards = await ctx.db
+          .query('cardStates')
+          .withIndex('by_user_due', (q) => q.eq('userId', userId))
+          .collect()
+
+        let totalLeeches = 0
+        let suspendedCount = 0
+        let highLapsesCount = 0
+        let lowRetentionCount = 0
+
+        // Batch-fetch all retention rates in one query
+        const retentionMap = await fetchRetentionMap(ctx, userId)
+
+        for (const cardState of allCards) {
+          const retention = retentionMap.get(cardState._id) ?? null
+          const isLeechCard = isLeech(cardState, retention)
+
+          if (isLeechCard) {
+            totalLeeches++
+
+            if (cardState.suspended === true) {
+              suspendedCount++
+            }
+
+            if (cardState.lapses > 5) {
+              highLapsesCount++
+            }
+
+            if (cardState.reps > 10 && retention !== null && retention < 40) {
+              lowRetentionCount++
+            }
+          }
+        }
+
+        return {
+          totalLeeches,
+          suspendedCount,
+          highLapsesCount,
+          lowRetentionCount,
+        }
+      },
+    )
+  },
+})
+
+/**
+ * Bulk suspend or unsuspend multiple cards
+ */
+export const bulkSuspendCards = mutation({
+  args: {
+    cardStateIds: v.array(v.id('cardStates')),
+    suspend: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.bulkSuspendCards', op: 'convex.mutation' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        // Verify ownership of all cards
+        const cardStates = await Promise.all(
+          args.cardStateIds.map((id) => ctx.db.get(id)),
+        )
+
+        for (const cardState of cardStates) {
+          if (!cardState) {
+            throw new Error('Card state not found')
+          }
+          if (cardState.userId !== userId) {
+            throw new Error('Not authorized to suspend this card')
+          }
+        }
+
+        // Update all cards
+        await Promise.all(
+          args.cardStateIds.map((id) =>
+            ctx.db.patch(id, {
+              suspended: args.suspend,
+              suspendedAt: args.suspend ? Date.now() : undefined,
+            }),
+          ),
+        )
+
+        return { updatedCount: args.cardStateIds.length }
       },
     )
   },
