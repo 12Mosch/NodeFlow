@@ -18,6 +18,7 @@ import type * as documents from "../documents.js";
 import type * as files from "../files.js";
 import type * as helpers_documentAccess from "../helpers/documentAccess.js";
 import type * as helpers_fsrs from "../helpers/fsrs.js";
+import type * as helpers_leech from "../helpers/leech.js";
 import type * as http from "../http.js";
 import type * as presence from "../presence.js";
 import type * as prosemirrorSync from "../prosemirrorSync.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   "helpers/documentAccess": typeof helpers_documentAccess;
   "helpers/fsrs": typeof helpers_fsrs;
+  "helpers/leech": typeof helpers_leech;
   http: typeof http;
   presence: typeof presence;
   prosemirrorSync: typeof prosemirrorSync;
