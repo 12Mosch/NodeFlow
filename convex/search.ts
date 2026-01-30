@@ -2,19 +2,36 @@ import { v } from 'convex/values'
 import { query } from './_generated/server'
 import { requireUser } from './auth'
 
+const MIN_SEARCH_QUERY_LENGTH = 2
+const RECENT_DOCUMENTS_LIMIT = 10
+
 export const search = query({
   args: {
-    query: v.string(),
+    query: v.optional(v.string()),
     documentLimit: v.optional(v.number()),
     blockLimit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx)
-    const q = args.query.trim()
+    const q = args.query?.trim() ?? ''
 
-    // Don't search if query is empty or too short
-    if (q.length < 2) {
-      return { documents: [], blocks: [] }
+    // If query is empty or too short, return recent documents instead
+    if (q.length < MIN_SEARCH_QUERY_LENGTH) {
+      const recentDocuments = await ctx.db
+        .query('documents')
+        .withIndex('by_user_updated', (indexQuery) =>
+          indexQuery.eq('userId', userId),
+        )
+        .order('desc')
+        .take(RECENT_DOCUMENTS_LIMIT)
+
+      const documents = recentDocuments.map((doc) => ({
+        _id: doc._id,
+        title: doc.title,
+        updatedAt: doc.updatedAt,
+      }))
+
+      return { documents, blocks: [] }
     }
 
     const documentLimit = args.documentLimit ?? 20
