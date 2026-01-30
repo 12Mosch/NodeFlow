@@ -1,10 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import Fuse from 'fuse.js'
 import { FileText, Text } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
-import { SEARCH_HIGHLIGHT_CLASS, escapeRegExp } from '../lib/utils'
+import {
+  SEARCH_HIGHLIGHT_CLASS,
+  findAllFuzzyMatches,
+  findFuzzyMatchRange,
+} from '../lib/utils'
+import { setSearchQuery } from '../extensions/search-highlight'
 import { useSearch } from './search-provider'
 import {
   CommandDialog,
@@ -14,9 +20,126 @@ import {
   CommandItem,
   CommandList,
 } from './ui/command'
+import type { Id } from '../../convex/_generated/dataModel'
+import type { IFuseOptions } from 'fuse.js'
 
 const SNIPPET_MAX_LENGTH = 120
 const SNIPPET_CONTEXT_BEFORE = 30
+const MIN_SEARCH_QUERY_LENGTH = 2
+
+// Fuse.js configuration for typo tolerance
+const FUSE_OPTIONS: IFuseOptions<unknown> = {
+  threshold: 0.4,
+  includeScore: true,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+}
+
+// Document type from Convex search results
+interface DocumentResult {
+  _id: Id<'documents'>
+  title: string
+  updatedAt?: number
+}
+
+// Block type from Convex search results
+interface BlockResult {
+  _id: Id<'blocks'>
+  documentId: Id<'documents'>
+  documentTitle: string
+  textContent: string
+  type: string
+}
+
+// Search results type matching Convex return type
+interface SearchResult {
+  documents: Array<DocumentResult>
+  blocks: Array<BlockResult>
+}
+
+/**
+ * Type guard to check if a value is a valid DocumentResult.
+ */
+function isDocumentResult(value: unknown): value is DocumentResult {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const doc = value as Record<string, unknown>
+  if (typeof doc._id !== 'string') {
+    return false
+  }
+  if (typeof doc.title !== 'string') {
+    return false
+  }
+  if (doc.updatedAt !== undefined && typeof doc.updatedAt !== 'number') {
+    return false
+  }
+  return true
+}
+
+/**
+ * Type guard to check if a value is a valid BlockResult.
+ */
+function isBlockResult(value: unknown): value is BlockResult {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const block = value as Record<string, unknown>
+  if (typeof block._id !== 'string') {
+    return false
+  }
+  if (typeof block.documentId !== 'string') {
+    return false
+  }
+  if (typeof block.documentTitle !== 'string') {
+    return false
+  }
+  if (typeof block.textContent !== 'string') {
+    return false
+  }
+  if (typeof block.type !== 'string') {
+    return false
+  }
+  return true
+}
+
+/**
+ * Type guard to check if a value is a valid SearchResult.
+ * Validates the shape of the object at runtime.
+ */
+function isSearchResult(value: unknown): value is SearchResult {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const obj = value as Record<string, unknown>
+
+  // Check documents array
+  if (!Array.isArray(obj.documents)) {
+    return false
+  }
+
+  // Check blocks array
+  if (!Array.isArray(obj.blocks)) {
+    return false
+  }
+
+  // Validate document structure
+  for (const doc of obj.documents) {
+    if (!isDocumentResult(doc)) {
+      return false
+    }
+  }
+
+  // Validate block structure
+  for (const block of obj.blocks) {
+    if (!isBlockResult(block)) {
+      return false
+    }
+  }
+
+  return true
+}
 
 /**
  * Extract a snippet of text around the first occurrence of the search query.
@@ -30,9 +153,17 @@ function extractSnippet(text: string, query: string): string {
   // Case-insensitive search for the first occurrence
   const lowerText = text.toLowerCase()
   const lowerQuery = query.toLowerCase().trim()
-  const matchIndex = lowerText.indexOf(lowerQuery)
+  let matchIndex = lowerText.indexOf(lowerQuery)
 
-  // If no match found or query not found, return truncated text from start
+  // If no exact match found, try fuzzy matching
+  if (matchIndex === -1) {
+    const fuzzyMatch = findFuzzyMatchRange(text, lowerQuery)
+    if (fuzzyMatch) {
+      matchIndex = fuzzyMatch.start
+    }
+  }
+
+  // If no match found (exact or fuzzy), return truncated text from start
   if (matchIndex === -1) {
     return text.length > SNIPPET_MAX_LENGTH
       ? text.slice(0, SNIPPET_MAX_LENGTH) + '...'
@@ -62,26 +193,87 @@ function extractSnippet(text: string, query: string): string {
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim() || !text) return text
 
-  // Escape regex special characters
-  const escaped = escapeRegExp(query)
-  const regex = new RegExp(`(${escaped})`, 'gi')
-  const parts = text.split(regex)
+  // Find all fuzzy matches in the text
+  const matches = findAllFuzzyMatches(text, query, 0.5)
 
-  return parts.map((part, i) =>
-    part.toLowerCase() === query.toLowerCase() ? (
-      <span key={i} className={SEARCH_HIGHLIGHT_CLASS}>
-        {part}
-      </span>
-    ) : (
-      part
-    ),
-  )
+  // If no matches found, return text as-is
+  if (matches.length === 0) {
+    return text
+  }
+
+  // Build the result with highlighted matches
+  const result: Array<React.ReactNode> = []
+  let lastEnd = 0
+
+  for (const { start, end } of matches) {
+    // Add text before the match
+    if (start > lastEnd) {
+      result.push(text.slice(lastEnd, start))
+    }
+
+    // Add the highlighted match
+    result.push(
+      <span key={start} className={SEARCH_HIGHLIGHT_CLASS}>
+        {text.slice(start, end)}
+      </span>,
+    )
+
+    lastEnd = end
+  }
+
+  // Add any remaining text after the last match
+  if (lastEnd < text.length) {
+    result.push(text.slice(lastEnd))
+  }
+
+  return result
+}
+
+/**
+ * Apply Fuse.js fuzzy filtering to search results.
+ * Documents are searched by title, blocks by textContent.
+ * Falls back to original results if Fuse returns nothing.
+ */
+function applyFuzzyFilter(
+  results: SearchResult | undefined,
+  query: string,
+): SearchResult | undefined {
+  if (!results || query.trim().length < MIN_SEARCH_QUERY_LENGTH) {
+    return results
+  }
+
+  const trimmedQuery = query.trim()
+
+  // Create Fuse instances for documents and blocks
+  const documentFuse = new Fuse(results.documents, {
+    ...FUSE_OPTIONS,
+    keys: ['title'],
+  })
+
+  const blockFuse = new Fuse(results.blocks, {
+    ...FUSE_OPTIONS,
+    keys: ['textContent'],
+  })
+
+  // Perform fuzzy search
+  const documentMatches = documentFuse.search(trimmedQuery)
+  const blockMatches = blockFuse.search(trimmedQuery)
+
+  // Extract items from Fuse results (sorted by relevance score)
+  const fuzzyDocuments = documentMatches.map((match) => match.item)
+  const fuzzyBlocks = blockMatches.map((match) => match.item)
+
+  // Fallback to original results if Fuse returns nothing
+  return {
+    documents: fuzzyDocuments.length > 0 ? fuzzyDocuments : results.documents,
+    blocks: fuzzyBlocks.length > 0 ? fuzzyBlocks : results.blocks,
+  }
 }
 
 export function SearchDialog() {
   const { isOpen, close } = useSearch()
   const navigate = useNavigate()
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQueryState] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   // Debounce search query
@@ -92,12 +284,30 @@ export function SearchDialog() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  // Update search highlight in real-time as user types
+  useEffect(() => {
+    setSearchQuery(debouncedQuery)
+  }, [debouncedQuery])
+
+  // Clear search highlight when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('')
+    }
+  }, [isOpen])
+
   const normalizedQuery = debouncedQuery.trim()
 
-  const { data: results, isLoading } = useQuery({
+  const { data: rawResults, isLoading } = useQuery({
     ...convexQuery(api.search.search, { query: normalizedQuery }),
     enabled: isOpen && normalizedQuery.length > 0,
   })
+
+  // Apply Fuse.js fuzzy filtering to Convex results
+  const results = useMemo(() => {
+    const typedResults = isSearchResult(rawResults) ? rawResults : undefined
+    return applyFuzzyFilter(typedResults, normalizedQuery)
+  }, [rawResults, normalizedQuery])
 
   const handleSelect = (documentId: string) => {
     close()
@@ -119,7 +329,7 @@ export function SearchDialog() {
       onOpenChange={(open) => {
         if (!open) {
           close()
-          setSearchQuery('')
+          setSearchQueryState('')
           setDebouncedQuery('')
         }
       }}
@@ -130,7 +340,7 @@ export function SearchDialog() {
       <CommandInput
         placeholder="Search documents..."
         value={searchQuery}
-        onValueChange={setSearchQuery}
+        onValueChange={setSearchQueryState}
       />
       <CommandList>
         {showEmpty && <CommandEmpty>No results found.</CommandEmpty>}
