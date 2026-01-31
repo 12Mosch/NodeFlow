@@ -207,6 +207,33 @@ export default defineSchema({
     .index('by_database_position', ['databaseBlockId', 'position'])
     .index('by_document', ['documentId']),
 
+  // Exams for prioritized study scheduling
+  exams: defineTable({
+    userId: v.id('users'),
+    title: v.string(),
+    examDate: v.number(), // Timestamp (ms) of exam
+    color: v.optional(v.string()), // UI color
+    isArchived: v.boolean(), // True after exam passes
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_examDate', ['userId', 'examDate'])
+    .index('by_user_archived', ['userId', 'isArchived'])
+    .index('by_archived_date', ['isArchived', 'examDate']),
+
+  // Junction table: links exams to documents (many-to-many)
+  examDocuments: defineTable({
+    examId: v.id('exams'),
+    documentId: v.id('documents'),
+    userId: v.id('users'), // Denormalized for querying
+    createdAt: v.number(),
+  })
+    .index('by_exam', ['examId'])
+    .index('by_document', ['documentId'])
+    .index('by_user', ['userId'])
+    .index('by_exam_document', ['examId', 'documentId']),
+
   // Real-time presence for collaborative editing
   presence: defineTable({
     documentId: v.id('documents'),

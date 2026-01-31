@@ -10,12 +10,15 @@ import {
   previewIntervals,
   processReview,
 } from './helpers/fsrs'
+import {
+  countCardsFromBlocks,
+  isInRetrievabilityPeriod,
+} from './helpers/examScheduling'
 import type { CardState } from './helpers/fsrs'
 import type { Id } from './_generated/dataModel'
 
 // Direction validator
 const directionValidator = v.union(v.literal('forward'), v.literal('reverse'))
-
 /**
  * Get or create card state for a block+direction combination
  */
@@ -441,11 +444,18 @@ export const getStats = query({
 
 /**
  * Get cards for learning session (due + new cards mixed)
+ * Prioritizes exam cards when exams are in their retrievability period
+ *
+ * Queue order:
+ * 1. Exam cards (in retrievability period) - sorted by retrievability
+ * 2. Regular due cards - sorted by retrievability
+ * 3. New cards (exam cards first, then regular)
  */
 export const getLearnSession = query({
   args: {
     newLimit: v.optional(v.number()),
     reviewLimit: v.optional(v.number()),
+    examLimit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await Sentry.startSpan(
@@ -455,89 +465,262 @@ export const getLearnSession = query({
         const now = Date.now()
         const newLimit = args.newLimit ?? 20
         const reviewLimit = args.reviewLimit ?? 100
+        const examLimit = args.examLimit ?? 50
 
-        // Get due review cards (including learning/relearning)
-        const dueCards = await ctx.db
+        // Check for active exams in retrievability period
+        const activeExams = await ctx.db
+          .query('exams')
+          .withIndex('by_user_archived', (q) =>
+            q.eq('userId', userId).eq('isArchived', false),
+          )
+          .collect()
+
+        const futureExams = activeExams.filter((e) => e.examDate > now)
+
+        // Get exam document IDs and calculate which are in retrievability period
+        const examDocumentIds = new Set<Id<'documents'>>()
+        const examInfo: Array<{
+          examId: Id<'exams'>
+          documentIds: Array<Id<'documents'>>
+          cardCount: number
+          examDate: number
+        }> = []
+
+        // Fetch exam documents for all exams in parallel
+        const examDocsResults = await Promise.all(
+          futureExams.map((exam) =>
+            ctx.db
+              .query('examDocuments')
+              .withIndex('by_exam', (q) => q.eq('examId', exam._id))
+              .collect(),
+          ),
+        )
+
+        // Build map of exam -> docIds
+        const examToDocIds = new Map<Id<'exams'>, Array<Id<'documents'>>>()
+        const allDocIds = new Set<Id<'documents'>>()
+        for (let i = 0; i < futureExams.length; i++) {
+          const docIds = examDocsResults[i].map((ed) => ed.documentId)
+          examToDocIds.set(futureExams[i]._id, docIds)
+          docIds.forEach((id) => allDocIds.add(id))
+        }
+
+        // Fetch all blocks for all documents in parallel
+        const allDocIdsArray = Array.from(allDocIds)
+        const blocksResults = await Promise.all(
+          allDocIdsArray.map((docId) =>
+            ctx.db
+              .query('blocks')
+              .withIndex('by_document_isCard', (q) =>
+                q.eq('documentId', docId).eq('isCard', true),
+              )
+              .collect(),
+          ),
+        )
+
+        // Build map of docId -> cards
+        const docToCards = new Map<Id<'documents'>, (typeof blocksResults)[0]>()
+        for (let i = 0; i < allDocIdsArray.length; i++) {
+          docToCards.set(allDocIdsArray[i], blocksResults[i])
+        }
+
+        // Now process each exam using the pre-fetched data
+        for (const exam of futureExams) {
+          const docIds = examToDocIds.get(exam._id) ?? []
+
+          // Count cards for this exam using pre-fetched blocks
+          let cardCount = 0
+          for (const docId of docIds) {
+            const cards = docToCards.get(docId) ?? []
+            cardCount += countCardsFromBlocks(cards)
+          }
+
+          // Check if in retrievability period
+          if (isInRetrievabilityPeriod(exam.examDate, cardCount, now)) {
+            examInfo.push({
+              examId: exam._id,
+              documentIds: docIds,
+              cardCount,
+              examDate: exam.examDate,
+            })
+            docIds.forEach((id) => examDocumentIds.add(id))
+          }
+        }
+
+        // Get ALL cards from exam documents (regardless of due date)
+        // Collect all enabled blocks from exam documents first
+        const examBlocks: Array<(typeof blocksResults)[0][0]> = []
+        for (const docId of examDocumentIds) {
+          const blocks = docToCards.get(docId) ?? []
+          for (const block of blocks) {
+            if (block.cardDirection !== 'disabled') {
+              examBlocks.push(block)
+            }
+          }
+        }
+
+        // Fetch exam card states in parallel by block to avoid serial per-block queries.
+        const examBlockIds = Array.from(
+          new Set(examBlocks.map((block) => block._id)),
+        )
+        const examCardStateResults = await Promise.all(
+          examBlockIds.map(async (blockId) => {
+            const [forward, reverse] = await Promise.all([
+              ctx.db
+                .query('cardStates')
+                .withIndex('by_block_direction', (q) =>
+                  q.eq('blockId', blockId).eq('direction', 'forward'),
+                )
+                .unique(),
+              ctx.db
+                .query('cardStates')
+                .withIndex('by_block_direction', (q) =>
+                  q.eq('blockId', blockId).eq('direction', 'reverse'),
+                )
+                .unique(),
+            ])
+
+            return [forward, reverse].filter(
+              (card): card is NonNullable<typeof card> => card !== null,
+            )
+          }),
+        )
+        const examCardStates = examCardStateResults
+          .flat()
+          .filter((card) => card.userId === userId)
+        const processedCardIds = new Set(examCardStates.map((card) => card._id))
+
+        // Get regular due review cards (excluding exam cards already collected).
+        const regularDueCandidates = await ctx.db
           .query('cardStates')
           .withIndex('by_user_due', (q) =>
             q.eq('userId', userId).lte('due', now),
           )
-          .take(reviewLimit)
+          .collect()
+        const regularDueCards = regularDueCandidates
+          .filter((card) => !processedCardIds.has(card._id))
+          .slice(0, reviewLimit)
 
-        // Get new cards
-        const newCards = await ctx.db
-          .query('cardStates')
-          .withIndex('by_user_state', (q) =>
-            q.eq('userId', userId).eq('state', 'new'),
-          )
-          .take(newLimit)
+        // Get new cards from a state-specific index.
+        const newCards = (
+          await ctx.db
+            .query('cardStates')
+            .withIndex('by_user_state', (q) =>
+              q.eq('userId', userId).eq('state', 'new'),
+            )
+            .collect()
+        ).slice(0, newLimit)
 
         // Collect IDs of due cards to avoid duplicates
-        // (new cards can have due=now and match both queries)
-        const dueCardIds = new Set(dueCards.map((card) => card._id))
+        const dueCardIds = new Set([
+          ...examCardStates.map((card) => card._id),
+          ...regularDueCards.map((card) => card._id),
+        ])
         const filteredNewCards = newCards.filter(
           (card) => !dueCardIds.has(card._id),
         )
 
-        // Combine and fetch blocks
-        const allCardStates = [...dueCards, ...filteredNewCards]
+        // Process all cards
+        const allCardStates = [
+          ...examCardStates,
+          ...regularDueCards,
+          ...filteredNewCards,
+        ]
 
-        const cardsWithBlocks = await Promise.all(
-          allCardStates.map(async (cardState) => {
-            const block = await ctx.db.get(cardState.blockId)
-            if (!block || !block.isCard || block.cardDirection === 'disabled') {
-              return null
-            }
+        // Prefetch unique blocks/documents once to avoid per-card N+1 lookups.
+        const uniqueBlockIds = Array.from(
+          new Set(allCardStates.map((card) => card.blockId)),
+        )
+        const blocks = (
+          await Promise.all(
+            uniqueBlockIds.map((blockId) => ctx.db.get(blockId)),
+          )
+        ).filter((block): block is NonNullable<typeof block> => block !== null)
+        const blockById = new Map(blocks.map((block) => [block._id, block]))
 
-            // Get document for title
-            const document = await ctx.db.get(block.documentId)
-
-            // Calculate retrievability and intervals
-            const state: CardState = {
-              stability: cardState.stability,
-              difficulty: cardState.difficulty,
-              due: cardState.due,
-              lastReview: cardState.lastReview,
-              reps: cardState.reps,
-              lapses: cardState.lapses,
-              state: cardState.state,
-              scheduledDays: cardState.scheduledDays,
-              elapsedDays: cardState.elapsedDays,
-            }
-            const retrievability = getRetrievability(state)
-            const intervals = previewIntervals(state)
-
-            return {
-              cardState,
-              block,
-              document: document
-                ? { _id: document._id, title: document.title }
-                : null,
-              retrievability,
-              intervalPreviews: {
-                again: formatInterval(intervals.again),
-                hard: formatInterval(intervals.hard),
-                good: formatInterval(intervals.good),
-                easy: formatInterval(intervals.easy),
-              },
-            }
-          }),
+        const uniqueDocumentIds = Array.from(
+          new Set(blocks.map((block) => block.documentId)),
+        )
+        const documents = (
+          await Promise.all(
+            uniqueDocumentIds.map((documentId) => ctx.db.get(documentId)),
+          )
+        ).filter(
+          (document): document is NonNullable<typeof document> =>
+            document !== null,
+        )
+        const documentById = new Map(
+          documents.map((document) => [document._id, document]),
         )
 
-        // Filter out nulls and sort: due cards by retrievability, then new cards
+        const cardsWithBlocks = allCardStates.map((cardState) => {
+          const block = blockById.get(cardState.blockId)
+          if (!block || !block.isCard || block.cardDirection === 'disabled') {
+            return null
+          }
+
+          const document = documentById.get(block.documentId) ?? null
+          const state: CardState = {
+            stability: cardState.stability,
+            difficulty: cardState.difficulty,
+            due: cardState.due,
+            lastReview: cardState.lastReview,
+            reps: cardState.reps,
+            lapses: cardState.lapses,
+            state: cardState.state,
+            scheduledDays: cardState.scheduledDays,
+            elapsedDays: cardState.elapsedDays,
+          }
+          const retrievability = getRetrievability(state)
+          const intervals = previewIntervals(state)
+
+          // Check if this is an exam card
+          const isExamCard = document
+            ? examDocumentIds.has(document._id)
+            : false
+
+          return {
+            cardState,
+            block,
+            document: document
+              ? { _id: document._id, title: document.title }
+              : null,
+            retrievability,
+            intervalPreviews: {
+              again: formatInterval(intervals.again),
+              hard: formatInterval(intervals.hard),
+              good: formatInterval(intervals.good),
+              easy: formatInterval(intervals.easy),
+            },
+            isExamCard,
+          }
+        })
+
         const validCards = cardsWithBlocks.filter(
           (c): c is NonNullable<typeof c> => c !== null,
         )
 
-        // Separate due and new cards
-        const due = validCards
-          .filter((c) => c.cardState.state !== 'new')
+        // Separate into categories
+        const examDue = validCards
+          .filter((c) => c.isExamCard && c.cardState.state !== 'new')
+          .sort((a, b) => a.retrievability - b.retrievability)
+          .slice(0, examLimit)
+
+        const regularDue = validCards
+          .filter((c) => !c.isExamCard && c.cardState.state !== 'new')
           .sort((a, b) => a.retrievability - b.retrievability)
 
-        const newOnes = validCards.filter((c) => c.cardState.state === 'new')
+        const examNew = validCards
+          .filter((c) => c.isExamCard && c.cardState.state === 'new')
+          .slice(0, newLimit)
 
-        // Interleave: show due cards first, then introduce new ones
-        return [...due, ...newOnes]
+        const remainingNewSlots = Math.max(newLimit - examNew.length, 0)
+        const regularNew = validCards
+          .filter((c) => !c.isExamCard && c.cardState.state === 'new')
+          .slice(0, remainingNewSlots)
+
+        // Final queue order: exam due -> regular due -> exam new -> regular new
+        return [...examDue, ...regularDue, ...examNew, ...regularNew]
       },
     )
   },
@@ -577,22 +760,16 @@ export const getDocumentLearnSession = query({
 
         const blockIds = Array.from(enabledBlocks.map((b) => b._id))
 
-        // Query cardStates for each block in parallel using the by_block_direction index
-        // This is more efficient than fetching all user cards globally and filtering
-        const allCardStatesForBlocks = await Promise.all(
-          blockIds.map(async (blockId) => {
-            // Query all cardStates for this block (both directions)
-            return await ctx.db
-              .query('cardStates')
-              .withIndex('by_block_direction', (q) => q.eq('blockId', blockId))
-              .collect()
-          }),
-        )
+        // Fetch all user card states once and filter to this document's blocks
+        const allUserCardStates = await ctx.db
+          .query('cardStates')
+          .withIndex('by_user_due', (q) => q.eq('userId', userId))
+          .collect()
 
-        // Flatten and filter by userId (security check) and due/state
-        const allRelevantCards = allCardStatesForBlocks
-          .flat()
-          .filter((card) => card.userId === userId)
+        const blockIdSet = new Set(blockIds)
+        const allRelevantCards = allUserCardStates.filter((card) =>
+          blockIdSet.has(card.blockId),
+        )
 
         // Separate due and new cards
         const dueCards = allRelevantCards

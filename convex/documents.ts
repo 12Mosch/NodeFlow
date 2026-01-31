@@ -114,7 +114,7 @@ export const deleteDocument = mutation({
   handler: async (ctx, args) => {
     await requireDocumentAccess(ctx, args.id)
 
-    // Query for all files and blocks associated with this document
+    // Query for all files, blocks, and exam links associated with this document
     const files = await ctx.db
       .query('files')
       .withIndex('by_document', (q) => q.eq('documentId', args.id))
@@ -125,7 +125,13 @@ export const deleteDocument = mutation({
       .withIndex('by_document', (q) => q.eq('documentId', args.id))
       .collect()
 
-    // Delete all database records first (files, blocks, document)
+    // Get exam document links to clean up
+    const examDocLinks = await ctx.db
+      .query('examDocuments')
+      .withIndex('by_document', (q) => q.eq('documentId', args.id))
+      .collect()
+
+    // Delete all database records first (files, blocks, exam links, document)
     // This ensures that if any database operation fails, the transaction
     // rolls back and we never delete storage files, preventing broken references
     for (const file of files) {
@@ -134,6 +140,11 @@ export const deleteDocument = mutation({
 
     for (const block of blocks) {
       await ctx.db.delete(block._id)
+    }
+
+    // Clean up exam document links
+    for (const examDocLink of examDocLinks) {
+      await ctx.db.delete(examDocLink._id)
     }
 
     await ctx.db.delete(args.id)

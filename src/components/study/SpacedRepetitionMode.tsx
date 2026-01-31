@@ -7,12 +7,14 @@ import {
   BookOpen,
   Brain,
   Calendar,
+  CalendarClock,
   CheckCircle2,
   Flame,
   Sparkles,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { StudyState } from './types'
+import { Badge } from '@/components/ui/badge'
 import { LearnQuiz } from '@/components/learn'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +38,9 @@ export function SpacedRepetitionMode({
   const { data: sessionCards } = useSuspenseQuery(
     convexQuery(api.cardStates.getLearnSession, {}),
   )
+  const { data: activeExams } = useSuspenseQuery(
+    convexQuery(api.exams.getActiveInRetrievabilityPeriod, {}),
+  )
 
   const handleStartLearning = () => {
     Sentry.startSpan(
@@ -53,6 +58,10 @@ export function SpacedRepetitionMode({
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
   const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
   const totalDue = dueCards.length + newCards.length
+
+  // Count exam cards in the session
+  const examCards = sessionCards.filter((c) => c.isExamCard)
+  const hasExamCards = examCards.length > 0
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -157,6 +166,37 @@ export function SpacedRepetitionMode({
               </Card>
             </div>
 
+            {/* Exam Alert */}
+            {activeExams.length > 0 && (
+              <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-900/50">
+                    <CalendarClock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">
+                      {activeExams.length === 1
+                        ? 'Exam coming up!'
+                        : `${activeExams.length} exams coming up!`}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {activeExams[0].exam.title} in {activeExams[0].daysUntil}{' '}
+                      day{activeExams[0].daysUntil !== 1 ? 's' : ''}
+                      {activeExams.length > 1 &&
+                        ` and ${activeExams.length - 1} more`}
+                    </p>
+                  </div>
+                  {hasExamCards && (
+                    <Badge variant="secondary" className="gap-1">
+                      <CalendarClock className="h-3 w-3" />
+                      {examCards.length} exam card
+                      {examCards.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Session preview */}
             <Card>
               <CardHeader>
@@ -173,6 +213,11 @@ export function SpacedRepetitionMode({
                         <span>
                           {dueCards.length} review{dueCards.length !== 1 && 's'}
                           , {newCards.length} new
+                          {hasExamCards && (
+                            <span className="ml-2 text-amber-600 dark:text-amber-400">
+                              ({examCards.length} for exams)
+                            </span>
+                          )}
                         </span>
                         <span className="font-medium">{totalDue} total</span>
                       </div>

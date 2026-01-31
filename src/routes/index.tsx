@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useMutation } from 'convex/react'
+import { useQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import {
+  CalendarPlus,
   FileText,
   GraduationCap,
   Loader2,
@@ -22,6 +25,11 @@ import { ModeToggle } from '@/components/mode-toggle'
 import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { Button } from '@/components/ui/button'
 import { useSearch } from '@/components/search-provider'
+import {
+  DocumentExamBadge,
+  ExamCreateDialog,
+  ExamList,
+} from '@/components/exams'
 
 const DOCUMENTS_PER_PAGE = 10
 
@@ -52,6 +60,14 @@ function DocumentList() {
   const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
 
+  // Fetch exams
+  const { data: exams = [] } = useQuery(
+    convexQuery(api.exams.list, { includeArchived: false }),
+  )
+
+  const archiveExam = useMutation(api.exams.archive)
+  const deleteExam = useMutation(api.exams.deleteExam)
+
   const sentinelRef = useIntersectionObserver({
     onIntersect: () => fetchNextPage(),
     enabled: hasNextPage && !isFetchingNextPage,
@@ -59,8 +75,80 @@ function DocumentList() {
   const deleteDocument = useMutation(api.documents.deleteDocument)
   const navigate = useNavigate()
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
+  const [isExamDialogOpen, setIsExamDialogOpen] = useState(false)
+  const [editingExamId, setEditingExamId] = useState<Id<'exams'> | null>(null)
   const { open: openSearch } = useSearch()
   const { queryClient } = Route.useRouteContext()
+
+  const handleEditExam = (examId: string) => {
+    setEditingExamId(examId as Id<'exams'>)
+    setIsExamDialogOpen(true)
+  }
+
+  const handleArchiveExam = async (examId: string) => {
+    // Capture current data for rollback
+    const previousExams = queryClient.getQueryData(
+      convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+    )
+
+    try {
+      await archiveExam.withOptimisticUpdate(() => {
+        // Optimistically remove from UI
+        queryClient.setQueryData(
+          convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+          (oldData: typeof exams | undefined) => {
+            if (!oldData) return oldData
+            return oldData.filter((e) => e._id !== examId)
+          },
+        )
+      })({ examId: examId as Id<'exams'> })
+      toast.success('Exam archived')
+    } catch (error) {
+      // Rollback on error
+      queryClient.setQueryData(
+        convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+        previousExams,
+      )
+      console.error('Error archiving exam:', error)
+      toast.error('Failed to archive exam')
+    }
+  }
+
+  const handleDeleteExam = async (examId: string) => {
+    // Capture current data for rollback
+    const previousExams = queryClient.getQueryData(
+      convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+    )
+
+    try {
+      await deleteExam.withOptimisticUpdate(() => {
+        // Optimistically remove from UI
+        queryClient.setQueryData(
+          convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+          (oldData: typeof exams | undefined) => {
+            if (!oldData) return oldData
+            return oldData.filter((e) => e._id !== examId)
+          },
+        )
+      })({ examId: examId as Id<'exams'> })
+      toast.success('Exam deleted')
+    } catch (error) {
+      // Rollback on error
+      queryClient.setQueryData(
+        convexQuery(api.exams.list, { includeArchived: false }).queryKey,
+        previousExams,
+      )
+      console.error('Error deleting exam:', error)
+      toast.error('Failed to delete exam')
+    }
+  }
+
+  const handleExamDialogClose = (open: boolean) => {
+    setIsExamDialogOpen(open)
+    if (!open) {
+      setEditingExamId(null)
+    }
+  }
 
   const handleCreate = async () => {
     try {
@@ -166,6 +254,14 @@ function DocumentList() {
             <GraduationCap className="h-4 w-4" />
             Study
           </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setIsExamDialogOpen(true)}
+          >
+            <CalendarPlus className="h-4 w-4" />
+            New Exam
+          </Button>
           <Button onClick={handleCreate} className="gap-2">
             <Plus className="h-4 w-4" />
             New Document
@@ -173,63 +269,89 @@ function DocumentList() {
         </div>
       </div>
 
-      {documents.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
-          <p className="mb-6 text-muted-foreground">
-            Create your first document to get started.
-          </p>
-          <Button onClick={handleCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Document
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {documents.map((doc) => (
-            <Link
-              key={doc._id}
-              to="/doc/$docId"
-              params={{ docId: doc._id }}
-              className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <h3 className="font-medium group-hover:text-accent-foreground">
-                    {doc.title || 'Untitled'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Updated {formatDate(doc.updatedAt)}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-                onClick={(e) => handleDelete(doc._id, e)}
-                aria-label="Delete document"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </Link>
-          ))}
-
-          {hasNextPage && <div ref={sentinelRef} className="h-1" />}
-          {isFetchingNextPage && (
-            <div className="mt-4 flex justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
+      {/* Upcoming Exams Section */}
+      {exams.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-4 text-xl font-semibold">Upcoming Exams</h2>
+          <ExamList
+            exams={exams}
+            onEditExam={handleEditExam}
+            onArchiveExam={handleArchiveExam}
+            onDeleteExam={handleDeleteExam}
+          />
+        </section>
       )}
+
+      {/* Documents Section */}
+      <section>
+        <h2 className="mb-4 text-xl font-semibold">Documents</h2>
+        {documents.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border py-16 text-center">
+            <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
+            <p className="mb-6 text-muted-foreground">
+              Create your first document to get started.
+            </p>
+            <Button onClick={handleCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Document
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {documents.map((doc) => (
+              <Link
+                key={doc._id}
+                to="/doc/$docId"
+                params={{ docId: doc._id }}
+                className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium group-hover:text-accent-foreground">
+                        {doc.title || 'Untitled'}
+                      </h3>
+                      <DocumentExamBadge documentId={doc._id} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Updated {formatDate(doc.updatedAt)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(e) => handleDelete(doc._id, e)}
+                  aria-label="Delete document"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Link>
+            ))}
+
+            {hasNextPage && <div ref={sentinelRef} className="h-1" />}
+            {isFetchingNextPage && (
+              <div className="mt-4 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <StudyModeDialog
         open={isStudyDialogOpen}
         onOpenChange={setIsStudyDialogOpen}
         onSelectMode={handleSelectStudyMode}
+      />
+
+      <ExamCreateDialog
+        open={isExamDialogOpen}
+        onOpenChange={handleExamDialogClose}
+        editingExamId={editingExamId}
       />
     </div>
   )
