@@ -193,8 +193,6 @@ export function TiptapEditor({
         console.error('Failed to upsert block:', error)
       })
     },
-    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [upsertBlock],
   )
 
@@ -213,8 +211,6 @@ export function TiptapEditor({
         console.error('Failed to delete blocks:', error)
       })
     },
-    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [deleteBlocks],
   )
 
@@ -247,8 +243,6 @@ export function TiptapEditor({
         console.error('Failed to sync blocks:', error)
       })
     },
-    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [syncBlocks],
   )
 

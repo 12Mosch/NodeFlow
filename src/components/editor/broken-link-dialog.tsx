@@ -112,7 +112,6 @@ export function BrokenLinkDialog({
     } finally {
       setIsCreating(false)
     }
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [editor, linkPosition, createDocumentMutation, navigate, onOpenChange])
 
   const handleRemoveLink = useCallback(() => {

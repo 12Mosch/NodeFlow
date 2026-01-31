@@ -62,7 +62,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const storeUserRef = useRef(storeUser)
   useEffect(() => {
     storeUserRef.current = storeUser
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [storeUser])
 
   const matches = useMatches()
