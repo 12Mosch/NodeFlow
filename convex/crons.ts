@@ -10,4 +10,11 @@ crons.interval(
   internal.presence.cleanupStalePresence,
 )
 
+// Archive past exams every hour
+crons.interval(
+  'archive past exams',
+  { minutes: 60 },
+  internal.exams.archivePastExams,
+)
+
 export default crons
