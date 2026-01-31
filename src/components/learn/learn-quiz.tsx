@@ -100,8 +100,6 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
       }
       setCurrentIndex((prev) => prev + 1)
     },
-    // Convex's useMutation returns a function; this rule is aimed at TanStack Query results.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
     [currentCard, ratedCurrentCard, currentIndex, reviewCardMutation, refetch],
   )
 

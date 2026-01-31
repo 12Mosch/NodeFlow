@@ -109,9 +109,14 @@ export function usePresence({
         color,
       })
     },
-    // prettier-ignore
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
-    [documentId, sessionId, color, isAnonymous, userName, updatePresenceMutation],
+    [
+      documentId,
+      sessionId,
+      color,
+      isAnonymous,
+      userName,
+      updatePresenceMutation,
+    ],
   )
 
   // Debounced cursor update
@@ -174,8 +179,6 @@ export function usePresence({
       }
       void removePresenceMutation({ sessionId })
     }
-    // Convex's useMutation returns a stable function; this rule is for TanStack Query.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [documentId, sessionId, sendPresenceUpdate, removePresenceMutation])
 
   // Handle visibility changes (pause heartbeat when tab is hidden)
@@ -199,8 +202,6 @@ export function usePresence({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-    // Convex's useMutation returns a stable function; this rule is for TanStack Query.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [sessionId, setInactiveMutation, sendPresenceUpdate])
 
   // Handle beforeunload to clean up presence
@@ -216,8 +217,6 @@ export function usePresence({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-    // Convex's useMutation returns a stable function; this rule is for TanStack Query.
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [sessionId, removePresenceMutation])
 
   // Subscribe to presence updates for this document

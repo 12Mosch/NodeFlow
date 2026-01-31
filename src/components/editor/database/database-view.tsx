@@ -1,7 +1,3 @@
-/* eslint-disable @tanstack/query/no-unstable-deps */
-// Note: Convex's useMutation and useQuery hooks return stable references,
-// but the TanStack Query lint rule doesn't recognize this. Disabled for this file.
-
 import { useEffect, useRef } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import { useMutation, useQuery } from 'convex/react'
