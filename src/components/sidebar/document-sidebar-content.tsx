@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { AlertTriangle, Home, Loader2, Plus } from 'lucide-react'
+import { AlertTriangle, BarChart3, Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
@@ -76,6 +76,14 @@ export function DocumentSidebarContent() {
           >
             <Home className="h-4 w-4" />
             <span>Home</span>
+          </SidebarMenuButton>
+          <SidebarMenuButton
+            onClick={() => navigate({ to: '/analytics' })}
+            tooltip="Analytics"
+            className="flex items-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Analytics</span>
           </SidebarMenuButton>
           <SidebarMenuButton
             onClick={() => navigate({ to: '/study-leeches' })}
