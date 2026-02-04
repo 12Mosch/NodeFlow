@@ -30,3 +30,6 @@ export const STATE_COLORS = {
   relearning:
     'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
 } as const
+
+export const LEECH_COLOR =
+  'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20'

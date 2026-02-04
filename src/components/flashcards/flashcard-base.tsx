@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
-import { CARD_TYPE_COLORS, CARD_TYPE_LABELS } from './constants'
+import { AlertTriangle, Ban, ChevronDown, Pencil } from 'lucide-react'
+import { CARD_TYPE_COLORS, CARD_TYPE_LABELS, LEECH_COLOR } from './constants'
 import { detectListKind, renderClozeText, renderList } from './utils'
 import { RenderLatexText } from './latex-renderer'
 import type { ReactNode } from 'react'
@@ -8,6 +8,22 @@ import type { FlashcardBaseData } from './types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 
 const LONG_ANSWER_THRESHOLD = 120
@@ -18,6 +34,10 @@ interface FlashcardBaseProps {
   onExpandedChange?: (expanded: boolean) => void
   renderHeaderBadges?: () => ReactNode
   renderActions?: () => ReactNode
+  isLeech?: boolean
+  leechReason?: string | null
+  onEditCard?: () => void
+  onSuspendCard?: () => void
 }
 
 export function FlashcardBase({
@@ -26,6 +46,10 @@ export function FlashcardBase({
   onExpandedChange,
   renderHeaderBadges,
   renderActions,
+  isLeech,
+  leechReason,
+  onEditCard,
+  onSuspendCard,
 }: FlashcardBaseProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const isExpanded =
@@ -96,6 +120,27 @@ export function FlashcardBase({
           </span>
           <div className="flex items-center gap-2">
             {renderHeaderBadges?.()}
+            {isLeech && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge
+                    variant="outline"
+                    className={cn('text-xs', LEECH_COLOR)}
+                  >
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    Leech
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="max-w-xs">
+                    <p className="font-medium">
+                      This card has been difficult. Consider rewriting it.
+                    </p>
+                    <p className="mt-1 text-xs">{leechReason}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
             {cardType && (
               <Badge
                 variant="outline"
@@ -192,7 +237,57 @@ export function FlashcardBase({
 
               {/* Action buttons */}
               {actionsContent && (
-                <div className="px-8 pb-8">{actionsContent}</div>
+                <div className="px-8 pb-8">
+                  {actionsContent}
+                  {/* Leech management actions */}
+                  {isLeech && (onEditCard || onSuspendCard) && (
+                    <div className="mt-2 space-y-2 border-t border-border/50 pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Try breaking this into smaller, more focused cards.
+                      </p>
+                      {onEditCard && (
+                        <Button
+                          onClick={onEditCard}
+                          variant="outline"
+                          className="w-full gap-2"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit Card in Document
+                        </Button>
+                      )}
+
+                      {onSuspendCard && (
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={<Button variant="outline" />}
+                            className="w-full gap-2"
+                          >
+                            <Ban className="h-4 w-4" />
+                            Suspend Card
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Suspend this card?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This card will be hidden from reviews until you
+                                unsuspend it. You can manage suspended cards
+                                from the study overview.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={onSuspendCard}>
+                                Suspend
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

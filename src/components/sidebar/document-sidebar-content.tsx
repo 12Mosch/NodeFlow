@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { Home, Loader2, Plus } from 'lucide-react'
+import { AlertTriangle, Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export function DocumentSidebarContent() {
-  const navigate = useNavigate({ from: '/doc/$docId' })
+  const navigate = useNavigate()
   const params = useParams({ strict: false })
   const currentDocId = params.docId
   const { state } = useSidebar()
@@ -76,6 +76,14 @@ export function DocumentSidebarContent() {
           >
             <Home className="h-4 w-4" />
             <span>Home</span>
+          </SidebarMenuButton>
+          <SidebarMenuButton
+            onClick={() => navigate({ to: '/study-leeches' })}
+            tooltip="Leech Cards"
+            className="flex items-center gap-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <span>Leech Cards</span>
           </SidebarMenuButton>
         </div>
       </SidebarHeader>
