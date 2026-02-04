@@ -24,6 +24,15 @@ export interface LearnCard {
 
 export type Rating = 1 | 2 | 3 | 4
 
+export function calculateSuccessRate(
+  reviewedCount: number,
+  againCount: number,
+): number {
+  return reviewedCount > 0
+    ? ((reviewedCount - againCount) / reviewedCount) * 100
+    : 100
+}
+
 export interface LearnSessionStats {
   totalCards: number
   newCards: number
