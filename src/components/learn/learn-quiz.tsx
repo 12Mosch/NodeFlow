@@ -6,6 +6,8 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { LearnCard } from './learn-card'
+import { SessionComplete } from './session-complete'
+import { calculateSuccessRate } from './types'
 import type { LearnCard as LearnCardType, Rating } from './types'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -28,6 +30,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
   const [reviewedCount, setReviewedCount] = useState(0)
+  const [againCount, setAgainCount] = useState(0)
   // Track the index at which we last rated - if it matches currentIndex, we can't rate again
   const [ratedAtIndex, setRatedAtIndex] = useState<number | null>(null)
   const [activeRating, setActiveRating] = useState<Rating | null>(null)
@@ -66,6 +69,8 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
 
   const isComplete = currentIndex >= totalCards && totalCards > 0
 
+  const successRate = calculateSuccessRate(reviewedCount, againCount)
+
   // Handle rating submission
   const handleRate = useCallback(
     (rating: Rating) => {
@@ -86,6 +91,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
 
       // Advance immediately for all ratings
       if (rating === 1) {
+        setAgainCount((prev) => prev + 1)
         // For "Again", refetch in background to requeue card at the end
         refetch()
           .then((result) => {
@@ -230,20 +236,12 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   // Session complete
   if (isComplete) {
     return (
-      <div className="py-12 text-center">
-        <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
-        <h2 className="mt-4 text-2xl font-bold">Session Complete!</h2>
-        <p className="mt-2 text-muted-foreground">
-          You reviewed {reviewedCount} card{reviewedCount !== 1 ? 's' : ''} in
-          this session.
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button onClick={onBack} variant="outline">
-            Start New Session
-          </Button>
-          <Button onClick={onGoHome}>Go Home</Button>
-        </div>
-      </div>
+      <SessionComplete
+        reviewedCount={reviewedCount}
+        successRate={successRate}
+        onBack={onBack}
+        onGoHome={onGoHome}
+      />
     )
   }
 
