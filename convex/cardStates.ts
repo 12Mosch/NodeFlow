@@ -17,6 +17,25 @@ import type { Id } from './_generated/dataModel'
 // Direction validator
 const directionValidator = v.union(v.literal('forward'), v.literal('reverse'))
 
+const cardStateStatusValidator = v.union(
+  v.literal('new'),
+  v.literal('learning'),
+  v.literal('review'),
+  v.literal('relearning'),
+)
+
+const cardStateSnapshotValidator = v.object({
+  stability: v.number(),
+  difficulty: v.number(),
+  due: v.number(),
+  lastReview: v.optional(v.number()),
+  reps: v.number(),
+  lapses: v.number(),
+  state: cardStateStatusValidator,
+  scheduledDays: v.number(),
+  elapsedDays: v.number(),
+})
+
 /**
  * Get or create card state for a block+direction combination
  */
@@ -199,7 +218,7 @@ export const reviewCard = mutation({
         })
 
         // Create review log
-        await ctx.db.insert('reviewLogs', {
+        const reviewLogId = await ctx.db.insert('reviewLogs', {
           cardStateId: args.cardStateId,
           userId,
           rating: args.rating,
@@ -215,7 +234,64 @@ export const reviewCard = mutation({
           nextDue: result.card.due,
           scheduledDays: result.card.scheduledDays,
           state: result.card.state,
+          reviewLogId,
         }
+      },
+    )
+  },
+})
+
+/**
+ * Undo the most recent review for a card (client-provided snapshot)
+ */
+export const undoReview = mutation({
+  args: {
+    cardStateId: v.id('cardStates'),
+    previousState: cardStateSnapshotValidator,
+    reviewLogId: v.optional(v.id('reviewLogs')),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.undoReview', op: 'convex.mutation' },
+      async () => {
+        const userId = await requireUser(ctx)
+
+        const cardState = await ctx.db.get(args.cardStateId)
+        if (!cardState) {
+          throw new Error('Card state not found')
+        }
+
+        if (cardState.userId !== userId) {
+          throw new Error('Not authorized to undo this review')
+        }
+
+        let reviewLog = null
+        if (args.reviewLogId) {
+          reviewLog = await ctx.db.get(args.reviewLogId)
+          if (!reviewLog) {
+            throw new Error('Review log not found')
+          }
+          if (reviewLog.userId !== userId) {
+            throw new Error('Not authorized to delete this review log')
+          }
+          if (reviewLog.cardStateId !== args.cardStateId) {
+            throw new Error('Review log does not match card state')
+          }
+          if (
+            !cardState.lastReview ||
+            reviewLog.reviewedAt !== cardState.lastReview
+          ) {
+            throw new Error('Review log does not match latest review')
+          }
+        }
+
+        await ctx.db.patch(args.cardStateId, args.previousState)
+
+        if (args.reviewLogId) {
+          await ctx.db.delete(args.reviewLogId)
+        }
+
+        return { ok: true }
       },
     )
   },

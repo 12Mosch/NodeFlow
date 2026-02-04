@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
-import { AlertCircle, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Undo2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { LearnCard } from './learn/learn-card'
@@ -17,6 +23,36 @@ interface DocumentLearnQuizProps {
   documentId: Id<'documents'>
   onBack: () => void
   onGoHome: () => void
+}
+
+type CardStateSnapshot = Pick<
+  LearnCardType['cardState'],
+  | 'stability'
+  | 'difficulty'
+  | 'due'
+  | 'lastReview'
+  | 'reps'
+  | 'lapses'
+  | 'state'
+  | 'scheduledDays'
+  | 'elapsedDays'
+>
+
+type UndoSnapshot = {
+  cards: Array<LearnCardType>
+  currentIndex: number
+  reviewedCount: number
+  againCount: number
+  ratedAtIndex: number | null
+  isExpanded: boolean
+}
+
+type LastRating = {
+  id: number
+  cardStateId: LearnCardType['cardState']['_id']
+  previousState: CardStateSnapshot
+  reviewLogId: Id<'reviewLogs'> | null
+  snapshot: UndoSnapshot
 }
 
 export function DocumentLearnQuiz({
@@ -34,6 +70,7 @@ export function DocumentLearnQuiz({
   )
 
   const reviewCardMutation = useMutation(api.cardStates.reviewCard)
+  const undoReviewMutation = useMutation(api.cardStates.undoReview)
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -41,6 +78,15 @@ export function DocumentLearnQuiz({
   const [againCount, setAgainCount] = useState(0)
   // Track the index at which we last rated - if it matches currentIndex, we can't rate again
   const [ratedAtIndex, setRatedAtIndex] = useState<number | null>(null)
+  const [lastRating, setLastRating] = useState<LastRating | null>(null)
+  const [undoVisible, setUndoVisible] = useState(false)
+  const undoFadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastRatingIdRef = useRef(0)
+  const pendingReviewRef = useRef<{
+    id: number
+    promise: Promise<{ reviewLogId: Id<'reviewLogs'> | null }>
+  } | null>(null)
+  const refetchTokenRef = useRef(0)
 
   // Derived state: can't rate if we already rated at this index
   const ratedCurrentCard = ratedAtIndex === currentIndex
@@ -69,7 +115,7 @@ export function DocumentLearnQuiz({
     }
   }, [sessionCards, isLoading])
 
-  const cards = stableCards ?? []
+  const cards = useMemo(() => stableCards ?? [], [stableCards])
   const currentCard = cards[currentIndex] as LearnCardType | undefined
   const totalCards = cards.length
 
@@ -77,12 +123,102 @@ export function DocumentLearnQuiz({
 
   const successRate = calculateSuccessRate(reviewedCount, againCount)
 
+  const scheduleUndoFade = useCallback(() => {
+    setUndoVisible(true)
+    if (undoFadeTimeoutRef.current !== null) {
+      clearTimeout(undoFadeTimeoutRef.current)
+    }
+    undoFadeTimeoutRef.current = setTimeout(() => {
+      undoFadeTimeoutRef.current = null
+      setUndoVisible(false)
+    }, 3000)
+  }, [])
+
+  const handleUndo = useCallback(() => {
+    if (!lastRating) return
+
+    const ratingToUndo = lastRating
+
+    refetchTokenRef.current += 1
+    if (undoFadeTimeoutRef.current !== null) {
+      clearTimeout(undoFadeTimeoutRef.current)
+      undoFadeTimeoutRef.current = null
+    }
+
+    setUndoVisible(false)
+    setLastRating(null)
+    setStableCards(ratingToUndo.snapshot.cards)
+    setCurrentIndex(ratingToUndo.snapshot.currentIndex)
+    setReviewedCount(ratingToUndo.snapshot.reviewedCount)
+    setAgainCount(ratingToUndo.snapshot.againCount)
+    setRatedAtIndex(ratingToUndo.snapshot.ratedAtIndex)
+    setIsExpanded(ratingToUndo.snapshot.isExpanded)
+
+    const finishUndo = (reviewLogId?: Id<'reviewLogs'> | null) => {
+      undoReviewMutation({
+        cardStateId: ratingToUndo.cardStateId,
+        previousState: ratingToUndo.previousState,
+        reviewLogId: reviewLogId ?? ratingToUndo.reviewLogId ?? undefined,
+      }).catch((error) => {
+        console.error('Failed to undo review:', error)
+        toast.error('Failed to undo rating. Check your connection.')
+      })
+    }
+
+    const pendingReview = pendingReviewRef.current
+    if (pendingReview?.id === ratingToUndo.id) {
+      pendingReview.promise
+        .then((result) => {
+          finishUndo(result.reviewLogId ?? ratingToUndo.reviewLogId)
+        })
+        .catch(() => {
+          finishUndo(ratingToUndo.reviewLogId)
+        })
+        .finally(() => {
+          if (pendingReviewRef.current?.id === ratingToUndo.id) {
+            pendingReviewRef.current = null
+          }
+        })
+    } else {
+      finishUndo(ratingToUndo.reviewLogId)
+    }
+  }, [lastRating, undoReviewMutation])
+
   // Handle rating submission
   const handleRate = useCallback(
     (rating: Rating) => {
       if (!currentCard || ratedCurrentCard) return
 
       const cardStateId = currentCard.cardState._id
+      const ratingId = (lastRatingIdRef.current += 1)
+      const snapshot: UndoSnapshot = {
+        cards,
+        currentIndex,
+        reviewedCount,
+        againCount,
+        ratedAtIndex,
+        isExpanded,
+      }
+      const previousState: CardStateSnapshot = {
+        stability: currentCard.cardState.stability,
+        difficulty: currentCard.cardState.difficulty,
+        due: currentCard.cardState.due,
+        lastReview: currentCard.cardState.lastReview,
+        reps: currentCard.cardState.reps,
+        lapses: currentCard.cardState.lapses,
+        state: currentCard.cardState.state,
+        scheduledDays: currentCard.cardState.scheduledDays,
+        elapsedDays: currentCard.cardState.elapsedDays,
+      }
+
+      setLastRating({
+        id: ratingId,
+        cardStateId,
+        previousState,
+        reviewLogId: null,
+        snapshot,
+      })
+      scheduleUndoFade()
 
       // Mark current index as rated (prevents double-rating via rapid clicks)
       setRatedAtIndex(currentIndex)
@@ -90,17 +226,30 @@ export function DocumentLearnQuiz({
       setIsExpanded(false)
 
       // Fire mutation without awaiting
-      reviewCardMutation({ cardStateId, rating }).catch((error) => {
-        console.error('Failed to review card:', error)
-        toast.error('Rating may not have been saved. Check your connection.')
-      })
+      const reviewPromise = reviewCardMutation({ cardStateId, rating })
+        .then((result) => {
+          const reviewLogId = result.reviewLogId
+          setLastRating((prev) =>
+            prev?.id === ratingId ? { ...prev, reviewLogId } : prev,
+          )
+          return { reviewLogId }
+        })
+        .catch((error) => {
+          console.error('Failed to review card:', error)
+          toast.error('Rating may not have been saved. Check your connection.')
+          return { reviewLogId: null }
+        })
+
+      pendingReviewRef.current = { id: ratingId, promise: reviewPromise }
 
       // Advance immediately for all ratings
       if (rating === 1) {
         setAgainCount((prev) => prev + 1)
         // For "Again", refetch in background to requeue card at the end
+        const refetchToken = (refetchTokenRef.current += 1)
         refetch()
           .then((result) => {
+            if (refetchTokenRef.current !== refetchToken) return
             if (result.data) {
               setStableCards(result.data as Array<LearnCardType>)
             }
@@ -112,13 +261,23 @@ export function DocumentLearnQuiz({
       }
       setCurrentIndex((prev) => prev + 1)
     },
-    [currentCard, ratedCurrentCard, currentIndex, reviewCardMutation, refetch],
+    [
+      againCount,
+      cards,
+      currentCard,
+      currentIndex,
+      isExpanded,
+      ratedAtIndex,
+      ratedCurrentCard,
+      refetch,
+      reviewCardMutation,
+      reviewedCount,
+      scheduleUndoFade,
+    ],
   )
 
   // Keyboard shortcuts
   useEffect(() => {
-    if (isComplete || currentCard === undefined) return
-
     function handleKeyDown(event: KeyboardEvent) {
       // Ignore if user is typing in an input/textarea
       const target = event.target as HTMLElement
@@ -129,6 +288,19 @@ export function DocumentLearnQuiz({
       ) {
         return
       }
+
+      const key = event.key.toLowerCase()
+      const isUndo =
+        (key === 'z' && (event.metaKey || event.ctrlKey)) || key === 'u'
+      if (isUndo) {
+        if (lastRating) {
+          event.preventDefault()
+          handleUndo()
+        }
+        return
+      }
+
+      if (isComplete || currentCard === undefined) return
 
       switch (event.key) {
         case ' ': // Space to toggle answer
@@ -164,7 +336,24 @@ export function DocumentLearnQuiz({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isComplete, isExpanded, ratedCurrentCard, handleRate, currentCard])
+  }, [
+    currentCard,
+    handleRate,
+    handleUndo,
+    isComplete,
+    isExpanded,
+    lastRating,
+    ratedCurrentCard,
+  ])
+
+  useEffect(() => {
+    return () => {
+      if (undoFadeTimeoutRef.current !== null) {
+        clearTimeout(undoFadeTimeoutRef.current)
+        undoFadeTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   // Error state
   if (isError) {
@@ -241,8 +430,23 @@ export function DocumentLearnQuiz({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <div className="text-sm text-muted-foreground">
-          Reviewed: {reviewedCount}
+        <div className="flex items-center gap-3">
+          {lastRating && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              className={`gap-2 transition-opacity duration-300 ${
+                undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+            >
+              <Undo2 className="h-4 w-4" />
+              Undo
+            </Button>
+          )}
+          <div className="text-sm text-muted-foreground">
+            Reviewed: {reviewedCount}
+          </div>
         </div>
       </div>
 
@@ -279,7 +483,22 @@ export function DocumentLearnQuiz({
         <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
           4
         </kbd>{' '}
-        to rate
+        to rate. Undo:{' '}
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+          U
+        </kbd>{' '}
+        or{' '}
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+          Ctrl
+        </kbd>
+        /
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+          Cmd
+        </kbd>
+        +
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+          Z
+        </kbd>
       </p>
     </div>
   )
