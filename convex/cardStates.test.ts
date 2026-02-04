@@ -24,6 +24,30 @@ function parseRetrievability(value: number | string): number {
   return parseFloat(value)
 }
 
+function toSnapshot(cardState: {
+  stability: number
+  difficulty: number
+  due: number
+  lastReview?: number
+  reps: number
+  lapses: number
+  state: 'new' | 'learning' | 'review' | 'relearning'
+  scheduledDays: number
+  elapsedDays: number
+}) {
+  return {
+    stability: cardState.stability,
+    difficulty: cardState.difficulty,
+    due: cardState.due,
+    lastReview: cardState.lastReview,
+    reps: cardState.reps,
+    lapses: cardState.lapses,
+    state: cardState.state,
+    scheduledDays: cardState.scheduledDays,
+    elapsedDays: cardState.elapsedDays,
+  }
+}
+
 /**
  * Create an authenticated test context with a user in the database
  */
@@ -109,6 +133,7 @@ async function createTestCardState(
     lastReview?: number
     scheduledDays?: number
     elapsedDays?: number
+    suspended?: boolean
   } = {},
 ) {
   return await t.run(async (ctx) => {
@@ -125,6 +150,7 @@ async function createTestCardState(
       lastReview: options.lastReview,
       scheduledDays: options.scheduledDays ?? 0,
       elapsedDays: options.elapsedDays ?? 0,
+      suspended: options.suspended ?? false,
     })
   })
 }
@@ -365,6 +391,156 @@ describe('cardStates', () => {
           }),
         ).rejects.toThrow('Not authorized to review this card')
       })
+    })
+  })
+
+  describe('undoReview', () => {
+    it('should restore previous card state and delete review log', async () => {
+      const now = Date.now()
+      const blockId = await createTestFlashcardBlock(t, userId, documentId)
+      const cardStateId = await createTestCardState(t, userId, blockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 5,
+        difficulty: 6,
+        reps: 3,
+        lapses: 1,
+        lastReview: now - 2 * 24 * 60 * 60 * 1000,
+        scheduledDays: 7,
+        elapsedDays: 2,
+      })
+
+      const before = await t.run(async (ctx) => ctx.db.get(cardStateId))
+      if (!before) throw new Error('Card state not found')
+      const previousState = toSnapshot(before)
+
+      const reviewResult = await asUser.mutation(api.cardStates.reviewCard, {
+        cardStateId,
+        rating: 3,
+      })
+
+      const logsAfterReview = await t.run(async (ctx) => {
+        return await ctx.db
+          .query('reviewLogs')
+          .filter((q) => q.eq(q.field('cardStateId'), cardStateId))
+          .collect()
+      })
+      expect(logsAfterReview).toHaveLength(1)
+
+      await asUser.mutation(api.cardStates.undoReview, {
+        cardStateId,
+        previousState,
+        reviewLogId: reviewResult.reviewLogId,
+      })
+
+      const after = await t.run(async (ctx) => ctx.db.get(cardStateId))
+      if (!after) throw new Error('Card state not found')
+
+      expect(toSnapshot(after)).toEqual(previousState)
+
+      const logsAfterUndo = await t.run(async (ctx) => {
+        return await ctx.db
+          .query('reviewLogs')
+          .filter((q) => q.eq(q.field('cardStateId'), cardStateId))
+          .collect()
+      })
+      expect(logsAfterUndo).toHaveLength(0)
+    })
+
+    it("should reject undo for another user's card", async () => {
+      const { asUser: asOtherUser } = await createAuthenticatedContext(t)
+      const blockId = await createTestFlashcardBlock(t, userId, documentId)
+      const cardStateId = await createTestCardState(t, userId, blockId)
+      const before = await t.run(async (ctx) => ctx.db.get(cardStateId))
+      if (!before) throw new Error('Card state not found')
+
+      await expect(
+        asOtherUser.mutation(api.cardStates.undoReview, {
+          cardStateId,
+          previousState: toSnapshot(before),
+        }),
+      ).rejects.toThrow('Not authorized to undo this review')
+    })
+
+    it('should reject mismatched review log', async () => {
+      const blockA = await createTestFlashcardBlock(t, userId, documentId)
+      const blockB = await createTestFlashcardBlock(t, userId, documentId)
+      const cardStateA = await createTestCardState(t, userId, blockA, {
+        state: 'review',
+      })
+      const cardStateB = await createTestCardState(t, userId, blockB, {
+        state: 'review',
+      })
+
+      const beforeA = await t.run(async (ctx) => ctx.db.get(cardStateA))
+      if (!beforeA) throw new Error('Card state not found')
+
+      await asUser.mutation(api.cardStates.reviewCard, {
+        cardStateId: cardStateA,
+        rating: 3,
+      })
+      const reviewB = await asUser.mutation(api.cardStates.reviewCard, {
+        cardStateId: cardStateB,
+        rating: 3,
+      })
+
+      await expect(
+        asUser.mutation(api.cardStates.undoReview, {
+          cardStateId: cardStateA,
+          previousState: toSnapshot(beforeA),
+          reviewLogId: reviewB.reviewLogId,
+        }),
+      ).rejects.toThrow('Review log does not match card state')
+    })
+
+    it('should reject stale review log when a newer review exists', async () => {
+      const now = Date.now()
+      const blockId = await createTestFlashcardBlock(t, userId, documentId)
+      const cardStateId = await createTestCardState(t, userId, blockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 5,
+        difficulty: 6,
+        reps: 3,
+        lapses: 1,
+        lastReview: now - 2 * 24 * 60 * 60 * 1000,
+        scheduledDays: 7,
+        elapsedDays: 2,
+      })
+
+      const firstReview = await asUser.mutation(api.cardStates.reviewCard, {
+        cardStateId,
+        rating: 3,
+      })
+
+      const afterFirstReview = await t.run(async (ctx) =>
+        ctx.db.get(cardStateId),
+      )
+      if (!afterFirstReview) throw new Error('Card state not found')
+      const previousState = toSnapshot(afterFirstReview)
+
+      await asUser.mutation(api.cardStates.reviewCard, {
+        cardStateId,
+        rating: 3,
+      })
+
+      const afterSecondReview = await t.run(async (ctx) =>
+        ctx.db.get(cardStateId),
+      )
+      if (!afterSecondReview) throw new Error('Card state not found')
+      const snapshotAfterSecondReview = toSnapshot(afterSecondReview)
+
+      await expect(
+        asUser.mutation(api.cardStates.undoReview, {
+          cardStateId,
+          previousState,
+          reviewLogId: firstReview.reviewLogId,
+        }),
+      ).rejects.toThrow('Review log does not match latest review')
+
+      const after = await t.run(async (ctx) => ctx.db.get(cardStateId))
+      if (!after) throw new Error('Card state not found')
+      expect(toSnapshot(after)).toEqual(snapshotAfterSecondReview)
     })
   })
 
