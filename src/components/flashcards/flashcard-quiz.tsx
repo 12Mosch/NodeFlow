@@ -4,6 +4,7 @@ import { FlashcardItem } from './flashcard-item'
 import { QuizResults } from './quiz-results'
 import type { FlashcardWithDocument, QuizCard, QuizResult } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 
@@ -93,6 +94,9 @@ export function FlashcardQuiz({
   const [isExpanded, setIsExpanded] = useState(false)
 
   const currentCard = shuffledCards[currentIndex]
+  const answeredCount = results.length
+  const knownCount = results.filter((result) => result.knew).length
+  const remainingCount = Math.max(shuffledCards.length - currentIndex, 0)
   const progress =
     shuffledCards.length > 0
       ? ((currentIndex + (isComplete ? 1 : 0)) / shuffledCards.length) * 100
@@ -175,9 +179,13 @@ export function FlashcardQuiz({
 
   if (shuffledCards.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="mb-4 text-muted-foreground">No cards to study.</p>
-        <Button onClick={onBack}>Go Back</Button>
+      <div className="mx-auto max-w-2xl py-8">
+        <AnalyticsCard className="px-6">
+          <div className="py-10 text-center">
+            <p className="mb-4 text-muted-foreground">No cards to study.</p>
+            <Button onClick={onBack}>Go Back</Button>
+          </div>
+        </AnalyticsCard>
       </div>
     )
   }
@@ -195,36 +203,71 @@ export function FlashcardQuiz({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleShuffle}
-          className="gap-2"
-          title="Shuffle remaining cards"
-        >
-          <Shuffle className="h-4 w-4" />
-          Shuffle
-        </Button>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          variant="compact"
+          label="Queue"
+          value={shuffledCards.length}
+          helper="cards loaded"
+        />
+        <MetricCard
+          variant="compact"
+          label="Answered"
+          value={answeredCount}
+          helper="cards scored"
+        />
+        <MetricCard
+          variant="compact"
+          label="Known"
+          value={knownCount}
+          helper="correct responses"
+        />
       </div>
 
-      {/* Progress */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Progress</span>
-          <span className="font-medium">
-            {currentIndex + 1} / {shuffledCards.length}
-          </span>
+      <AnalyticsCard className="px-6">
+        <div className="space-y-4 py-1">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShuffle}
+              className="gap-2"
+              title="Shuffle remaining cards"
+            >
+              <Shuffle className="h-4 w-4" />
+              Shuffle
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">
+                {currentIndex + 1} / {shuffledCards.length}
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Remaining:{' '}
+            <span className="font-medium text-foreground">
+              {remainingCount}
+            </span>{' '}
+            card{remainingCount !== 1 ? 's' : ''}
+          </div>
         </div>
-        <Progress value={progress} className="h-2" />
-      </div>
+      </AnalyticsCard>
 
-      {/* Current card */}
       <FlashcardItem
         card={currentCard}
         onAnswer={handleAnswer}
@@ -232,22 +275,23 @@ export function FlashcardQuiz({
         onExpandedChange={setIsExpanded}
       />
 
-      {/* Keyboard shortcuts hint */}
-      <p className="text-center text-xs text-muted-foreground">
-        Press{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Space
-        </kbd>{' '}
-        to reveal answer, then{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          1
-        </kbd>{' '}
-        or{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          2
-        </kbd>{' '}
-        to answer
-      </p>
+      <AnalyticsCard muted className="px-6">
+        <p className="py-1 text-center text-xs text-muted-foreground">
+          Press{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            Space
+          </kbd>{' '}
+          to reveal answer, then{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            1
+          </kbd>{' '}
+          or{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            2
+          </kbd>{' '}
+          to answer
+        </p>
+      </AnalyticsCard>
     </div>
   )
 }

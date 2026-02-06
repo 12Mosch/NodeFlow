@@ -84,9 +84,9 @@ function SharedDocumentPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="animate-pulse text-lg text-muted-foreground">
-            Loading...
+        <div className="flex min-h-screen items-center justify-center p-8">
+          <div className="inline-flex items-center rounded-full border border-border/70 bg-card/70 px-4 py-2 text-sm text-muted-foreground shadow-xs">
+            Loading shared document...
           </div>
         </div>
       }
@@ -105,17 +105,18 @@ function SharedDocumentContent() {
 
   if (!document) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="w-full max-w-md space-y-4 rounded-lg border p-8 text-center shadow-sm">
-          <h1 className="text-3xl font-bold text-destructive">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
+        <div className="w-full max-w-xl rounded-2xl border border-border/70 bg-card/70 px-6 py-12 text-center shadow-xs">
+          <p className="nf-meta-label text-muted-foreground">Public Share</p>
+          <h1 className="nf-type-display mt-2 text-4xl text-destructive sm:text-5xl">
             Document Not Found
           </h1>
-          <p className="text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-md text-muted-foreground">
             This link may have expired or the document is no longer shared.
           </p>
           <Link
             to="/"
-            className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90"
+            className="mt-6 inline-flex rounded-md border border-border/70 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Go to NodeFlow
           </Link>
@@ -154,20 +155,23 @@ function SharedDocumentWithPresence({
   const isReadOnly = document.permission === 'view'
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-      {/* Public header */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-4 py-4">
-          <div>
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0 space-y-2">
+            <p className="nf-meta-label text-muted-foreground">Public Share</p>
+            <h1 className="truncate text-2xl font-semibold text-foreground sm:text-3xl">
+              {document.title}
+            </h1>
             <Link
               to="/"
-              className="text-sm text-muted-foreground hover:underline"
+              className="inline-flex text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:text-foreground"
             >
               NodeFlow
             </Link>
-            <h1 className="text-xl font-bold">{document.title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/70 p-2 shadow-xs">
             {collaborators.length > 0 && (
               <CollaboratorAvatars collaborators={collaborators} />
             )}
@@ -178,8 +182,7 @@ function SharedDocumentWithPresence({
         </div>
       </header>
 
-      {/* Document content */}
-      <div className="py-8">
+      <div className="flex-1 py-6 sm:py-8">
         {isReadOnly ? (
           <PublicDocumentViewer documentId={document._id} />
         ) : (
@@ -225,7 +228,7 @@ function ClientOnlyEditor({
 
   if (!isClient) {
     return (
-      <div className="animate-pulse text-muted-foreground">
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 text-muted-foreground shadow-xs">
         Loading editor...
       </div>
     )

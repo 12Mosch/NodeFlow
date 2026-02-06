@@ -16,6 +16,7 @@ import { SessionComplete } from './learn/session-complete'
 import { calculateSuccessRate } from './learn/types'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { LearnCard as LearnCardType, Rating } from './learn/types'
+import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
@@ -358,18 +359,22 @@ export function DocumentLearnQuiz({
   // Error state
   if (isError) {
     return (
-      <div className="py-12 text-center">
-        <AlertCircle className="mx-auto h-16 w-16 text-destructive" />
-        <h2 className="mt-4 text-2xl font-bold">Failed to load cards</h2>
-        <p className="mt-2 text-muted-foreground">
-          Something went wrong while loading your cards.
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button onClick={() => refetch()} variant="outline">
-            Try Again
-          </Button>
-          <Button onClick={onGoHome}>Go Home</Button>
-        </div>
+      <div className="mx-auto max-w-2xl py-8">
+        <AnalyticsCard className="px-6">
+          <div className="py-8 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+            <h2 className="mt-4 text-2xl font-bold">Failed to load cards</h2>
+            <p className="mt-2 text-muted-foreground">
+              Something went wrong while loading your cards.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button onClick={() => refetch()} variant="outline">
+                Try Again
+              </Button>
+              <Button onClick={onGoHome}>Go Home</Button>
+            </div>
+          </div>
+        </AnalyticsCard>
       </div>
     )
   }
@@ -377,9 +382,13 @@ export function DocumentLearnQuiz({
   // Loading state
   if (isLoading || stableCards === null) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-muted-foreground">Loading cards...</p>
+      <div className="mx-auto max-w-2xl py-8">
+        <AnalyticsCard className="px-6">
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">Loading cards...</p>
+          </div>
+        </AnalyticsCard>
       </div>
     )
   }
@@ -387,18 +396,22 @@ export function DocumentLearnQuiz({
   // No cards to review
   if (totalCards === 0) {
     return (
-      <div className="py-12 text-center">
-        <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
-        <h2 className="mt-4 text-2xl font-bold">All caught up!</h2>
-        <p className="mt-2 text-muted-foreground">
-          You have no cards due for review right now.
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button onClick={onBack} variant="outline">
-            Go Back
-          </Button>
-          <Button onClick={onGoHome}>Go Home</Button>
-        </div>
+      <div className="mx-auto max-w-2xl py-8">
+        <AnalyticsCard className="px-6">
+          <div className="py-10 text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+            <h2 className="mt-4 text-2xl font-bold">All caught up!</h2>
+            <p className="mt-2 text-muted-foreground">
+              You have no cards due for review right now.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button onClick={onBack} variant="outline">
+                Go Back
+              </Button>
+              <Button onClick={onGoHome}>Go Home</Button>
+            </div>
+          </div>
+        </AnalyticsCard>
       </div>
     )
   }
@@ -421,47 +434,77 @@ export function DocumentLearnQuiz({
   }
 
   const progress = (currentIndex / totalCards) * 100
+  const remainingCount = Math.max(totalCards - currentIndex, 0)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <div className="flex items-center gap-3">
-          {lastRating && (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          variant="compact"
+          label="Reviewed"
+          value={reviewedCount}
+          helper="cards rated"
+        />
+        <MetricCard
+          variant="compact"
+          label="Remaining"
+          value={remainingCount}
+          helper="cards left"
+        />
+        <MetricCard
+          variant="compact"
+          label="Success"
+          value={`${successRate}%`}
+          helper="current session"
+        />
+      </div>
+
+      <AnalyticsCard className="px-6">
+        <div className="space-y-4 py-1">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={handleUndo}
-              className={`gap-2 transition-opacity duration-300 ${
-                undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
-              }`}
+              onClick={onBack}
+              className="gap-2"
             >
-              <Undo2 className="h-4 w-4" />
-              Undo
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
-          )}
-          <div className="text-sm text-muted-foreground">
-            Reviewed: {reviewedCount}
+            <div className="flex items-center gap-3">
+              {lastRating && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndo}
+                  className={`gap-2 transition-opacity duration-300 ${
+                    undoVisible
+                      ? 'opacity-100'
+                      : 'pointer-events-none opacity-0'
+                  }`}
+                >
+                  <Undo2 className="h-4 w-4" />
+                  Undo
+                </Button>
+              )}
+              <div className="text-sm text-muted-foreground">
+                Reviewed: {reviewedCount}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">
+                {currentIndex + 1} / {totalCards}
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
           </div>
         </div>
-      </div>
+      </AnalyticsCard>
 
-      {/* Progress */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Progress</span>
-          <span className="font-medium">
-            {currentIndex + 1} / {totalCards}
-          </span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Current card */}
       <LearnCard
         card={currentCard}
         onRate={handleRate}
@@ -469,37 +512,38 @@ export function DocumentLearnQuiz({
         onExpandedChange={setIsExpanded}
       />
 
-      {/* Keyboard shortcuts hint */}
-      <p className="text-center text-xs text-muted-foreground">
-        Press{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Space
-        </kbd>{' '}
-        to reveal, then{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          1
-        </kbd>
-        -
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          4
-        </kbd>{' '}
-        to rate. Undo:{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          U
-        </kbd>{' '}
-        or{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Ctrl
-        </kbd>
-        /
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Cmd
-        </kbd>
-        +
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Z
-        </kbd>
-      </p>
+      <AnalyticsCard muted className="px-6">
+        <p className="py-1 text-center text-xs text-muted-foreground">
+          Press{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            Space
+          </kbd>{' '}
+          to reveal, then{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            1
+          </kbd>
+          -
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            4
+          </kbd>{' '}
+          to rate. Undo:{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            U
+          </kbd>{' '}
+          or{' '}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            Ctrl
+          </kbd>
+          /
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            Cmd
+          </kbd>
+          +
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
+            Z
+          </kbd>
+        </p>
+      </AnalyticsCard>
     </div>
   )
 }
