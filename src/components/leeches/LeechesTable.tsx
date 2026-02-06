@@ -1,6 +1,9 @@
 import { LeechCardRow } from './LeechCardRow'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 
+const headerCellClass =
+  'px-4 py-4 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase'
+
 interface LeechesTableProps {
   cards: Array<{
     cardState: Doc<'cardStates'>
@@ -20,45 +23,33 @@ export function LeechesTable({
 }: LeechesTableProps) {
   if (cards.length === 0) {
     return (
-      <div className="py-8 text-center text-muted-foreground">
+      <div className="rounded-xl border border-border/70 bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
         No cards match the current filter
       </div>
     )
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="border-b bg-muted/50">
-            <tr>
-              <th className="w-12 p-3 text-left text-xs font-medium text-muted-foreground">
+        <table className="w-full border-collapse text-sm">
+          <thead className="border-b border-border/70 bg-muted/35">
+            <tr className="text-left">
+              <th className={`w-12 ${headerCellClass}`}>
                 <span className="sr-only">Select</span>
               </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Card
-              </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Document
-              </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Reason
-              </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Lapses
-              </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Retention
-              </th>
-              <th className="p-3 text-left text-xs font-medium text-muted-foreground">
-                Status
-              </th>
-              <th className="w-24 p-3 text-left text-xs font-medium text-muted-foreground">
+              <th className={headerCellClass}>Card</th>
+              <th className={headerCellClass}>Document</th>
+              <th className={headerCellClass}>Reason</th>
+              <th className={headerCellClass}>Lapses</th>
+              <th className={headerCellClass}>Retention</th>
+              <th className={headerCellClass}>Status</th>
+              <th className={`w-28 text-left ${headerCellClass}`}>
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border/70">
             {cards.map((item) => (
               <LeechCardRow
                 key={item.cardState._id}

@@ -47,32 +47,36 @@ export function CollaboratorAvatars({
           <TooltipTrigger
             render={
               <div
-                className="relative rounded-full ring-2 ring-background"
+                className="relative rounded-full shadow-sm ring-2 ring-background/95"
                 style={{ zIndex: visibleCollaborators.length - index }}
               />
             }
           >
-            <Avatar className="h-7 w-7">
+            <Avatar className="h-8 w-8">
               {user.avatarUrl && (
                 <AvatarImage src={user.avatarUrl} alt={user.name || 'User'} />
               )}
               <AvatarFallback
-                className="text-xs font-medium text-white"
+                className="text-[10px] font-semibold text-white [text-shadow:0_1px_1px_rgb(0_0_0_/_0.35)]"
                 style={{ backgroundColor: user.color }}
               >
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
-            {/* Color indicator ring */}
+            {/* Accent ring keeps avatars legible in both light and dark themes */}
             <span
-              className="absolute inset-0 rounded-full ring-2"
-              style={{ '--tw-ring-color': user.color } as React.CSSProperties}
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{ boxShadow: `0 0 0 1px ${user.color}` }}
             />
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={8}>
-            <span>{user.name || 'Anonymous'}</span>
+            <span className="text-xs font-medium">
+              {user.name || 'Anonymous'}
+            </span>
             {user.isAnonymous && (
-              <span className="ml-1 text-muted-foreground">(Guest)</span>
+              <span className="ml-1 text-xs text-muted-foreground">
+                (Guest)
+              </span>
             )}
           </TooltipContent>
         </Tooltip>
@@ -82,11 +86,11 @@ export function CollaboratorAvatars({
         <Tooltip>
           <TooltipTrigger
             render={
-              <div className="relative rounded-full ring-2 ring-background" />
+              <div className="relative rounded-full shadow-sm ring-2 ring-background/95" />
             }
           >
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="bg-muted text-xs font-medium">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-muted text-xs font-semibold text-foreground">
                 +{overflowCount}
               </AvatarFallback>
             </Avatar>
@@ -94,7 +98,7 @@ export function CollaboratorAvatars({
           <TooltipContent side="bottom" sideOffset={8}>
             <div className="flex flex-col gap-1">
               {overflowCollaborators.map((user) => (
-                <span key={user.id}>
+                <span key={user.id} className="text-xs">
                   {user.name || 'Anonymous'}
                   {user.isAnonymous && (
                     <span className="ml-1 text-muted-foreground">(Guest)</span>

@@ -85,10 +85,8 @@ export function PublicDocumentViewer({
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex min-h-100 items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading document...
-        </div>
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 shadow-xs">
+        <div className="text-sm text-muted-foreground">Loading document...</div>
       </div>
     )
   }
@@ -97,8 +95,8 @@ export function PublicDocumentViewer({
   // This component is read-only, so we can't create the document
   if (!initialContent) {
     return (
-      <div className="flex min-h-100 items-center justify-center">
-        <div className="text-center">
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 px-6 text-center shadow-xs">
+        <div>
           <p className="text-muted-foreground">
             This document hasn't been initialized yet.
           </p>
@@ -111,7 +109,7 @@ export function PublicDocumentViewer({
   }
 
   return (
-    <div className="min-h-100">
+    <div className="flex min-h-100 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xs">
       <EditorProvider
         content={initialContent}
         extensions={extensions}
@@ -137,5 +135,10 @@ function EditorContentWrapper() {
     return null
   }
 
-  return <EditorContent editor={editor} />
+  return (
+    <EditorContent
+      editor={editor}
+      className="flex flex-1 flex-col [&_.ProseMirror]:mx-auto [&_.ProseMirror]:w-full [&_.ProseMirror]:max-w-4xl [&_.ProseMirror]:flex-1 [&_.ProseMirror]:px-4 [&_.ProseMirror]:py-5 [&_.ProseMirror]:outline-none sm:[&_.ProseMirror]:px-6"
+    />
+  )
 }

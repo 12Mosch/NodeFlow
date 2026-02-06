@@ -6,6 +6,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 interface LeechCardRowProps {
   cardState: Doc<'cardStates'>
@@ -82,9 +83,9 @@ export function LeechCardRow({
   const getRetentionColor = () => {
     if (retention === null) return 'text-muted-foreground'
     if (retention < 40) return 'text-destructive'
-    if (retention < 60) return 'text-amber-600'
-    if (retention < 80) return 'text-yellow-600'
-    return 'text-emerald-600'
+    if (retention < 60) return 'text-amber-700 dark:text-amber-400'
+    if (retention < 80) return 'text-yellow-700 dark:text-yellow-400'
+    return 'text-emerald-700 dark:text-emerald-400'
   }
 
   // Get leech reason badge variant
@@ -95,22 +96,29 @@ export function LeechCardRow({
   }
 
   return (
-    <tr className="group border-b transition-colors hover:bg-muted/50">
-      <td className="p-3">
+    <tr
+      className={cn(
+        'group transition-colors',
+        isSelected ? 'bg-muted/35' : 'hover:bg-muted/25',
+      )}
+    >
+      <td className="px-4 py-3 align-top">
         <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
       </td>
-      <td className="p-3">
-        <div className="max-w-md truncate text-sm">{getCardPreview()}</div>
-        <div className="text-xs text-muted-foreground">
+      <td className="px-4 py-3 align-top">
+        <div className="max-w-xl truncate text-sm font-medium">
+          {getCardPreview()}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
           {cardState.direction === 'forward' ? 'Front → Back' : 'Back → Front'}
         </div>
       </td>
-      <td className="p-3">
+      <td className="px-4 py-3 align-top">
         {document ? (
           <Link
             to="/doc/$docId"
             params={{ docId: document._id }}
-            className="text-sm text-primary hover:underline"
+            className="text-sm font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
           >
             {document.title}
           </Link>
@@ -118,28 +126,29 @@ export function LeechCardRow({
           <span className="text-sm text-muted-foreground">(Unknown)</span>
         )}
       </td>
-      <td className="p-3">
+      <td className="px-4 py-3 align-top">
         <Badge variant={getReasonVariant()} className="text-xs">
           {leechReason}
         </Badge>
       </td>
-      <td className="p-3">
+      <td className="px-4 py-3 align-top">
         <span
-          className={`text-sm font-medium ${
+          className={cn(
+            'text-sm font-medium',
             cardState.lapses > 5
-              ? 'text-amber-600 dark:text-amber-500'
-              : 'text-muted-foreground'
-          }`}
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-muted-foreground',
+          )}
         >
           {cardState.lapses}
         </span>
       </td>
-      <td className="p-3">
-        <span className={`text-sm font-medium ${getRetentionColor()}`}>
+      <td className="px-4 py-3 align-top">
+        <span className={cn('text-sm font-medium', getRetentionColor())}>
           {retention !== null ? `${retention}%` : 'N/A'}
         </span>
       </td>
-      <td className="p-3">
+      <td className="px-4 py-3 align-top">
         {cardState.suspended ? (
           <Badge variant="destructive" className="text-xs">
             Suspended
@@ -150,12 +159,12 @@ export function LeechCardRow({
           </Badge>
         )}
       </td>
-      <td className="p-3">
+      <td className="px-4 py-3 align-top">
         <Button
-          variant="ghost"
+          variant={cardState.suspended ? 'outline' : 'destructive'}
           size="sm"
           onClick={handleToggleSuspend}
-          className="h-8 gap-1"
+          className="h-8 gap-1.5"
         >
           {cardState.suspended ? (
             <>

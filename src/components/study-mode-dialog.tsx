@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 
 export type StudyMode = 'spaced-repetition' | 'random'
@@ -136,20 +137,17 @@ export function StudyModeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent key={dialogInstance} className="sm:max-w-150">
-        <DialogHeader>
-          <DialogTitle>Choose Study Mode</DialogTitle>
+      <DialogContent
+        key={dialogInstance}
+        className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-150"
+      >
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="nf-type-display text-3xl text-foreground sm:text-4xl">
+            Choose Study Mode
+          </DialogTitle>
           <DialogDescription>
             Select how you want to study your flashcards. Use arrow keys to
-            navigate, or press{' '}
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-              1
-            </kbd>{' '}
-            /{' '}
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-              2
-            </kbd>{' '}
-            to select.
+            navigate, or press <Kbd>1</Kbd> / <Kbd>2</Kbd> to select.
           </DialogDescription>
         </DialogHeader>
 
@@ -168,8 +166,8 @@ export function StudyModeDialog({
                 role="button"
                 aria-label={`${modeData.label}. Press ${modeData.shortcut} or Enter to select.`}
                 className={cn(
-                  'cursor-pointer transition-all hover:border-primary hover:shadow-md focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none',
-                  isSelected && 'border-primary shadow-md ring-2 ring-ring',
+                  'cursor-pointer border-border/70 bg-card/80 transition-all hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  isSelected && 'border-primary/80 bg-primary/5 shadow-lg',
                 )}
                 onClick={() => handleSelect(modeData.mode)}
                 onKeyDown={(e) => {
@@ -179,15 +177,15 @@ export function StudyModeDialog({
                   }
                 }}
               >
-                <CardHeader>
-                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <CardHeader className="space-y-2">
+                  <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-lg border border-border/70 bg-primary/10">
                     {isSpacedRepetition ? (
                       <Brain className="h-6 w-6 text-primary" />
                     ) : (
                       <Shuffle className="h-6 w-6 text-primary" />
                     )}
                   </div>
-                  <CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
                     {modeData.label}
                     {isSelected && (
                       <span className="ml-2 text-xs text-muted-foreground">
@@ -202,7 +200,10 @@ export function StudyModeDialog({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full" variant="outline">
+                  <Button
+                    className="w-full"
+                    variant={isSelected ? 'default' : 'outline'}
+                  >
                     Choose Mode
                   </Button>
                 </CardContent>

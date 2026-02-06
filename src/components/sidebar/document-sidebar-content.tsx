@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { AlertTriangle, BarChart3, Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -26,6 +26,9 @@ export function DocumentSidebarContent() {
   const navigate = useNavigate()
   const params = useParams({ strict: false })
   const currentDocId = params.docId
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
 
@@ -33,6 +36,10 @@ export function DocumentSidebarContent() {
     useDocumentList({ numItems: 50 })
 
   const createDocument = useMutation(api.documents.create)
+  const topNavButtonClass = 'flex items-center gap-2'
+  const isHomeActive = pathname === '/'
+  const isAnalyticsActive = pathname.startsWith('/analytics')
+  const isLeechCardsActive = pathname.startsWith('/study-leeches')
 
   const documents = data?.pages.flatMap((p) => p.page) || []
 
@@ -59,12 +66,12 @@ export function DocumentSidebarContent() {
 
   return (
     <>
-      <SidebarHeader className="border-b border-sidebar-border p-2">
-        <div className="flex flex-col gap-1">
+      <SidebarHeader className="border-b border-sidebar-border/80 px-2.5 py-2">
+        <div className="flex flex-col gap-1.5">
           <SidebarMenuButton
             onClick={handleCreateDocument}
             tooltip="New Document"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            className="h-9 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:text-primary-foreground"
           >
             <Plus className="h-4 w-4" />
             <span>New Document</span>
@@ -72,7 +79,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/' })}
             tooltip="Home"
-            className="flex items-center gap-2"
+            isActive={isHomeActive}
+            className={topNavButtonClass}
           >
             <Home className="h-4 w-4" />
             <span>Home</span>
@@ -80,7 +88,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/analytics' })}
             tooltip="Analytics"
-            className="flex items-center gap-2"
+            isActive={isAnalyticsActive}
+            className={topNavButtonClass}
           >
             <BarChart3 className="h-4 w-4" />
             <span>Analytics</span>
@@ -88,7 +97,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/study-leeches' })}
             tooltip="Leech Cards"
-            className="flex items-center gap-2"
+            isActive={isLeechCardsActive}
+            className={topNavButtonClass}
           >
             <AlertTriangle className="h-4 w-4" />
             <span>Leech Cards</span>
@@ -97,18 +107,20 @@ export function DocumentSidebarContent() {
       </SidebarHeader>
 
       {!isCollapsed && (
-        <SidebarContent className="flex flex-col">
-          <SidebarGroup className="flex flex-1 flex-col">
-            <SidebarGroupLabel>Documents</SidebarGroupLabel>
+        <SidebarContent className="flex flex-col pt-1">
+          <SidebarGroup className="flex flex-1 flex-col gap-2 p-2">
+            <SidebarGroupLabel className="nf-meta-label h-auto px-2 py-1 text-sidebar-foreground/65">
+              Documents
+            </SidebarGroupLabel>
             <SidebarGroupContent className="flex flex-1 flex-col overflow-hidden">
               <ScrollArea className="flex-1">
-                <SidebarMenu>
+                <SidebarMenu className="gap-1.5">
                   {isLoading ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20 py-8 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
                   ) : documents.length === 0 ? (
-                    <div className="px-2 py-8 text-center text-sm text-muted-foreground">
+                    <div className="rounded-lg border border-dashed border-sidebar-border/80 bg-sidebar-accent/10 px-2 py-8 text-center text-sm text-muted-foreground">
                       No documents yet
                     </div>
                   ) : (
@@ -141,7 +153,7 @@ export function DocumentSidebarContent() {
         </SidebarContent>
       )}
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border/80 p-2">
         <AccountMenu />
       </SidebarFooter>
     </>

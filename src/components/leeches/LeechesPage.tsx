@@ -8,6 +8,7 @@ import { LeechStatsOverview } from './LeechStatsOverview'
 import { LeechesTable } from './LeechesTable'
 import { BulkActionsToolbar } from './BulkActionsToolbar'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { AnalyticsCard, AnalyticsSection } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
 
@@ -61,7 +62,6 @@ export function LeechesPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -74,73 +74,86 @@ export function LeechesPage() {
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <div className="h-4 w-px bg-border" />
+            <div className="hidden h-4 w-px bg-border sm:block" />
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-              <h1 className="font-semibold">Leech Cards Management</h1>
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <h1 className="text-base font-semibold sm:text-lg">
+                Leech Cards Management
+              </h1>
             </div>
           </div>
           <ModeToggle />
         </div>
       </header>
 
-      {/* Content */}
-      <div className="p-8">
+      <div className="space-y-10 p-6 sm:p-8">
         {stats.totalLeeches === 0 ? (
-          // Empty state
-          <div className="py-16 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-            <h3 className="mt-4 text-lg font-semibold">No Leech Cards!</h3>
-            <p className="mt-1 text-muted-foreground">
-              All your cards are being learned effectively.
-            </p>
-          </div>
+          <AnalyticsSection>
+            <AnalyticsCard className="px-6">
+              <div className="py-16 text-center">
+                <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+                <h3 className="mt-4 text-lg font-semibold">No Leech Cards!</h3>
+                <p className="mt-1 text-muted-foreground">
+                  All your cards are being learned effectively.
+                </p>
+              </div>
+            </AnalyticsCard>
+          </AnalyticsSection>
         ) : (
-          <div className="space-y-6">
-            {/* Stats Overview */}
-            <LeechStatsOverview stats={stats} />
+          <>
+            <AnalyticsSection
+              title="Leech Snapshot"
+              description="Cards flagged for repeated lapses or low retention."
+            >
+              <LeechStatsOverview stats={stats} />
+            </AnalyticsSection>
 
-            {/* Filter Controls */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={filterMode === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterMode('all')}
-              >
-                All ({leechCards.length})
-              </Button>
-              <Button
-                variant={filterMode === 'suspended' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterMode('suspended')}
-              >
-                Suspended ({stats.suspendedCount})
-              </Button>
-              <Button
-                variant={filterMode === 'unsuspended' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterMode('unsuspended')}
-              >
-                Active ({stats.totalLeeches - stats.suspendedCount})
-              </Button>
-            </div>
+            <AnalyticsSection
+              title="Leech Queue"
+              description="Filter, inspect, and manage difficult cards without changing review workflows."
+              action={
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={filterMode === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterMode('all')}
+                  >
+                    All ({leechCards.length})
+                  </Button>
+                  <Button
+                    variant={filterMode === 'suspended' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterMode('suspended')}
+                  >
+                    Suspended ({stats.suspendedCount})
+                  </Button>
+                  <Button
+                    variant={
+                      filterMode === 'unsuspended' ? 'default' : 'outline'
+                    }
+                    size="sm"
+                    onClick={() => setFilterMode('unsuspended')}
+                  >
+                    Active ({stats.totalLeeches - stats.suspendedCount})
+                  </Button>
+                </div>
+              }
+            >
+              {selectedCards.size > 0 && (
+                <BulkActionsToolbar
+                  selectedCount={selectedCards.size}
+                  selectedCardIds={Array.from(selectedCards)}
+                  onClearSelection={handleClearSelection}
+                />
+              )}
 
-            {/* Bulk Actions Toolbar */}
-            {selectedCards.size > 0 && (
-              <BulkActionsToolbar
-                selectedCount={selectedCards.size}
-                selectedCardIds={Array.from(selectedCards)}
-                onClearSelection={handleClearSelection}
+              <LeechesTable
+                cards={filteredCards}
+                selectedCards={selectedCards}
+                onToggleSelect={handleToggleSelect}
               />
-            )}
-
-            {/* Cards Table */}
-            <LeechesTable
-              cards={filteredCards}
-              selectedCards={selectedCards}
-              onToggleSelect={handleToggleSelect}
-            />
-          </div>
+            </AnalyticsSection>
+          </>
         )}
       </div>
     </div>
