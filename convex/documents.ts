@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { paginationOptsValidator } from 'convex/server'
 import { mutation, query } from './_generated/server'
-import { requireUser } from './auth'
+import { getUser, requireUser } from './auth'
 import { requireDocumentAccess } from './helpers/documentAccess'
 import type { QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
@@ -15,7 +15,8 @@ async function getDocumentWithAccess(
   ctx: QueryCtx,
   documentId: Id<'documents'>,
 ) {
-  const userId = await requireUser(ctx)
+  const userId = await getUser(ctx)
+  if (!userId) return null
   const document = await ctx.db.get(documentId)
 
   if (!document || document.userId !== userId) {
@@ -30,7 +31,8 @@ export const list = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const userId = await requireUser(ctx)
+    const userId = await getUser(ctx)
+    if (!userId) return { page: [], isDone: true, continueCursor: '' }
 
     const documents = await ctx.db
       .query('documents')

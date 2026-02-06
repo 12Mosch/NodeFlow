@@ -1,6 +1,59 @@
-import { requireUser } from '../auth'
+import { getUserByIdentity, requireUser } from '../auth'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
+
+/**
+ * Query-safe document access check for public or authenticated users.
+ * Returns null instead of throwing when access is denied, making it safe
+ * for use in queries that may run before auth is established (e.g. during
+ * TanStack Query cache restoration).
+ *
+ * Public document access still works because isPublic is checked before
+ * returning null.
+ *
+ * @param ctx - Query context (not MutationCtx — mutations should use checkDocumentAccess)
+ * @param documentId - The document ID to check access for
+ * @returns Object containing document, access level, and userId — or null if access denied
+ */
+export async function queryDocumentAccess(
+  ctx: QueryCtx,
+  documentId: string | Id<'documents'>,
+): Promise<{
+  document: Doc<'documents'>
+  accessLevel: 'owner' | 'public-view' | 'public-edit'
+  userId: Id<'users'> | null
+} | null> {
+  const normalizedId = ctx.db.normalizeId('documents', documentId)
+  if (!normalizedId) {
+    return null
+  }
+
+  const document = await ctx.db.get(normalizedId)
+  if (!document) {
+    return null
+  }
+
+  // Check for authenticated owner access
+  const identity = await ctx.auth.getUserIdentity()
+  if (identity) {
+    const user = await getUserByIdentity(ctx, identity.subject)
+    if (user && document.userId === user._id) {
+      return { document, accessLevel: 'owner', userId: user._id }
+    }
+  }
+
+  // Check public access
+  if (document.isPublic) {
+    const permission = document.publicPermission ?? 'view'
+    return {
+      document,
+      accessLevel: permission === 'edit' ? 'public-edit' : 'public-view',
+      userId: null,
+    }
+  }
+
+  return null
+}
 
 /**
  * Requires document access. Throws an error if document doesn't exist or
@@ -61,25 +114,11 @@ export async function checkDocumentAccess(
   }
 
   // Check for authenticated owner access
-  // getUserIdentity() returns null for unauthenticated users, throws for errors
   const identity = await ctx.auth.getUserIdentity()
   if (identity) {
-    try {
-      const user = await ctx.db
-        .query('users')
-        .withIndex('workosId', (q) => q.eq('workosId', identity.subject))
-        .unique()
-
-      if (user && document.userId === user._id) {
-        return { document, accessLevel: 'owner', userId: user._id }
-      }
-    } catch (error) {
-      // Database errors should be logged and rethrown
-      console.error('Database error while checking user access:', error, {
-        documentId,
-        workosId: identity.subject,
-      })
-      throw new Error('Database error while checking user access')
+    const user = await getUserByIdentity(ctx, identity.subject)
+    if (user && document.userId === user._id) {
+      return { document, accessLevel: 'owner', userId: user._id }
     }
   }
 

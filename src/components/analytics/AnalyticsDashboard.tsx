@@ -104,6 +104,20 @@ export function AnalyticsDashboard() {
     setOffsetMinutes(new Date().getTimezoneOffset())
   }, [])
 
+  const retentionSeries = useMemo(
+    () =>
+      data
+        ? {
+            seven: data.retention.daily.map((day) => day.rolling7),
+            thirty: data.retention.daily.map((day) => day.rolling30),
+            ninety: data.retention.daily.map((day) => day.rolling90),
+          }
+        : { seven: [], thirty: [], ninety: [] },
+    [data],
+  )
+
+  if (!data) return null
+
   const hasReviews = data.retention.daily.some((day) => day.total > 0)
   const latest7 = lastNonNull(data.retention.daily, 'rolling7')
   const latest30 = lastNonNull(data.retention.daily, 'rolling30')
@@ -121,15 +135,6 @@ export function AnalyticsDashboard() {
         data.retention.optimalInterval.rate,
       )})`
     : '—'
-
-  const retentionSeries = useMemo(
-    () => ({
-      seven: data.retention.daily.map((day) => day.rolling7),
-      thirty: data.retention.daily.map((day) => day.rolling30),
-      ninety: data.retention.daily.map((day) => day.rolling90),
-    }),
-    [data.retention.daily],
-  )
 
   const forecastCounts = data.forecast.duePerDay.map((d) => d.count)
   const peakDayValue =

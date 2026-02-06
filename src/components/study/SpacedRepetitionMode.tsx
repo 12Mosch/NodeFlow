@@ -42,6 +42,8 @@ export function SpacedRepetitionMode({
     convexQuery(api.cardStates.getLeechStats, {}),
   )
 
+  if (!stats || !sessionCards || !leechStats) return null
+
   const handleStartLearning = () => {
     Sentry.startSpan(
       { name: 'StudyMode.startLearning', op: 'ui.interaction' },

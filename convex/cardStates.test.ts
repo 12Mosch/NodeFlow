@@ -545,6 +545,11 @@ describe('cardStates', () => {
   })
 
   describe('getDueCards', () => {
+    it('should return null for unauthenticated users', async () => {
+      const result = await t.query(api.cardStates.getDueCards, {})
+      expect(result).toBeNull()
+    })
+
     it('should return cards where due <= now', async () => {
       const blockId = await createTestFlashcardBlock(t, userId, documentId)
       const now = Date.now()
@@ -556,7 +561,7 @@ describe('cardStates', () => {
         lastReview: now - 10 * 24 * 60 * 60 * 1000, // 10 days ago
       })
 
-      const result = await asUser.query(api.cardStates.getDueCards, {})
+      const result = (await asUser.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(1)
     })
@@ -571,7 +576,7 @@ describe('cardStates', () => {
         difficulty: 5,
       })
 
-      const result = await asUser.query(api.cardStates.getDueCards, {})
+      const result = (await asUser.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(0)
     })
@@ -599,7 +604,7 @@ describe('cardStates', () => {
         lastReview: now - 1 * 24 * 60 * 60 * 1000, // 1 day ago - barely overdue
       })
 
-      const result = await asUser.query(api.cardStates.getDueCards, {})
+      const result = (await asUser.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(2)
       // Verify the cards are returned (sorted by retrievability, lowest first)
@@ -625,9 +630,9 @@ describe('cardStates', () => {
         })
       }
 
-      const result = await asUser.query(api.cardStates.getDueCards, {
+      const result = (await asUser.query(api.cardStates.getDueCards, {
         limit: 3,
-      })
+      }))!
 
       expect(result.length).toBe(3)
     })
@@ -647,7 +652,7 @@ describe('cardStates', () => {
         lastReview: now - 10 * 24 * 60 * 60 * 1000, // 10 days ago
       })
 
-      const result = await asUser.query(api.cardStates.getDueCards, {})
+      const result = (await asUser.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(1)
       expect(result[0].block).toBeDefined()
@@ -672,7 +677,7 @@ describe('cardStates', () => {
         difficulty: 5,
       })
 
-      const result = await asUser.query(api.cardStates.getDueCards, {})
+      const result = (await asUser.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(0)
     })
@@ -702,7 +707,7 @@ describe('cardStates', () => {
       })
 
       // User2 should only see their own card
-      const result = await asUser2.query(api.cardStates.getDueCards, {})
+      const result = (await asUser2.query(api.cardStates.getDueCards, {}))!
 
       expect(result.length).toBe(1)
       expect(result[0].cardState.userId).toEqual(user2Id)
@@ -719,7 +724,7 @@ describe('cardStates', () => {
       const blockReview = await createTestFlashcardBlock(t, userId, documentId)
       await createTestCardState(t, userId, blockReview, { state: 'review' })
 
-      const result = await asUser.query(api.cardStates.getNewCards, {})
+      const result = (await asUser.query(api.cardStates.getNewCards, {}))!
 
       expect(result.length).toBe(1)
       expect(result[0].cardState.state).toBe('new')
@@ -732,9 +737,9 @@ describe('cardStates', () => {
         await createTestCardState(t, userId, blockId, { state: 'new' })
       }
 
-      const result = await asUser.query(api.cardStates.getNewCards, {
+      const result = (await asUser.query(api.cardStates.getNewCards, {
         limit: 2,
-      })
+      }))!
 
       expect(result.length).toBe(2)
     })
@@ -743,7 +748,7 @@ describe('cardStates', () => {
       const blockId = await createTestFlashcardBlock(t, userId, documentId)
       await createTestCardState(t, userId, blockId, { state: 'new' })
 
-      const result = await asUser.query(api.cardStates.getNewCards, {})
+      const result = (await asUser.query(api.cardStates.getNewCards, {}))!
 
       expect(result.length).toBe(1)
       expect(result[0].retrievability).toBe(0)
@@ -753,7 +758,7 @@ describe('cardStates', () => {
       const blockId = await createTestFlashcardBlock(t, userId, documentId)
       await createTestCardState(t, userId, blockId, { state: 'new' })
 
-      const result = await asUser.query(api.cardStates.getNewCards, {})
+      const result = (await asUser.query(api.cardStates.getNewCards, {}))!
 
       expect(result[0].intervalPreviews).toBeDefined()
       expect(result[0].intervalPreviews.again).toBeDefined()
@@ -768,7 +773,7 @@ describe('cardStates', () => {
       })
       await createTestCardState(t, userId, blockId, { state: 'new' })
 
-      const result = await asUser.query(api.cardStates.getNewCards, {})
+      const result = (await asUser.query(api.cardStates.getNewCards, {}))!
 
       expect(result.length).toBe(0)
     })
@@ -792,7 +797,7 @@ describe('cardStates', () => {
       const block5 = await createTestFlashcardBlock(t, userId, documentId)
       await createTestCardState(t, userId, block5, { state: 'review' })
 
-      const stats = await asUser.query(api.cardStates.getStats, {})
+      const stats = (await asUser.query(api.cardStates.getStats, {}))!
 
       expect(stats.totalCards).toBe(5)
       expect(stats.newCards).toBe(2)
@@ -831,7 +836,7 @@ describe('cardStates', () => {
         due: now - 1000,
       })
 
-      const stats = await asUser.query(api.cardStates.getStats, {})
+      const stats = (await asUser.query(api.cardStates.getStats, {}))!
 
       expect(stats.dueNow).toBe(2) // 1 learning + 1 review
     })
@@ -868,7 +873,7 @@ describe('cardStates', () => {
           rating: 3,
         })
 
-        const stats = await asUser.query(api.cardStates.getStats, {})
+        const stats = (await asUser.query(api.cardStates.getStats, {}))!
 
         expect(stats.reviewedToday).toBe(2)
       } finally {
@@ -902,7 +907,7 @@ describe('cardStates', () => {
         rating: 1,
       })
 
-      const stats = await asUser.query(api.cardStates.getStats, {})
+      const stats = (await asUser.query(api.cardStates.getStats, {}))!
 
       // 3 correct / 4 total = 75%
       expect(stats.retentionRate).toBe(75)
@@ -914,7 +919,7 @@ describe('cardStates', () => {
 
       // No review logs created
 
-      const stats = await asUser.query(api.cardStates.getStats, {})
+      const stats = (await asUser.query(api.cardStates.getStats, {}))!
 
       expect(stats.retentionRate).toBeNull()
       expect(stats.reviewedToday).toBe(0)
@@ -924,7 +929,7 @@ describe('cardStates', () => {
       // Create a fresh user with no cards
       const { asUser: freshUser } = await createAuthenticatedContext(t)
 
-      const stats = await freshUser.query(api.cardStates.getStats, {})
+      const stats = (await freshUser.query(api.cardStates.getStats, {}))!
 
       expect(stats.totalCards).toBe(0)
       expect(stats.newCards).toBe(0)

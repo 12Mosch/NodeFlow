@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { internalQuery } from './_generated/server'
 import { internal } from './_generated/api'
 import type { ActionCtx, MutationCtx, QueryCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 
 /**
  * Internal query to get a user ID by WorkOS subject.
@@ -21,6 +21,44 @@ export const requireUserInternal = internalQuery({
     return user._id
   },
 })
+
+/**
+ * Look up a user by their identity subject (WorkOS ID).
+ * Shared helper used by getUser, queryDocumentAccess, and checkDocumentAccess
+ * to keep the user-fetching logic in one place.
+ *
+ * @returns The user document, or null if not found
+ * @throws On database errors (infrastructure failures should not be swallowed)
+ */
+export async function getUserByIdentity(
+  ctx: QueryCtx | MutationCtx,
+  subject: string,
+): Promise<Doc<'users'> | null> {
+  try {
+    return await ctx.db
+      .query('users')
+      .withIndex('workosId', (q) => q.eq('workosId', subject))
+      .unique()
+  } catch (error) {
+    console.error('Database error while looking up user:', error, { subject })
+    throw new Error('Database error while looking up user')
+  }
+}
+
+/**
+ * Returns the authenticated user's ID, or null if not authenticated.
+ * Use in queries so they return null instead of throwing during
+ * cache restoration or before auth is established.
+ */
+export async function getUser(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Id<'users'> | null> {
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity) return null
+
+  const user = await getUserByIdentity(ctx, identity.subject)
+  return user?._id ?? null
+}
 
 /**
  * Requires an authenticated user and returns their user ID.

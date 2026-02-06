@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { requireUser } from './auth'
+import { getUser, requireUser } from './auth'
 import { requireDocumentAccess } from './helpers/documentAccess'
 import {
   createNewCardState,
@@ -344,7 +344,8 @@ export const getDueCards = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getDueCards', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
         const now = Date.now()
         const limit = args.limit ?? 50
 
@@ -421,7 +422,8 @@ export const getNewCards = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getNewCards', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
         const limit = args.limit ?? 20
 
         // Get new cards, excluding suspended, limited at DB level
@@ -491,7 +493,8 @@ export const getStats = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getStats', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
         const now = Date.now()
         const todayStart = new Date()
         todayStart.setHours(0, 0, 0, 0)
@@ -566,7 +569,8 @@ export const getLearnSession = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getLearnSession', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
         const now = Date.now()
         const newLimit = args.newLimit ?? 20
         const reviewLimit = args.reviewLimit ?? 100
@@ -684,7 +688,11 @@ export const getDocumentLearnSession = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getDocumentLearnSession', op: 'convex.query' },
       async () => {
-        // Verify document ownership before proceeding
+        // Return null before auth is established (e.g. during cache restoration).
+        // Uses getUser + requireDocumentAccess (not queryDocumentAccess) because
+        // this query requires ownership — public access is not allowed.
+        const authedUserId = await getUser(ctx)
+        if (!authedUserId) return null
         const { userId } = await requireDocumentAccess(ctx, args.documentId)
         const now = Date.now()
         const newLimit = args.newLimit ?? 20
@@ -946,7 +954,8 @@ export const listSuspendedCards = query({
     return await Sentry.startSpan(
       { name: 'cardStates.listSuspendedCards', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
 
         // Get all suspended cards
         const suspendedCards = await ctx.db
@@ -1042,7 +1051,8 @@ export const listLeechCards = query({
     return await Sentry.startSpan(
       { name: 'cardStates.listLeechCards', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
 
         // Get all card states for the user
         const allCards = await ctx.db
@@ -1096,7 +1106,8 @@ export const getLeechStats = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getLeechStats', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
 
         // Get all card states for the user
         const allCards = await ctx.db
@@ -1200,7 +1211,8 @@ export const getAnalyticsDashboard = query({
     return await Sentry.startSpan(
       { name: 'cardStates.getAnalyticsDashboard', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return null
         const now = Date.now()
         const rangeDays = Math.min(
           Math.max(Math.trunc(args.rangeDays ?? 90), 7),

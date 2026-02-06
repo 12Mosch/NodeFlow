@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
+import { getUser } from './auth'
 import { requireDocumentAccess } from './helpers/documentAccess'
 
 /**
@@ -96,7 +97,12 @@ export const getSharingSettings = query({
     documentId: v.id('documents'),
   },
   handler: async (ctx, args) => {
-    const { document } = await requireDocumentAccess(ctx, args.documentId)
+    const userId = await getUser(ctx)
+    if (!userId) return null
+
+    const document = await ctx.db.get(args.documentId)
+    if (!document || document.userId !== userId) return null
+
     return {
       isPublic: document.isPublic ?? false,
       publicSlug: document.publicSlug,

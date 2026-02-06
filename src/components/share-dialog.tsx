@@ -141,7 +141,7 @@ export function ShareDialog({
     }
   }
 
-  if (settings === undefined) {
+  if (settings === undefined || settings === null) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
