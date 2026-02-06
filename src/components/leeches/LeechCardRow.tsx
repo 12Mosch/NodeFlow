@@ -133,17 +133,18 @@ export function LeechCardRow({
       </td>
       <td className="px-4 py-3 align-top">
         <span
-          className={`text-sm font-medium ${
+          className={cn(
+            'text-sm font-medium',
             cardState.lapses > 5
               ? 'text-amber-700 dark:text-amber-400'
-              : 'text-muted-foreground'
-          }`}
+              : 'text-muted-foreground',
+          )}
         >
           {cardState.lapses}
         </span>
       </td>
       <td className="px-4 py-3 align-top">
-        <span className={`text-sm font-medium ${getRetentionColor()}`}>
+        <span className={cn('text-sm font-medium', getRetentionColor())}>
           {retention !== null ? `${retention}%` : 'N/A'}
         </span>
       </td>
