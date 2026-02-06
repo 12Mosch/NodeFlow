@@ -1,6 +1,9 @@
 import { v } from 'convex/values'
 import { internalMutation, mutation, query } from './_generated/server'
-import { checkDocumentAccess } from './helpers/documentAccess'
+import {
+  checkDocumentAccess,
+  queryDocumentAccess,
+} from './helpers/documentAccess'
 
 // Stale threshold: 30 seconds for filtering active users in queries
 const STALE_THRESHOLD_MS = 30 * 1000
@@ -108,8 +111,9 @@ export const getDocumentPresence = query({
     excludeSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Check document access
-    await checkDocumentAccess(ctx, args.documentId)
+    // Check document access; return [] before auth is ready
+    const access = await queryDocumentAccess(ctx, args.documentId)
+    if (!access) return []
 
     const now = Date.now()
     const threshold = now - STALE_THRESHOLD_MS

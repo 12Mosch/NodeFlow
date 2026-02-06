@@ -27,6 +27,11 @@ export function LeechesPage() {
     convexQuery(api.cardStates.getLeechStats, {}),
   )
 
+  // Defensive guard: backend returns null before auth is established during
+  // cache restoration. useSuspenseQuery treats null as "resolved" data, so
+  // we bail out rather than rendering with missing data.
+  if (!leechCards || !stats) return null
+
   // Filter cards based on mode
   const filteredCards = leechCards.filter((item) => {
     if (filterMode === 'suspended') {

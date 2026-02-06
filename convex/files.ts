@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import * as Sentry from '@sentry/tanstackstart-react'
 import { internalQuery, mutation, query } from './_generated/server'
-import { requireUser } from './auth'
+import { getUser, requireUser } from './auth'
 
 // ============================================================================
 // File Upload Configuration
@@ -256,8 +256,9 @@ export const getFileUrl = query({
     return await Sentry.startSpan(
       { name: 'files.getFileUrl', op: 'convex.query' },
       async () => {
-        // Require authentication
-        const userId = await requireUser(ctx)
+        // Return null before auth is established
+        const userId = await getUser(ctx)
+        if (!userId) return null
 
         // Find the file record associated with this storage ID
         const file = await ctx.db
@@ -345,7 +346,8 @@ export const getFilesByDocument = query({
     return await Sentry.startSpan(
       { name: 'files.getFilesByDocument', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return []
 
         // Verify document access
         const document = await ctx.db.get(args.documentId)

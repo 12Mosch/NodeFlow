@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { query } from './_generated/server'
-import { requireUser } from './auth'
+import { getUser } from './auth'
 import type { Id } from './_generated/dataModel'
 
 const MIN_SEARCH_QUERY_LENGTH = 2
@@ -13,7 +13,8 @@ export const search = query({
     blockLimit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUser(ctx)
+    const userId = await getUser(ctx)
+    if (!userId) return { documents: [], blocks: [] }
     const q = args.query?.trim() ?? ''
 
     // If query is empty or too short, return recent documents instead

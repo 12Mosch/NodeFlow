@@ -1,8 +1,11 @@
 import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { requireUser } from './auth'
-import { checkDocumentAccess } from './helpers/documentAccess'
+import { getUser } from './auth'
+import {
+  checkDocumentAccess,
+  queryDocumentAccess,
+} from './helpers/documentAccess'
 import { createNewCardState } from './helpers/fsrs'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -249,8 +252,9 @@ export const listByDocument = query({
     return await Sentry.startSpan(
       { name: 'blocks.listByDocument', op: 'convex.query' },
       async () => {
-        // Allow public read access
-        await checkDocumentAccess(ctx, args.documentId)
+        // Allow public read access; return [] before auth is ready
+        const access = await queryDocumentAccess(ctx, args.documentId)
+        if (!access) return []
 
         const blocks = await ctx.db
           .query('blocks')
@@ -602,8 +606,9 @@ export const listFlashcards = query({
     return await Sentry.startSpan(
       { name: 'blocks.listFlashcards', op: 'convex.query' },
       async () => {
-        // Allow public read access
-        await checkDocumentAccess(ctx, args.documentId)
+        // Allow public read access; return [] before auth is ready
+        const access = await queryDocumentAccess(ctx, args.documentId)
+        if (!access) return []
 
         const blocks = await ctx.db
           .query('blocks')
@@ -633,8 +638,9 @@ export const countFlashcards = query({
     return await Sentry.startSpan(
       { name: 'blocks.countFlashcards', op: 'convex.query' },
       async () => {
-        // Allow public read access
-        await checkDocumentAccess(ctx, args.documentId)
+        // Allow public read access; return 0 before auth is ready
+        const access = await queryDocumentAccess(ctx, args.documentId)
+        if (!access) return 0
 
         const blocks = await ctx.db
           .query('blocks')
@@ -666,7 +672,8 @@ export const listAllFlashcards = query({
     return await Sentry.startSpan(
       { name: 'blocks.listAllFlashcards', op: 'convex.query' },
       async () => {
-        const userId = await requireUser(ctx)
+        const userId = await getUser(ctx)
+        if (!userId) return []
 
         // Get all flashcards for the user in a single query using the optimized index
         const allFlashcardBlocks = await ctx.db
