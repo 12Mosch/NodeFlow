@@ -1,7 +1,11 @@
 import { Check, Home, RotateCcw, Trophy, X } from 'lucide-react'
 import { renderClozeText } from './utils'
 import type { QuizResult } from './types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  AnalyticsCard,
+  AnalyticsSection,
+  MetricCard,
+} from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -35,88 +39,104 @@ export function QuizResults({
   const message = getMessage()
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Main results card */}
-      <Card>
-        <CardHeader className="pb-2 text-center">
-          <div className="mb-4 text-6xl">{message.icon}</div>
-          <CardTitle className="text-2xl">{message.text}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Score display */}
-          <div className="text-center">
-            <div className="mb-2 text-5xl font-bold">
-              <span className="text-emerald-500">{knewCount}</span>
-              <span className="text-muted-foreground">/</span>
-              <span>{totalCount}</span>
-            </div>
-            <p className="text-muted-foreground">cards correct</p>
-          </div>
+    <div className="mx-auto max-w-4xl space-y-8">
+      <AnalyticsSection
+        title="Session Results"
+        description="Your random practice performance across the selected cards."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricCard
+            variant="compact"
+            label="Accuracy"
+            value={`${percentage}%`}
+            helper={`${knewCount}/${totalCount} correct`}
+          />
+          <MetricCard
+            variant="compact"
+            label="Knew it"
+            value={knewCount}
+            helper="confident responses"
+          />
+          <MetricCard
+            variant="compact"
+            label="Missed"
+            value={totalCount - knewCount}
+            helper="needs review"
+          />
+        </div>
 
-          {/* Progress bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Accuracy</span>
-              <span className="font-medium">{percentage}%</span>
+        <AnalyticsCard className="px-6">
+          <div className="space-y-6 py-1">
+            <div className="text-center">
+              <div className="mb-3 text-5xl">{message.icon}</div>
+              <h2 className="text-2xl font-semibold">{message.text}</h2>
             </div>
-            <Progress value={percentage} className="h-3" />
-          </div>
 
-          {/* Stats breakdown */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
-              <div className="rounded-full bg-emerald-500/20 p-2">
-                <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Accuracy</span>
+                <span className="font-medium">{percentage}%</span>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {knewCount}
-                </p>
-                <p className="text-sm text-muted-foreground">Knew it</p>
+              <Progress value={percentage} className="h-3" />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-4">
+                <div className="rounded-full bg-emerald-500/20 p-2">
+                  <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {knewCount}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Knew it</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-red-500/25 bg-red-500/10 p-4">
+                <div className="rounded-full bg-red-500/20 p-2">
+                  <X className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                    {totalCount - knewCount}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Didn't know</p>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
-              <div className="rounded-full bg-red-500/20 p-2">
-                <X className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {totalCount - knewCount}
-                </p>
-                <p className="text-sm text-muted-foreground">Didn't know</p>
-              </div>
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+              <Button onClick={onRestart} className="flex-1 gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Study Again
+              </Button>
+              <Button
+                onClick={onSelectNew}
+                variant="outline"
+                className="flex-1 gap-2"
+              >
+                <Trophy className="h-4 w-4" />
+                Select Different Cards
+              </Button>
+              <Button
+                onClick={onGoHome}
+                variant="ghost"
+                className="flex-1 gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Home
+              </Button>
             </div>
           </div>
+        </AnalyticsCard>
+      </AnalyticsSection>
 
-          {/* Action buttons */}
-          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-            <Button onClick={onRestart} className="flex-1 gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Study Again
-            </Button>
-            <Button
-              onClick={onSelectNew}
-              variant="outline"
-              className="flex-1 gap-2"
-            >
-              <Trophy className="h-4 w-4" />
-              Select Different Cards
-            </Button>
-            <Button onClick={onGoHome} variant="ghost" className="flex-1 gap-2">
-              <Home className="h-4 w-4" />
-              Home
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Card-by-card results */}
       {results.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Review</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+        <AnalyticsSection
+          title="Card Review"
+          description="Scan each prompt to identify weak spots before your next session."
+        >
+          <AnalyticsCard className="px-0">
             <div
               tabIndex={0}
               role="region"
@@ -127,7 +147,7 @@ export function QuizResults({
                 <div
                   key={index}
                   className={cn(
-                    'flex items-start gap-3 p-4',
+                    'flex items-start gap-3 px-6 py-4',
                     result.knew ? 'bg-emerald-500/5' : 'bg-red-500/5',
                   )}
                 >
@@ -161,8 +181,8 @@ export function QuizResults({
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </AnalyticsCard>
+        </AnalyticsSection>
       )}
     </div>
   )

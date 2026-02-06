@@ -7,17 +7,18 @@ import {
   ArrowLeft,
   BookOpen,
   Brain,
-  Calendar,
   CheckCircle2,
-  Flame,
   Settings,
-  Sparkles,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { StudyState } from './types'
 import { LearnQuiz } from '@/components/learn'
+import {
+  AnalyticsCard,
+  AnalyticsSection,
+  MetricCard,
+} from '@/components/analytics'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Progress } from '@/components/ui/progress'
 
@@ -62,201 +63,195 @@ export function SpacedRepetitionMode({
   const totalDue = dueCards.length + newCards.length
 
   return (
-    <div className="mx-auto max-w-4xl">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <Link to="/">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Home
               </Button>
             </Link>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-muted-foreground" />
-              <h1 className="font-semibold">Spaced Repetition</h1>
+            <div className="hidden h-4 w-px bg-border sm:block" />
+            <div className="flex min-w-0 items-center gap-2">
+              <Brain className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <h1 className="truncate text-base font-semibold sm:text-lg">
+                Spaced Repetition
+              </h1>
             </div>
           </div>
           <ModeToggle />
         </div>
       </header>
 
-      {/* Content */}
-      <div className="p-8">
+      <div className="flex-1 py-6 sm:py-8">
         {studyState === 'overview' && (
-          <div className="space-y-8">
-            {/* Hero section */}
-            <div className="text-center">
-              <h2 className="text-3xl font-bold tracking-tight">
-                Study with FSRS
+          <div className="space-y-10">
+            <div className="space-y-2">
+              <p className="nf-meta-label text-muted-foreground">Study Mode</p>
+              <h2 className="nf-type-display text-4xl text-foreground sm:text-5xl">
+                Spaced Repetition
               </h2>
-              <p className="mt-2 text-muted-foreground">
-                Review cards at optimal intervals for maximum retention
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Review cards at optimized intervals with FSRS to improve
+                long-term recall.
               </p>
             </div>
 
-            {/* Stats cards */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Due Now</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.dueNow}</div>
-                  <p className="text-xs text-muted-foreground">
-                    cards need review
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    New Cards
-                  </CardTitle>
-                  <Sparkles className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.newCards}</div>
-                  <p className="text-xs text-muted-foreground">
-                    cards to introduce
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Reviewed Today
-                  </CardTitle>
-                  <Flame className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.reviewedToday}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    cards reviewed
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Retention Rate
-                  </CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.retentionRate !== null
+            <AnalyticsSection
+              title="Session Snapshot"
+              description="Due cards, new introductions, and today's retention in one view."
+            >
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Due now"
+                  value={stats.dueNow}
+                  helper="cards need review"
+                />
+                <MetricCard
+                  label="New cards"
+                  value={stats.newCards}
+                  helper="cards to introduce"
+                />
+                <MetricCard
+                  label="Reviewed today"
+                  value={stats.reviewedToday}
+                  helper="completed reviews"
+                />
+                <MetricCard
+                  label="Retention"
+                  value={
+                    stats.retentionRate !== null
                       ? `${stats.retentionRate}%`
-                      : '—'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    today's accuracy
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                      : '—'
+                  }
+                  helper="today's accuracy"
+                />
+              </div>
+            </AnalyticsSection>
 
-            {/* Leech alert */}
             {leechStats.totalLeeches > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
-                    <AlertTriangle className="h-5 w-5" />
-                    Leech Cards Detected
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    {leechStats.totalLeeches} card
-                    {leechStats.totalLeeches !== 1 ? 's are' : ' is'} showing
-                    difficulty.
-                  </p>
-                  <Link to="/study-leeches">
-                    <Button variant="outline" className="gap-2">
-                      <Settings className="h-4 w-4" />
-                      Manage Leech Cards
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+              <AnalyticsSection
+                title="Leech Alert"
+                description="Cards with repeated lapses can be isolated for focused cleanup."
+              >
+                <AnalyticsCard className="px-6">
+                  <div className="flex flex-col gap-4 py-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm font-semibold tracking-[0.18em] uppercase">
+                          Attention
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {leechStats.totalLeeches} card
+                        {leechStats.totalLeeches !== 1 ? 's are' : ' is'}{' '}
+                        showing elevated difficulty.
+                      </p>
+                    </div>
+                    <Link to="/study-leeches" className="shrink-0">
+                      <Button variant="outline" className="gap-2">
+                        <Settings className="h-4 w-4" />
+                        Manage Leech Cards
+                      </Button>
+                    </Link>
+                  </div>
+                </AnalyticsCard>
+              </AnalyticsSection>
             )}
 
-            {/* Session preview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Today's Session
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {totalDue > 0 ? (
-                  <>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>
-                          {dueCards.length} review{dueCards.length !== 1 && 's'}
-                          , {newCards.length} new
-                        </span>
-                        <span className="font-medium">{totalDue} total</span>
+            <AnalyticsSection
+              title="Today's Session"
+              description="Launch the queue when you're ready, or return to documents."
+            >
+              <AnalyticsCard className="px-6">
+                <div className="space-y-4 py-1">
+                  {totalDue > 0 ? (
+                    <>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {dueCards.length} review
+                            {dueCards.length !== 1 ? 's' : ''},{' '}
+                            {newCards.length} new
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {totalDue} total cards in this session.
+                          </p>
+                        </div>
+                        <BookOpen className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      <Progress value={0} className="h-2" />
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                          <span>Queue readiness</span>
+                          <span>0%</span>
+                        </div>
+                        <Progress value={0} className="h-2" />
+                      </div>
+
+                      <Button
+                        size="lg"
+                        className="w-full gap-2 sm:w-auto"
+                        onClick={handleStartLearning}
+                      >
+                        <Brain className="h-5 w-5" />
+                        Start Learning
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center">
+                      <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+                      <h3 className="mt-4 text-lg font-semibold">
+                        All caught up
+                      </h3>
+                      <p className="mt-1 text-muted-foreground">
+                        No cards are due right now. Return later or add more
+                        flashcards.
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={onGoHome}
+                      >
+                        Go to Documents
+                      </Button>
                     </div>
+                  )}
+                </div>
+              </AnalyticsCard>
+            </AnalyticsSection>
 
-                    <Button
-                      size="lg"
-                      className="w-full gap-2"
-                      onClick={handleStartLearning}
-                    >
-                      <Brain className="h-5 w-5" />
-                      Start Learning
-                    </Button>
-                  </>
-                ) : (
-                  <div className="py-8 text-center">
-                    <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-                    <h3 className="mt-4 text-lg font-semibold">
-                      All caught up!
-                    </h3>
-                    <p className="mt-1 text-muted-foreground">
-                      No cards due for review. Check back later or add more
-                      flashcards.
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={onGoHome}
-                    >
-                      Go to Documents
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick tip */}
-            <div className="rounded-lg border bg-muted/50 p-4">
-              <h4 className="font-medium">How FSRS Works</h4>
-              <p className="mt-1 text-sm text-muted-foreground">
-                The Free Spaced Repetition Scheduler (FSRS) uses advanced memory
-                modeling to predict when you're about to forget each card. Rate
-                cards honestly—Again, Hard, Good, or Easy—to optimize your
-                review intervals.
-              </p>
-            </div>
+            <AnalyticsCard muted className="px-6">
+              <div className="space-y-2 py-1">
+                <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+                  FSRS refresher
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Rate each card honestly (Again, Hard, Good, Easy). FSRS uses
+                  those ratings to schedule your next optimal review time.
+                </p>
+              </div>
+            </AnalyticsCard>
           </div>
         )}
 
         {studyState === 'studying' && (
-          <LearnQuiz onBack={handleBack} onGoHome={onGoHome} />
+          <div className="space-y-6">
+            <AnalyticsCard muted className="px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+                <p className="text-sm text-muted-foreground">
+                  Session in progress. Ratings update your schedule immediately.
+                </p>
+                <Button variant="outline" size="sm" onClick={handleBack}>
+                  Back to Overview
+                </Button>
+              </div>
+            </AnalyticsCard>
+            <LearnQuiz onBack={handleBack} onGoHome={onGoHome} />
+          </div>
         )}
       </div>
     </div>

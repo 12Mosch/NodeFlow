@@ -56,8 +56,11 @@ function StudyPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Suspense
         fallback={
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex min-h-screen items-center justify-center p-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-4 py-2 text-sm text-muted-foreground shadow-xs">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading study workspace...</span>
+            </div>
           </div>
         }
       >
@@ -108,7 +111,7 @@ function StudyContent() {
   // If no mode selected, show dialog
   if (!mode) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
         <StudyModeDialog
           open={isDialogOpen}
           onOpenChange={(open) => {
