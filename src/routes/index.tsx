@@ -130,7 +130,7 @@ function DocumentList() {
     return (
       <div className="flex min-h-screen items-center justify-center p-8 text-muted-foreground">
         <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-4 py-2 shadow-xs">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           <span>Loading documents...</span>
         </div>
       </div>
@@ -210,10 +210,10 @@ function DocumentList() {
                 key={doc._id}
                 to="/doc/$docId"
                 params={{ docId: doc._id }}
-                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                  <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground">
+                  <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground motion-reduce:transition-none">
                     <FileText className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -228,7 +228,7 @@ function DocumentList() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                  className="shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive motion-reduce:transition-none"
                   onClick={(e) => handleDelete(doc._id, e)}
                   aria-label="Delete document"
                 >
@@ -240,7 +240,7 @@ function DocumentList() {
             {hasNextPage && <div ref={sentinelRef} className="h-1" />}
             {isFetchingNextPage && (
               <div className="mt-4 flex justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground motion-reduce:animate-none" />
               </div>
             )}
           </div>

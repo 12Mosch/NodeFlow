@@ -116,7 +116,7 @@ function SharedDocumentContent() {
           </p>
           <Link
             to="/"
-            className="mt-6 inline-flex rounded-md border border-border/70 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="mt-6 inline-flex rounded-md border border-border/70 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
           >
             Go to NodeFlow
           </Link>
@@ -165,7 +165,7 @@ function SharedDocumentWithPresence({
             </h1>
             <Link
               to="/"
-              className="inline-flex text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+              className="inline-flex rounded-sm text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
             >
               NodeFlow
             </Link>

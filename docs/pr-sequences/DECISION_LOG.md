@@ -44,6 +44,28 @@ Use this section for good ideas intentionally postponed.
 - Notes:
   Consider in a dedicated follow-up after PR-04 to avoid scope creep.
 
+### 2026-02-06 - PR-08 Route Coverage Checklist Docs Target
+
+- Request:
+  PR-08 implementation step requires updating docs with a final route coverage
+  completion checklist, but `PR-08` file scope does not list a docs target.
+- Source:
+  PR-08 execution planning and user selection.
+- Proposed Change:
+  Choose one docs target (`PR-08` file or `BASELINE.md`) and update checklist
+  status there during PR-08.
+- User Value:
+  Clear completion traceability for final rollout QA.
+- Timeline Impact:
+  Low for either option, but ambiguous target risks out-of-scope edits.
+- Decision:
+  Deferred.
+- Tradeoff (what gets removed or delayed):
+  Keep PR-08 implementation scoped to listed code files; defer checklist
+  placement decision to follow-up clarification.
+- Notes:
+  User selected "No docs change" for checklist placement in this PR.
+
 ## Rejected Requests
 
 Use this section for explicitly rejected scope additions.

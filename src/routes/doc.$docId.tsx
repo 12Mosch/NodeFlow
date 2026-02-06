@@ -48,7 +48,7 @@ export const Route = createFileRoute('/doc/$docId')({
         </p>
         <Link
           to="/"
-          className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90"
+          className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
         >
           Go back home
         </Link>
@@ -73,7 +73,7 @@ function DocumentPage() {
           </p>
           <Link
             to="/"
-            className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90"
+            className="mt-4 inline-block rounded bg-primary px-6 py-2 text-primary-foreground shadow transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
           >
             Go back home
           </Link>
@@ -180,7 +180,10 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
           <p className="mb-6 text-muted-foreground">
             This document doesn't exist or you don't have access to it.
           </p>
-          <Link to="/" className="text-primary hover:underline">
+          <Link
+            to="/"
+            className="rounded-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          >
             Go back home
           </Link>
         </div>
@@ -346,6 +349,7 @@ function MinimalHeader({
             onClick={() => editor?.chain().focus().undo().run()}
             disabled={!canUndo}
             title="Undo"
+            aria-label="Undo"
           >
             <Undo className="h-4 w-4" />
           </Button>
@@ -356,6 +360,7 @@ function MinimalHeader({
             onClick={() => editor?.chain().focus().redo().run()}
             disabled={!canRedo}
             title="Redo"
+            aria-label="Redo"
           >
             <Redo className="h-4 w-4" />
           </Button>
@@ -381,6 +386,7 @@ function MinimalHeader({
             className="text-muted-foreground hover:text-foreground"
             title="Share"
             onClick={onShare}
+            aria-label="Share document"
           >
             <Share2 className="h-4 w-4" />
           </Button>
@@ -471,7 +477,7 @@ function DocumentTitle({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="nf-type-display w-full bg-transparent pb-1 text-4xl text-foreground outline-none placeholder:text-muted-foreground sm:text-5xl"
+          className="nf-type-display w-full rounded-md bg-transparent pb-1 text-4xl text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-5xl"
           placeholder="Untitled"
         />
       ) : (
@@ -480,7 +486,7 @@ function DocumentTitle({
           onKeyDown={handleTitleKeyDown}
           tabIndex={0}
           role="button"
-          className="nf-type-display -mx-2 cursor-text rounded-lg px-2 pb-1 text-4xl text-foreground transition-colors hover:bg-accent/50 focus:bg-accent/50 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none sm:text-5xl"
+          className="nf-type-display -mx-2 cursor-text rounded-lg px-2 pb-1 text-4xl text-foreground transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none sm:text-5xl"
         >
           {document.title || 'Untitled'}
         </h1>
