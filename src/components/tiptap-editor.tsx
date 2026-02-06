@@ -387,14 +387,14 @@ export function TiptapEditor({
     // Show cached preview content if available, otherwise show loading indicator
     if (previewBlocks && previewBlocks.length > 0) {
       return (
-        <div className="flex w-full flex-1 flex-col">
+        <div className="flex w-full flex-1 flex-col rounded-2xl border border-border/70 bg-card/50 shadow-xs">
           <DocumentPreview blocks={previewBlocks} />
         </div>
       )
     }
 
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 shadow-xs">
         <div className="animate-pulse text-muted-foreground">
           {isLoading ? 'Loading document...' : 'Initializing document...'}
         </div>
@@ -817,7 +817,7 @@ function EditorContentWrapper({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xs">
       {/* Hidden file input for image uploads triggered by slash commands */}
       <input
         ref={fileInputRef}
@@ -834,7 +834,7 @@ function EditorContentWrapper({
       <ImageBubbleMenu />
       <EditorContent
         editor={editor}
-        className="prose prose-zinc dark:prose-invert flex max-w-none flex-1 flex-col focus:outline-none [&_.ProseMirror]:flex-1 [&_.ProseMirror]:p-4 [&_.ProseMirror]:outline-none"
+        className="prose prose-zinc dark:prose-invert flex max-w-none flex-1 flex-col focus:outline-none [&_.ProseMirror]:mx-auto [&_.ProseMirror]:w-full [&_.ProseMirror]:max-w-4xl [&_.ProseMirror]:flex-1 [&_.ProseMirror]:px-4 [&_.ProseMirror]:py-5 [&_.ProseMirror]:outline-none sm:[&_.ProseMirror]:px-6"
       />
       <AlertDialog open={showLinkWarning} onOpenChange={setShowLinkWarning}>
         <AlertDialogContent>
@@ -844,7 +844,7 @@ function EditorContentWrapper({
               You are about to visit an external website. This link will open in
               a new tab.
               {pendingLinkUrl && (
-                <span className="mt-2 block rounded bg-muted px-2 py-1 font-mono text-xs break-all">
+                <span className="mt-2 block rounded border border-border/70 bg-muted px-2 py-1 font-mono text-xs break-all">
                   {pendingLinkUrl}
                 </span>
               )}

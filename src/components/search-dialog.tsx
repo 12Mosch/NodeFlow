@@ -338,17 +338,23 @@ export function SearchDialog() {
       title="Search"
       description="Search documents and content"
       showCloseButton={false}
+      className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-2xl"
     >
       <CommandInput
         placeholder="Search documents..."
         value={searchQuery}
         onValueChange={setSearchQueryState}
+        className="text-base"
       />
-      <CommandList>
-        {showEmpty && <CommandEmpty>No results found.</CommandEmpty>}
+      <CommandList className="max-h-[65vh] p-1.5">
+        {showEmpty && (
+          <CommandEmpty className="rounded-lg border border-dashed border-border/70 bg-muted/25 py-8 text-sm text-muted-foreground">
+            No results found.
+          </CommandEmpty>
+        )}
 
         {isLoading && (
-          <div className="py-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-border/70 bg-muted/25 py-6 text-center text-sm text-muted-foreground">
             {isEmptyQuery ? 'Loading recent documents...' : 'Searching...'}
           </div>
         )}
@@ -356,12 +362,14 @@ export function SearchDialog() {
         {results?.documents && results.documents.length > 0 && (
           <CommandGroup
             heading={isEmptyQuery ? 'Recent Documents' : 'Documents'}
+            className="mb-1 rounded-lg border border-border/60 bg-card p-1.5"
           >
             {results.documents.map((doc) => (
               <CommandItem
                 key={doc._id}
                 value={`doc-${doc._id}-${doc.title}`}
                 onSelect={() => handleSelect(doc._id)}
+                className="rounded-md px-2.5 py-2.5"
               >
                 <FileText className="mr-2 h-4 w-4" />
                 <span className="truncate">
@@ -373,12 +381,16 @@ export function SearchDialog() {
         )}
 
         {results?.blocks && results.blocks.length > 0 && !isEmptyQuery && (
-          <CommandGroup heading="Content">
+          <CommandGroup
+            heading="Content"
+            className="rounded-lg border border-border/60 bg-card p-1.5"
+          >
             {results.blocks.map((block) => (
               <CommandItem
                 key={block._id}
                 value={`block-${block._id}-${block.textContent}`}
                 onSelect={() => handleSelect(block.documentId)}
+                className="rounded-md px-2.5 py-2.5"
               >
                 <Text className="mr-2 h-4 w-4 shrink-0" />
                 <div className="flex min-w-0 flex-col">

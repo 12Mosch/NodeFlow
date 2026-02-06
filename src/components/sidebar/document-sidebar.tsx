@@ -16,7 +16,10 @@ export function DocumentSidebar({ children }: DocumentSidebarProps) {
   return (
     <SidebarProvider open={isOpen} onOpenChange={setOpen}>
       {isHydrated && (
-        <Sidebar collapsible="icon" className="border-r">
+        <Sidebar
+          collapsible="icon"
+          className="border-r border-sidebar-border/80 bg-sidebar/95"
+        >
           <DocumentSidebarContent />
           <SidebarRail />
         </Sidebar>
