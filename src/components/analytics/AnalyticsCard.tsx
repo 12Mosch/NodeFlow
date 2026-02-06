@@ -30,20 +30,11 @@ function AnalyticsCard({
   padding = 'default',
   ...props
 }: AnalyticsCardProps) {
-  const cardPadding =
-    padding === 'compact'
-      ? 'compact'
-      : padding === 'dense'
-        ? 'dense'
-        : padding === 'none'
-          ? 'none'
-          : 'default'
-
   return (
     <Card
       data-slot="analytics-card"
       variant={muted ? 'subtle' : 'default'}
-      padding={cardPadding}
+      padding={padding}
       className={cn(analyticsCardVariants({ padding, className }))}
       {...props}
     />
