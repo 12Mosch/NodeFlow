@@ -20,7 +20,29 @@ Track all scope-affecting decisions for the redesign program.
 
 Use this section for good ideas intentionally postponed.
 
-- _None yet._
+### 2026-02-06 - Centralize `AnalyticsCard` Horizontal Padding
+
+- Request:
+  Move repeated `px-6`/`px-3` usage from analytics call sites into
+  `AnalyticsCard` variants for consistent, reusable horizontal spacing.
+- Source:
+  PR-04 review feedback.
+- Proposed Change:
+  Update `src/components/analytics/AnalyticsCard.tsx` variant behavior so
+  padding variants include horizontal spacing defaults, then simplify
+  `AnalyticsDashboard` call sites.
+- User Value:
+  Less duplication and more consistent spacing semantics across analytics pages.
+- Timeline Impact:
+  Low-to-moderate. Requires shared primitive API change and consumer updates
+  beyond PR-04 route-only migration intent.
+- Decision:
+  Deferred.
+- Tradeoff (what gets removed or delayed):
+  Keep PR-04 focused on `/analytics` migration only; schedule primitive API
+  cleanup in a later PR.
+- Notes:
+  Consider in a dedicated follow-up after PR-04 to avoid scope creep.
 
 ## Rejected Requests
 
