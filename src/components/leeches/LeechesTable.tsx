@@ -1,6 +1,9 @@
 import { LeechCardRow } from './LeechCardRow'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 
+const headerCellClass =
+  'px-4 py-4 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase'
+
 interface LeechesTableProps {
   cards: Array<{
     cardState: Doc<'cardStates'>
@@ -32,28 +35,16 @@ export function LeechesTable({
         <table className="w-full border-collapse text-sm">
           <thead className="border-b border-border/70 bg-muted/35">
             <tr className="text-left">
-              <th className="w-12 px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              <th className={`w-12 ${headerCellClass}`}>
                 <span className="sr-only">Select</span>
               </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Card
-              </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Document
-              </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Reason
-              </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Lapses
-              </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Retention
-              </th>
-              <th className="px-4 py-3.5 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                Status
-              </th>
-              <th className="w-28 px-4 py-3.5 text-left text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              <th className={headerCellClass}>Card</th>
+              <th className={headerCellClass}>Document</th>
+              <th className={headerCellClass}>Reason</th>
+              <th className={headerCellClass}>Lapses</th>
+              <th className={headerCellClass}>Retention</th>
+              <th className={headerCellClass}>Status</th>
+              <th className={`w-28 text-left ${headerCellClass}`}>
                 <span className="sr-only">Actions</span>
               </th>
             </tr>

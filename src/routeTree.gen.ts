@@ -13,7 +13,6 @@ import { Route as StudyLeechesRouteImport } from './routes/study-leeches'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as R4RouteImport } from './routes/4'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as DocDocIdRouteImport } from './routes/doc.$docId'
@@ -38,11 +37,6 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
-const R4Route = R4RouteImport.update({
-  id: '/4',
-  path: '/4',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -61,7 +55,6 @@ const DocDocIdRoute = DocDocIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/4': typeof R4Route
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
@@ -71,7 +64,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/4': typeof R4Route
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
@@ -82,7 +74,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/4': typeof R4Route
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
   '/study': typeof StudyRoute
@@ -94,7 +85,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/4'
     | '/analytics'
     | '/callback'
     | '/study'
@@ -104,7 +94,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/4'
     | '/analytics'
     | '/callback'
     | '/study'
@@ -114,7 +103,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/4'
     | '/analytics'
     | '/callback'
     | '/study'
@@ -125,7 +113,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  R4Route: typeof R4Route
   AnalyticsRoute: typeof AnalyticsRoute
   CallbackRoute: typeof CallbackRoute
   StudyRoute: typeof StudyRoute
@@ -164,13 +151,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/4': {
-      id: '/4'
-      path: '/4'
-      fullPath: '/4'
-      preLoaderRoute: typeof R4RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -197,7 +177,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  R4Route: R4Route,
   AnalyticsRoute: AnalyticsRoute,
   CallbackRoute: CallbackRoute,
   StudyRoute: StudyRoute,

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { AlertTriangle, BarChart3, Home, Loader2, Plus } from 'lucide-react'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -26,6 +26,9 @@ export function DocumentSidebarContent() {
   const navigate = useNavigate()
   const params = useParams({ strict: false })
   const currentDocId = params.docId
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
 
@@ -33,6 +36,10 @@ export function DocumentSidebarContent() {
     useDocumentList({ numItems: 50 })
 
   const createDocument = useMutation(api.documents.create)
+  const topNavButtonClass = 'flex items-center gap-2'
+  const isHomeActive = pathname === '/'
+  const isAnalyticsActive = pathname.startsWith('/analytics')
+  const isLeechCardsActive = pathname.startsWith('/study-leeches')
 
   const documents = data?.pages.flatMap((p) => p.page) || []
 
@@ -72,7 +79,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/' })}
             tooltip="Home"
-            className="flex items-center gap-2 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/20"
+            isActive={isHomeActive}
+            className={topNavButtonClass}
           >
             <Home className="h-4 w-4" />
             <span>Home</span>
@@ -80,7 +88,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/analytics' })}
             tooltip="Analytics"
-            className="flex items-center gap-2"
+            isActive={isAnalyticsActive}
+            className={topNavButtonClass}
           >
             <BarChart3 className="h-4 w-4" />
             <span>Analytics</span>
@@ -88,7 +97,8 @@ export function DocumentSidebarContent() {
           <SidebarMenuButton
             onClick={() => navigate({ to: '/study-leeches' })}
             tooltip="Leech Cards"
-            className="flex items-center gap-2"
+            isActive={isLeechCardsActive}
+            className={topNavButtonClass}
           >
             <AlertTriangle className="h-4 w-4" />
             <span>Leech Cards</span>

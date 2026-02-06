@@ -42,7 +42,7 @@ code {
   --nf-muted-fg: oklch(0.552 0.016 285.938);
   --nf-border: oklch(0.92 0.004 286.32);
   --nf-ring: oklch(0.52 0.02 286.286);
-  --nf-accent: oklch(0.577 0.245 27.325);
+  --nf-accent: oklch(0.62 0.19 52);
   --nf-accent-soft: oklch(0.967 0.001 286.375);
   --nf-destructive: oklch(0.577 0.245 27.325);
   --nf-space-1: 0.5rem;
@@ -64,6 +64,7 @@ code {
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: var(--nf-muted);
   --muted-foreground: var(--nf-muted-fg);
+  /* Keep --accent on --nf-accent-soft; reserve --nf-accent and --nf-destructive for distinct semantic intents. */
   --accent: var(--nf-accent-soft);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: var(--nf-destructive);

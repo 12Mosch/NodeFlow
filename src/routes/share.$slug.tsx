@@ -134,6 +134,9 @@ type SharedDocument = {
   permission: 'view' | 'edit'
 }
 
+const sharedDocumentPagePaddingClass = 'px-4 sm:px-6 lg:px-8'
+const sharedDocumentPageBreakoutClass = '-mx-4 sm:-mx-6 lg:-mx-8'
+
 function SharedDocumentWithPresence({
   document,
 }: {
@@ -155,8 +158,12 @@ function SharedDocumentWithPresence({
   const isReadOnly = document.permission === 'view'
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-      <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div
+      className={`mx-auto flex min-h-screen w-full max-w-6xl flex-col ${sharedDocumentPagePaddingClass}`}
+    >
+      <header
+        className={`sticky top-0 z-50 ${sharedDocumentPageBreakoutClass} border-b border-border/70 bg-background/95 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 ${sharedDocumentPagePaddingClass}`}
+      >
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0 space-y-2">
             <p className="nf-meta-label text-muted-foreground">Public Share</p>

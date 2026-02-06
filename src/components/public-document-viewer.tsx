@@ -138,7 +138,7 @@ function EditorContentWrapper() {
   return (
     <EditorContent
       editor={editor}
-      className="prose prose-zinc dark:prose-invert flex max-w-none flex-1 flex-col focus:outline-none [&_.ProseMirror]:mx-auto [&_.ProseMirror]:w-full [&_.ProseMirror]:max-w-4xl [&_.ProseMirror]:flex-1 [&_.ProseMirror]:px-4 [&_.ProseMirror]:py-5 [&_.ProseMirror]:outline-none sm:[&_.ProseMirror]:px-6"
+      className="flex flex-1 flex-col [&_.ProseMirror]:mx-auto [&_.ProseMirror]:w-full [&_.ProseMirror]:max-w-4xl [&_.ProseMirror]:flex-1 [&_.ProseMirror]:px-4 [&_.ProseMirror]:py-5 [&_.ProseMirror]:outline-none sm:[&_.ProseMirror]:px-6"
     />
   )
 }

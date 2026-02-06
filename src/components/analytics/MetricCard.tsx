@@ -18,22 +18,6 @@ const metricValueVariants = cva('tracking-tight text-foreground', {
   },
 })
 
-const metricLabelVariants = cva(
-  'text-[0.625rem] leading-none font-medium tracking-[0.2em] text-muted-foreground uppercase',
-  {
-    variants: {
-      variant: {
-        hero: '',
-        default: '',
-        compact: '',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-    },
-  },
-)
-
 const metricContentVariants = cva('space-y-1 px-4', {
   variants: {
     variant: {
@@ -76,7 +60,13 @@ function MetricCard({
       className={className}
     >
       <div className={cn(metricContentVariants({ variant }))}>
-        <p className={cn(metricLabelVariants({ variant }))}>{label}</p>
+        <p
+          className={cn(
+            'text-[0.625rem] leading-none font-medium tracking-[0.2em] text-muted-foreground uppercase',
+          )}
+        >
+          {label}
+        </p>
         <p
           className={cn(
             metricValueVariants({ variant, className: valueClassName }),

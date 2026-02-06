@@ -36,7 +36,7 @@ function ChartFrame({
       <div
         data-slot="chart-frame-body"
         className={cn(
-          'rounded-lg border border-border/60 bg-muted/20 p-3',
+          'rounded-lg border border-border/60 bg-muted/20 p-4',
           frameClassName,
         )}
       >

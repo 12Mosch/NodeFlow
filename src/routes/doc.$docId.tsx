@@ -256,19 +256,24 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         onOpenChange={setShowShareDialog}
       />
 
-      {/* Document title */}
-      <DocumentTitle document={document} />
-
-      {/* Editor - grows to fill remaining space */}
+      {/* Writing surface */}
       <div className="flex flex-1 flex-col pb-10">
-        <TiptapEditor
-          documentId={docId}
-          onEditorReady={setEditor}
-          previewBlocks={blocks}
-          collaborators={collaborators}
-          onCursorChange={updateCursor}
-          searchQuery={searchQuery}
-        />
+        <div className="flex flex-1 flex-col overflow-hidden rounded-b-2xl border-x border-b border-border/70 bg-card/50 shadow-xs">
+          <div className="px-4 sm:px-6">
+            <DocumentTitle document={document} />
+          </div>
+          <div className="flex flex-1 flex-col">
+            <TiptapEditor
+              documentId={docId}
+              onEditorReady={setEditor}
+              previewBlocks={blocks}
+              collaborators={collaborators}
+              onCursorChange={updateCursor}
+              searchQuery={searchQuery}
+              variant="plain"
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

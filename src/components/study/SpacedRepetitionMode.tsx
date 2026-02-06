@@ -61,6 +61,13 @@ export function SpacedRepetitionMode({
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
   const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
   const totalDue = dueCards.length + newCards.length
+  const readiness =
+    totalDue > 0
+      ? Math.min(
+          100,
+          Math.max(0, Math.round((stats.reviewedToday / totalDue) * 100)),
+        )
+      : 0
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
@@ -187,9 +194,9 @@ export function SpacedRepetitionMode({
                       <div className="space-y-2">
                         <div className="nf-meta-label flex justify-between text-muted-foreground">
                           <span>Queue readiness</span>
-                          <span>0%</span>
+                          <span>{readiness}%</span>
                         </div>
-                        <Progress value={0} className="h-2" />
+                        <Progress value={readiness} className="h-2" />
                       </div>
 
                       <Button

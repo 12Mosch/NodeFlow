@@ -18,6 +18,7 @@ import type { Id } from '../../convex/_generated/dataModel'
 import type { LearnCard as LearnCardType, Rating } from './learn/types'
 import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
 
 interface DocumentLearnQuizProps {
@@ -471,26 +472,19 @@ export function DocumentLearnQuiz({
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <div className="flex items-center gap-3">
-              {lastRating && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleUndo}
-                  className={`gap-2 transition-opacity duration-300 ${
-                    undoVisible
-                      ? 'opacity-100'
-                      : 'pointer-events-none opacity-0'
-                  }`}
-                >
-                  <Undo2 className="h-4 w-4" />
-                  Undo
-                </Button>
-              )}
-              <div className="text-sm text-muted-foreground">
-                Reviewed: {reviewedCount}
-              </div>
-            </div>
+            {lastRating && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUndo}
+                className={`gap-2 transition-opacity duration-300 ${
+                  undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+                }`}
+              >
+                <Undo2 className="h-4 w-4" />
+                Undo
+              </Button>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -514,34 +508,9 @@ export function DocumentLearnQuiz({
 
       <AnalyticsCard muted className="px-6">
         <p className="py-1 text-center text-xs text-muted-foreground">
-          Press{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            Space
-          </kbd>{' '}
-          to reveal, then{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            1
-          </kbd>
-          -
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            4
-          </kbd>{' '}
-          to rate. Undo:{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            U
-          </kbd>{' '}
-          or{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            Ctrl
-          </kbd>
-          /
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            Cmd
-          </kbd>
-          +
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            Z
-          </kbd>
+          Press <Kbd>Space</Kbd> to reveal, then <Kbd>1</Kbd>-<Kbd>4</Kbd> to
+          rate. Undo: <Kbd>U</Kbd> or <Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+
+          <Kbd>Z</Kbd>
         </p>
       </AnalyticsCard>
     </div>

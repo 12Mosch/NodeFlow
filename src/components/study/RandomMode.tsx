@@ -7,7 +7,11 @@ import { ArrowLeft, GraduationCap, Shuffle } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { StudyState } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { DocumentSelector, FlashcardQuiz } from '@/components/flashcards'
+import {
+  DocumentSelector,
+  FlashcardQuiz,
+  computeExpandedCardCount,
+} from '@/components/flashcards'
 import {
   AnalyticsCard,
   AnalyticsSection,
@@ -38,9 +42,7 @@ export function RandomMode({
   const documents = flashcardData
 
   const selectedDocCount = selectedDocIds.size
-  const selectedCardCount = documents
-    .filter((doc) => selectedDocIds.has(doc.document._id))
-    .reduce((sum, doc) => sum + doc.flashcards.length, 0)
+  const selectedCardCount = computeExpandedCardCount(documents, selectedDocIds)
 
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {

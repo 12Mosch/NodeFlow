@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Shuffle } from 'lucide-react'
 import { FlashcardItem } from './flashcard-item'
 import { QuizResults } from './quiz-results'
+import { expandCardsForQuiz } from './quiz-card-expansion'
 import type { FlashcardWithDocument, QuizCard, QuizResult } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 
 interface FlashcardQuizProps {
   documents: Array<FlashcardWithDocument>
@@ -32,58 +34,10 @@ export function FlashcardQuiz({
   onGoHome,
 }: FlashcardQuizProps) {
   // Build the cards list from selected documents
-  const allCards = useMemo(() => {
-    const cards: Array<QuizCard> = []
-
-    for (const docData of documents) {
-      if (!selectedDocIds.has(docData.document._id)) continue
-
-      for (const block of docData.flashcards) {
-        // Cloze cards have no direction concept — add exactly once.
-        if (block.cardType === 'cloze') {
-          cards.push({
-            block,
-            documentTitle: docData.document.title || 'Untitled',
-            // `QuizCard` requires a direction; treat cloze as a single (forward) prompt.
-            direction: 'forward',
-          })
-          continue
-        }
-
-        // Add forward direction
-        if (
-          block.cardDirection === 'forward' ||
-          block.cardDirection === 'bidirectional'
-        ) {
-          cards.push({
-            block,
-            documentTitle: docData.document.title || 'Untitled',
-            direction: 'forward',
-          })
-        }
-
-        // Add reverse direction for bidirectional cards
-        if (block.cardDirection === 'bidirectional') {
-          cards.push({
-            block,
-            documentTitle: docData.document.title || 'Untitled',
-            direction: 'reverse',
-          })
-        }
-
-        // Reverse-only cards
-        if (block.cardDirection === 'reverse') {
-          cards.push({
-            block,
-            documentTitle: docData.document.title || 'Untitled',
-            direction: 'reverse',
-          })
-        }
-      }
-    }
-
-    return cards
-  }, [documents, selectedDocIds])
+  const allCards = useMemo(
+    () => expandCardsForQuiz(documents, selectedDocIds),
+    [documents, selectedDocIds],
+  )
 
   const [shuffledCards, setShuffledCards] = useState<Array<QuizCard>>(() =>
     shuffleArray(allCards),
@@ -277,19 +231,8 @@ export function FlashcardQuiz({
 
       <AnalyticsCard muted className="px-6">
         <p className="py-1 text-center text-xs text-muted-foreground">
-          Press{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            Space
-          </kbd>{' '}
-          to reveal answer, then{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            1
-          </kbd>{' '}
-          or{' '}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-            2
-          </kbd>{' '}
-          to answer
+          Press <Kbd>Space</Kbd> to reveal answer, then <Kbd>1</Kbd> or{' '}
+          <Kbd>2</Kbd> to answer
         </p>
       </AnalyticsCard>
     </div>

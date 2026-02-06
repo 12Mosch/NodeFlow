@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Tooltip,
@@ -42,7 +41,7 @@ export function CollaboratorAvatars({
     collaborators.slice(maxVisible)
 
   return (
-    <div className="flex items-center -space-x-2.5">
+    <div className="flex items-center -space-x-2">
       {visibleCollaborators.map((user, index) => (
         <Tooltip key={user.id}>
           <TooltipTrigger
@@ -66,8 +65,8 @@ export function CollaboratorAvatars({
             </Avatar>
             {/* Accent ring keeps avatars legible in both light and dark themes */}
             <span
-              className="pointer-events-none absolute inset-0 rounded-full ring-1"
-              style={{ '--tw-ring-color': user.color } as CSSProperties}
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{ boxShadow: `0 0 0 1px ${user.color}` }}
             />
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={8}>

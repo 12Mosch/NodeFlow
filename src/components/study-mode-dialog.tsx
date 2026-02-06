@@ -173,9 +173,8 @@ export function StudyModeDialog({
                 role="button"
                 aria-label={`${modeData.label}. Press ${modeData.shortcut} or Enter to select.`}
                 className={cn(
-                  'cursor-pointer border-border/70 bg-card/80 transition-all hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-lg focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none',
-                  isSelected &&
-                    'border-primary/80 bg-primary/5 shadow-lg ring-2 ring-ring',
+                  'cursor-pointer border-border/70 bg-card/80 transition-all hover:-translate-y-0.5 hover:border-primary/70 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  isSelected && 'border-primary/80 bg-primary/5 shadow-lg',
                 )}
                 onClick={() => handleSelect(modeData.mode)}
                 onKeyDown={(e) => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { useRouter } from '@tanstack/react-router'
@@ -613,6 +613,9 @@ function RetentionChart({
   }
   summary: string
 }) {
+  const chartId = useId()
+  const titleId = `${chartId}-title`
+  const summaryId = `${chartId}-summary`
   const width = 640
   const height = 200
   const padding = 24
@@ -648,10 +651,10 @@ function RetentionChart({
       viewBox={`0 0 ${width} ${height}`}
       className="h-48 w-full"
       role="img"
-      aria-labelledby="retention-chart-title retention-chart-summary"
+      aria-labelledby={`${titleId} ${summaryId}`}
     >
-      <title id="retention-chart-title">Retention chart</title>
-      <desc id="retention-chart-summary">{summary}</desc>
+      <title id={titleId}>Retention chart</title>
+      <desc id={summaryId}>{summary}</desc>
       <g className="text-muted-foreground/35">
         {[0, 25, 50, 75, 100].map((value) => {
           const y = padding + (1 - value / 100) * (height - padding * 2)
@@ -719,6 +722,9 @@ function DonutChart({
   segments: Array<{ label: string; value: number; color: string }>
   summary: string
 }) {
+  const chartId = useId()
+  const titleId = `${chartId}-title`
+  const summaryId = `${chartId}-summary`
   const radius = 44
   const strokeWidth = 12
   const circumference = 2 * Math.PI * radius
@@ -755,10 +761,10 @@ function DonutChart({
         viewBox="0 0 120 120"
         className="h-full w-full"
         role="img"
-        aria-labelledby="difficulty-chart-title difficulty-chart-summary"
+        aria-labelledby={`${titleId} ${summaryId}`}
       >
-        <title id="difficulty-chart-title">Difficulty distribution chart</title>
-        <desc id="difficulty-chart-summary">{summary}</desc>
+        <title id={titleId}>Difficulty distribution chart</title>
+        <desc id={summaryId}>{summary}</desc>
         <g transform="rotate(-90 60 60)">
           {segmentData.map((segment) => {
             const strokeDasharray = `${segment.dash} ${
@@ -798,6 +804,8 @@ function HourlyChart({
   offsetMinutes: number
   summary: string
 }) {
+  const chartId = useId()
+  const summaryId = `${chartId}-summary`
   const orderedData = data
     .map((hour) => ({
       ...hour,
@@ -826,7 +834,7 @@ function HourlyChart({
     <div
       role="img"
       aria-label="Hourly performance chart"
-      aria-describedby="hourly-chart-summary"
+      aria-describedby={summaryId}
     >
       <div className="flex items-end gap-1">
         {orderedData.map((hour) => {
@@ -857,7 +865,7 @@ function HourlyChart({
           <span key={`${label}-${index}`}>{label}</span>
         ))}
       </div>
-      <p id="hourly-chart-summary" className="sr-only">
+      <p id={summaryId} className="sr-only">
         {summary}
       </p>
     </div>
@@ -871,13 +879,15 @@ function ForecastChart({
   data: Array<{ date: number; count: number }>
   summary: string
 }) {
+  const chartId = useId()
+  const summaryId = `${chartId}-summary`
   const maxCount = Math.max(1, ...data.map((day) => day.count))
 
   return (
     <div
       role="img"
       aria-label="30-day forecast chart"
-      aria-describedby="forecast-chart-summary"
+      aria-describedby={summaryId}
     >
       <div className="flex items-end gap-1">
         {data.map((day, index) => (
@@ -898,7 +908,7 @@ function ForecastChart({
         <span>Day 15</span>
         <span>Day 30</span>
       </div>
-      <p id="forecast-chart-summary" className="sr-only">
+      <p id={summaryId} className="sr-only">
         {summary}
       </p>
     </div>

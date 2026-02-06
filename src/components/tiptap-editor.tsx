@@ -86,6 +86,8 @@ interface TiptapEditorProps {
   ) => void
   /** Search query to highlight in the document */
   searchQuery?: string
+  /** Visual wrapper style for embedding in parent layouts */
+  variant?: 'card' | 'plain'
 }
 
 const EMPTY_DOC = { type: 'doc', content: [] }
@@ -120,9 +122,11 @@ export function TiptapEditor({
   collaborators = [],
   onCursorChange,
   searchQuery,
+  variant = 'card',
 }: TiptapEditorProps) {
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
+  const hasCardChrome = variant === 'card'
 
   // Store editor instance for math onClick handlers
   const editorRef = useRef<Editor | null>(null)
@@ -387,14 +391,26 @@ export function TiptapEditor({
     // Show cached preview content if available, otherwise show loading indicator
     if (previewBlocks && previewBlocks.length > 0) {
       return (
-        <div className="flex w-full flex-1 flex-col rounded-2xl border border-border/70 bg-card/50 shadow-xs">
+        <div
+          className={
+            hasCardChrome
+              ? 'flex w-full flex-1 flex-col rounded-2xl border border-border/70 bg-card/50 shadow-xs'
+              : 'flex w-full flex-1 flex-col'
+          }
+        >
           <DocumentPreview blocks={previewBlocks} />
         </div>
       )
     }
 
     return (
-      <div className="flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 shadow-xs">
+      <div
+        className={
+          hasCardChrome
+            ? 'flex h-64 items-center justify-center rounded-2xl border border-border/70 bg-card/50 shadow-xs'
+            : 'flex h-64 items-center justify-center'
+        }
+      >
         <div className="animate-pulse text-muted-foreground">
           {isLoading ? 'Loading document...' : 'Initializing document...'}
         </div>
@@ -412,6 +428,7 @@ export function TiptapEditor({
         <EditorContentWrapper
           documentId={documentId}
           onEditorReady={handleEditorReady}
+          variant={variant}
         />
       </EditorProvider>
     </div>
@@ -429,9 +446,11 @@ interface MathEditorState {
 function EditorContentWrapper({
   documentId,
   onEditorReady,
+  variant,
 }: {
   documentId: Id<'documents'>
   onEditorReady?: (editor: Editor) => void
+  variant: 'card' | 'plain'
 }) {
   const { editor } = useCurrentEditor()
   const navigate = useNavigate()
@@ -817,7 +836,13 @@ function EditorContentWrapper({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xs">
+    <div
+      className={
+        variant === 'card'
+          ? 'flex flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xs'
+          : 'flex flex-1 flex-col overflow-hidden'
+      }
+    >
       {/* Hidden file input for image uploads triggered by slash commands */}
       <input
         ref={fileInputRef}
