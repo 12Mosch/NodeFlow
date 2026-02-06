@@ -142,6 +142,37 @@ export function AnalyticsDashboard() {
     (hour) => hour.total > 0,
   )
   const hasForecast = data.forecast.duePerDay.some((day) => day.count > 0)
+  const hourlyRates = data.time.hourlyPerformance
+    .map((hour) => hour.rate)
+    .filter((rate): rate is number => rate !== null)
+  const peakHourlyRate =
+    hourlyRates.length > 0 ? Math.max(...hourlyRates) : null
+
+  const retentionSummary = hasReviews
+    ? `Latest rolling retention is ${formatPercent(latest7)} for 7-day, ${formatPercent(latest30)} for 30-day, and ${formatPercent(latest90)} for 90-day performance.`
+    : 'No retention trend data is available yet.'
+
+  const difficultySummary =
+    data.difficulty.total === 0
+      ? 'No active cards are available for difficulty distribution.'
+      : `${data.difficulty.total} active cards by bucket: ${data.difficulty.buckets
+          .map((bucket) => `${bucket.label} ${bucket.count}`)
+          .join(', ')}.`
+
+  const hourlySummary = hasHourlyPerformance
+    ? peakHoursLabel.length > 0
+      ? `Best local hours are ${peakHoursLabel
+          .slice(0, 3)
+          .map((hour) => `${hour.label} at ${formatPercent(hour.rate)}`)
+          .join(
+            ', ',
+          )}. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
+      : `Hourly data is available but no peak hours can be highlighted. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
+    : 'No hourly performance data is available yet.'
+
+  const forecastSummary = hasForecast
+    ? `In the next 30 days, ${data.forecast.totalDueNext30.toLocaleString()} cards are due, averaging ${data.forecast.averagePerDay.toFixed(1)} cards per day with a highest day of ${peakDayValue} cards.`
+    : 'No upcoming review load is scheduled yet.'
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -225,7 +256,10 @@ export function AnalyticsDashboard() {
                 isEmpty={!hasReviews}
                 empty="No review data yet. Complete a few reviews to unlock retention curves."
               >
-                <RetentionChart series={retentionSeries} />
+                <RetentionChart
+                  series={retentionSeries}
+                  summary={retentionSummary}
+                />
               </ChartFrame>
             </AnalyticsCard>
 
@@ -251,7 +285,7 @@ export function AnalyticsDashboard() {
                       <div className="h-2 rounded-full bg-muted">
                         <div
                           className={cn(
-                            'h-2 rounded-full transition-all',
+                            'h-2 rounded-full transition-[width] motion-reduce:transition-none',
                             item.rate === null ? 'bg-muted-foreground/30' : '',
                             item.cardType === 'basic' && 'bg-zinc-500',
                             item.cardType === 'concept' && 'bg-violet-500',
@@ -315,7 +349,7 @@ export function AnalyticsDashboard() {
                         <div className="h-2 rounded-full bg-muted">
                           <div
                             className={cn(
-                              'h-2 rounded-full transition-all',
+                              'h-2 rounded-full transition-[width] motion-reduce:transition-none',
                               bucket.rate === null
                                 ? 'bg-muted-foreground/30'
                                 : '',
@@ -365,6 +399,7 @@ export function AnalyticsDashboard() {
                           color: difficultyColors[index],
                         }),
                       )}
+                      summary={difficultySummary}
                     />
                     <div className="space-y-2">
                       {data.difficulty.buckets.map((bucket, index) => (
@@ -439,6 +474,7 @@ export function AnalyticsDashboard() {
                   <HourlyChart
                     data={data.time.hourlyPerformance}
                     offsetMinutes={offsetMinutes}
+                    summary={hourlySummary}
                   />
                 </ChartFrame>
 
@@ -494,7 +530,10 @@ export function AnalyticsDashboard() {
                   isEmpty={!hasForecast}
                   empty="No upcoming reviews scheduled yet."
                 >
-                  <ForecastChart data={data.forecast.duePerDay} />
+                  <ForecastChart
+                    data={data.forecast.duePerDay}
+                    summary={forecastSummary}
+                  />
                 </ChartFrame>
               </div>
             </AnalyticsCard>
@@ -565,12 +604,14 @@ function EmptyState({ message }: { message: string }) {
 
 function RetentionChart({
   series,
+  summary,
 }: {
   series: {
     seven: Array<number | null>
     thirty: Array<number | null>
     ninety: Array<number | null>
   }
+  summary: string
 }) {
   const width = 640
   const height = 200
@@ -606,9 +647,11 @@ function RetentionChart({
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className="h-48 w-full"
-      aria-label="Retention chart"
       role="img"
+      aria-labelledby="retention-chart-title retention-chart-summary"
     >
+      <title id="retention-chart-title">Retention chart</title>
+      <desc id="retention-chart-summary">{summary}</desc>
       <g className="text-muted-foreground/35">
         {[0, 25, 50, 75, 100].map((value) => {
           const y = padding + (1 - value / 100) * (height - padding * 2)
@@ -670,9 +713,11 @@ function getCardTypeLabel(cardType: string) {
 function DonutChart({
   total,
   segments,
+  summary,
 }: {
   total: number
   segments: Array<{ label: string; value: number; color: string }>
+  summary: string
 }) {
   const radius = 44
   const strokeWidth = 12
@@ -709,8 +754,11 @@ function DonutChart({
       <svg
         viewBox="0 0 120 120"
         className="h-full w-full"
-        aria-label="Difficulty distribution"
+        role="img"
+        aria-labelledby="difficulty-chart-title difficulty-chart-summary"
       >
+        <title id="difficulty-chart-title">Difficulty distribution chart</title>
+        <desc id="difficulty-chart-summary">{summary}</desc>
         <g transform="rotate(-90 60 60)">
           {segmentData.map((segment) => {
             const strokeDasharray = `${segment.dash} ${
@@ -744,9 +792,11 @@ function DonutChart({
 function HourlyChart({
   data,
   offsetMinutes,
+  summary,
 }: {
   data: Array<HourlyPerformance>
   offsetMinutes: number
+  summary: string
 }) {
   const orderedData = data
     .map((hour) => ({
@@ -773,7 +823,11 @@ function HourlyChart({
         })
 
   return (
-    <div>
+    <div
+      role="img"
+      aria-label="Hourly performance chart"
+      aria-describedby="hourly-chart-summary"
+    >
       <div className="flex items-end gap-1">
         {orderedData.map((hour) => {
           const height = hour.rate === null ? 0 : (hour.rate / maxRate) * 100
@@ -787,7 +841,7 @@ function HourlyChart({
             >
               <div
                 className={cn(
-                  'w-full rounded-md transition-all',
+                  'w-full rounded-md transition-[height] motion-reduce:transition-none',
                   hour.rate === null
                     ? 'bg-muted-foreground/30'
                     : 'bg-emerald-500',
@@ -803,25 +857,34 @@ function HourlyChart({
           <span key={`${label}-${index}`}>{label}</span>
         ))}
       </div>
+      <p id="hourly-chart-summary" className="sr-only">
+        {summary}
+      </p>
     </div>
   )
 }
 
 function ForecastChart({
   data,
+  summary,
 }: {
   data: Array<{ date: number; count: number }>
+  summary: string
 }) {
   const maxCount = Math.max(1, ...data.map((day) => day.count))
 
   return (
-    <div>
+    <div
+      role="img"
+      aria-label="30-day forecast chart"
+      aria-describedby="forecast-chart-summary"
+    >
       <div className="flex items-end gap-1">
         {data.map((day, index) => (
           <div key={day.date} className="flex h-20 flex-1 items-end">
             <div
               className={cn(
-                'w-full rounded-md transition-all',
+                'w-full rounded-md transition-[height] motion-reduce:transition-none',
                 day.count === 0 ? 'bg-muted-foreground/30' : 'bg-indigo-500',
               )}
               style={{ height: `${(day.count / maxCount) * 100}%` }}
@@ -835,6 +898,9 @@ function ForecastChart({
         <span>Day 15</span>
         <span>Day 30</span>
       </div>
+      <p id="forecast-chart-summary" className="sr-only">
+        {summary}
+      </p>
     </div>
   )
 }

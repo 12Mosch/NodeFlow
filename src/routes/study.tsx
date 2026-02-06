@@ -64,7 +64,7 @@ function StudyPage() {
         fallback={
           <div className="flex min-h-screen items-center justify-center p-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-4 py-2 text-sm text-muted-foreground shadow-xs">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               <span>Loading study workspace...</span>
             </div>
           </div>
