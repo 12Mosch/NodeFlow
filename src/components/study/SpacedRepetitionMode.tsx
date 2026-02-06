@@ -141,7 +141,7 @@ export function SpacedRepetitionMode({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <AlertTriangle className="h-4 w-4" />
-                        <span className="text-sm font-semibold tracking-[0.18em] uppercase">
+                        <span className="nf-meta-label text-amber-600 dark:text-amber-400">
                           Attention
                         </span>
                       </div>
@@ -185,7 +185,7 @@ export function SpacedRepetitionMode({
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex justify-between text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                        <div className="nf-meta-label flex justify-between text-muted-foreground">
                           <span>Queue readiness</span>
                           <span>0%</span>
                         </div>

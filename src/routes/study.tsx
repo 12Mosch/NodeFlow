@@ -1,6 +1,7 @@
 import { Suspense, startTransition, useEffect, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { convexQuery } from '@convex-dev/react-query'
+import * as Sentry from '@sentry/tanstackstart-react'
 import { Loader2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { StudyState } from '@/components/study/types'
@@ -26,27 +27,32 @@ export const Route = createFileRoute('/study')({
     const searchParams = new URLSearchParams(location.search)
     const mode = searchParams.get('mode')
 
-    // Conditionally load data based on selected mode
-    // React Query will cache it, so mode switching within a session is still fast
-    if (mode === 'spaced-repetition') {
-      await Promise.all([
-        context.queryClient.ensureQueryData(
-          convexQuery(api.cardStates.getStats, {}),
-        ),
-        context.queryClient.ensureQueryData(
-          convexQuery(api.cardStates.getLearnSession, {}),
-        ),
-      ])
-    } else if (mode === 'random') {
-      await context.queryClient.ensureQueryData(
-        convexQuery(api.blocks.listAllFlashcards, {}),
-      )
-    } else {
-      // No mode selected - only load stats for potential dialog display
-      await context.queryClient.ensureQueryData(
-        convexQuery(api.cardStates.getStats, {}),
-      )
-    }
+    await Sentry.startSpan(
+      { name: 'study.prefetch', op: 'navigation' },
+      async () => {
+        // Conditionally load data based on selected mode
+        // React Query will cache it, so mode switching within a session is still fast
+        if (mode === 'spaced-repetition') {
+          await Promise.all([
+            context.queryClient.ensureQueryData(
+              convexQuery(api.cardStates.getStats, {}),
+            ),
+            context.queryClient.ensureQueryData(
+              convexQuery(api.cardStates.getLearnSession, {}),
+            ),
+          ])
+        } else if (mode === 'random') {
+          await context.queryClient.ensureQueryData(
+            convexQuery(api.blocks.listAllFlashcards, {}),
+          )
+        } else {
+          // No mode selected - only load stats for potential dialog display
+          await context.queryClient.ensureQueryData(
+            convexQuery(api.cardStates.getStats, {}),
+          )
+        }
+      },
+    )
   },
   component: StudyPage,
 })
