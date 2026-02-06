@@ -53,12 +53,12 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
     | undefined
 
   // Fetch document title if this is a document link
-  const { data: linkedDocument } = useQuery({
-    ...convexQuery(api.documents.get, {
-      id: currentDocumentId as Id<'documents'>,
-    }),
-    enabled: !!currentDocumentId,
-  })
+  const { data: linkedDocument } = useQuery(
+    convexQuery(
+      api.documents.get,
+      currentDocumentId ? { id: currentDocumentId as Id<'documents'> } : 'skip',
+    ),
+  )
 
   // When popover is open, use the mode state (allows tab toggling).
   // When closed/opening, initialize based on whether it's a document link.
