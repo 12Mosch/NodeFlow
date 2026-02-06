@@ -141,12 +141,14 @@ export function ShareDialog({
     }
   }
 
-  if (settings === undefined || settings === null) {
+  if (settings == null) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl border border-border/70 bg-card/95 shadow-xl">
           <div className="py-8 text-center text-muted-foreground">
-            Loading...
+            <span className="inline-flex rounded-full border border-border/70 bg-muted/40 px-3 py-1.5 text-sm">
+              Loading...
+            </span>
           </div>
         </DialogContent>
       </Dialog>
@@ -155,9 +157,11 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-125">
-        <DialogHeader>
-          <DialogTitle>Share Document</DialogTitle>
+      <DialogContent className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-125">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="nf-type-display text-3xl text-foreground">
+            Share Document
+          </DialogTitle>
           <DialogDescription>
             Create a public link to share this document with anyone.
           </DialogDescription>
@@ -165,7 +169,7 @@ export function ShareDialog({
 
         <div className="space-y-4 py-4">
           {/* Enable/disable sharing toggle */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/25 px-4 py-3">
             <Label htmlFor="public-sharing">Enable public sharing</Label>
             <Switch
               id="public-sharing"
@@ -177,19 +181,20 @@ export function ShareDialog({
           {settings.isPublic && (
             <>
               {/* Permission level selector */}
-              <div className="space-y-2">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-card px-4 py-3">
                 <Label>Permission level</Label>
                 <RadioGroup
                   value={settings.publicPermission}
                   onValueChange={handlePermissionChange}
+                  className="space-y-2"
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                     <RadioGroupItem value="view" id="view" />
                     <Label htmlFor="view" className="font-normal">
                       View only
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                     <RadioGroupItem value="edit" id="edit" />
                     <Label htmlFor="edit" className="font-normal">
                       Can edit
@@ -199,17 +204,17 @@ export function ShareDialog({
               </div>
 
               {/* Share link with copy button */}
-              <div className="space-y-2">
+              <div className="space-y-2 rounded-xl border border-border/70 bg-card px-4 py-3">
                 <Label>Share link</Label>
                 <div className="flex gap-2">
                   <Input
                     readOnly
                     value={shareUrl ?? ''}
-                    className="font-mono text-sm"
+                    className="border-border/70 bg-muted/30 font-mono text-sm"
                   />
                   <Button
                     variant="outline"
-                    size="icon"
+                    size="icon-sm"
                     onClick={handleCopyLink}
                   >
                     <Copy className="h-4 w-4" />
@@ -219,10 +224,10 @@ export function ShareDialog({
 
               {/* Regenerate link button */}
               <Button
-                variant="ghost"
+                variant="subtle"
                 size="sm"
                 onClick={handleRegenerateLink}
-                className="text-muted-foreground"
+                className="w-full justify-center text-muted-foreground"
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Generate new link (invalidates current)

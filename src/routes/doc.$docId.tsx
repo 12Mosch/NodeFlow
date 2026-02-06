@@ -163,19 +163,27 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
 
   // Show loading only when there's no cached data and we're fetching
   if (isPending) {
-    return <div className="p-8 text-muted-foreground">Loading document...</div>
+    return (
+      <div className="p-8 text-muted-foreground">
+        <div className="inline-flex items-center rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-sm shadow-xs">
+          Loading document...
+        </div>
+      </div>
+    )
   }
 
   if (!document) {
     return (
-      <div className="mx-auto max-w-4xl p-8 text-center">
-        <h1 className="mb-4 text-3xl font-bold">Document not found</h1>
-        <p className="mb-6 text-muted-foreground">
-          This document doesn't exist or you don't have access to it.
-        </p>
-        <Link to="/" className="text-primary hover:underline">
-          Go back home
-        </Link>
+      <div className="mx-auto max-w-4xl p-8">
+        <div className="rounded-2xl border border-border/70 bg-card/60 px-6 py-14 text-center shadow-xs">
+          <h1 className="mb-4 text-3xl font-bold">Document not found</h1>
+          <p className="mb-6 text-muted-foreground">
+            This document doesn't exist or you don't have access to it.
+          </p>
+          <Link to="/" className="text-primary hover:underline">
+            Go back home
+          </Link>
+        </div>
       </div>
     )
   }
@@ -249,7 +257,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       <DocumentTitle document={document} />
 
       {/* Editor - grows to fill remaining space */}
-      <div className="flex flex-1 flex-col pb-8">
+      <div className="flex flex-1 flex-col pb-10">
         <TiptapEditor
           documentId={docId}
           onEditorReady={setEditor}
@@ -306,10 +314,10 @@ function MinimalHeader({
   }, [editor])
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-1 px-4 py-2">
-        <SidebarTrigger />
-        <div className="flex items-center gap-1">
+    <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 lg:-mx-8">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-8">
+        <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+        <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-card/70 p-1.5 shadow-xs">
           {/* Study button - only show if there are flashcards */}
           {flashcardCount > 0 && (
             <>
@@ -333,8 +341,8 @@ function MinimalHeader({
           {/* Undo/Redo */}
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
             onClick={() => editor?.chain().focus().undo().run()}
             disabled={!canUndo}
             title="Undo"
@@ -343,8 +351,8 @@ function MinimalHeader({
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
             onClick={() => editor?.chain().focus().redo().run()}
             disabled={!canRedo}
             title="Redo"
@@ -357,8 +365,8 @@ function MinimalHeader({
           {/* Search button */}
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
             title="Search (Ctrl+F)"
             aria-label="Open search"
             onClick={openSearch}
@@ -369,8 +377,8 @@ function MinimalHeader({
           {/* Share button */}
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
             title="Share"
             onClick={onShare}
           >
@@ -453,7 +461,8 @@ function DocumentTitle({
   }
 
   return (
-    <div className="pt-8 pb-2">
+    <div className="pt-8 pb-4 sm:pt-10">
+      <p className="nf-meta-label mb-2 text-muted-foreground">Document</p>
       {isEditing ? (
         <input
           ref={inputRefCallback}
@@ -462,7 +471,7 @@ function DocumentTitle({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="w-full bg-transparent text-3xl font-bold text-foreground outline-none placeholder:text-muted-foreground"
+          className="nf-type-display w-full bg-transparent pb-1 text-4xl text-foreground outline-none placeholder:text-muted-foreground sm:text-5xl"
           placeholder="Untitled"
         />
       ) : (
@@ -471,7 +480,7 @@ function DocumentTitle({
           onKeyDown={handleTitleKeyDown}
           tabIndex={0}
           role="button"
-          className="-mx-1 cursor-text rounded px-1 text-3xl font-bold text-foreground transition-colors hover:bg-accent/50 focus:bg-accent/50 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+          className="nf-type-display -mx-2 cursor-text rounded-lg px-2 pb-1 text-4xl text-foreground transition-colors hover:bg-accent/50 focus:bg-accent/50 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none sm:text-5xl"
         >
           {document.title || 'Untitled'}
         </h1>

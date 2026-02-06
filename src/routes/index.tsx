@@ -128,103 +128,124 @@ function DocumentList() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center p-8 text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading documents...
+      <div className="flex min-h-screen items-center justify-center p-8 text-muted-foreground">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-4 py-2 shadow-xs">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading documents...</span>
+        </div>
       </div>
     )
   }
 
   if (isError) {
     return (
-      <div className="flex h-screen items-center justify-center p-8 text-destructive">
-        Error loading documents: {queryError.message || 'Unknown error'}
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive shadow-xs">
+          Error loading documents: {queryError.message || 'Unknown error'}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Documents</h1>
-        <div className="flex items-center gap-2">
-          <ModeToggle />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={openSearch}
-            title="Search (Ctrl+F)"
-            aria-label="Open search"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setIsStudyDialogOpen(true)}
-          >
-            <GraduationCap className="h-4 w-4" />
-            Study
-          </Button>
-          <Button onClick={handleCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Document
-          </Button>
-        </div>
-      </div>
-
-      {documents.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <h2 className="mb-2 text-xl font-medium">No documents yet</h2>
-          <p className="mb-6 text-muted-foreground">
-            Create your first document to get started.
-          </p>
-          <Button onClick={handleCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Document
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {documents.map((doc) => (
-            <Link
-              key={doc._id}
-              to="/doc/$docId"
-              params={{ docId: doc._id }}
-              className="group flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent"
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-8">
+          <div className="space-y-2 lg:max-w-2xl xl:max-w-3xl">
+            <p className="nf-meta-label text-muted-foreground">Workspace</p>
+            <h1 className="nf-type-display text-4xl text-foreground sm:text-5xl">
+              Documents
+            </h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Capture ideas and iterate quickly from one consistent workspace.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/70 p-2 shadow-xs lg:ml-auto lg:shrink-0">
+            <ModeToggle />
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={openSearch}
+              title="Search (Ctrl+F)"
+              aria-label="Open search"
             >
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <h3 className="font-medium group-hover:text-accent-foreground">
-                    {doc.title || 'Untitled'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Updated {formatDate(doc.updatedAt)}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-                onClick={(e) => handleDelete(doc._id, e)}
-                aria-label="Delete document"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </Link>
-          ))}
-
-          {hasNextPage && <div ref={sentinelRef} className="h-1" />}
-          {isFetchingNextPage && (
-            <div className="mt-4 flex justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setIsStudyDialogOpen(true)}
+            >
+              <GraduationCap className="h-4 w-4" />
+              Study
+            </Button>
+            <Button size="sm" onClick={handleCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Document
+            </Button>
+          </div>
         </div>
-      )}
+      </header>
+
+      <div className="flex-1 py-6 sm:py-8">
+        {documents.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/70 bg-card/40 px-6 py-16 text-center shadow-xs">
+            <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h2 className="mb-2 text-2xl font-semibold text-foreground">
+              No documents yet
+            </h2>
+            <p className="mb-6 text-muted-foreground">
+              Create your first document to get started.
+            </p>
+            <Button onClick={handleCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Document
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {documents.map((doc) => (
+              <Link
+                key={doc._id}
+                to="/doc/$docId"
+                params={{ docId: doc._id }}
+                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                  <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-medium text-foreground">
+                      {doc.title || 'Untitled'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Updated {formatDate(doc.updatedAt)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(e) => handleDelete(doc._id, e)}
+                  aria-label="Delete document"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Link>
+            ))}
+
+            {hasNextPage && <div ref={sentinelRef} className="h-1" />}
+            {isFetchingNextPage && (
+              <div className="mt-4 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <StudyModeDialog
         open={isStudyDialogOpen}
