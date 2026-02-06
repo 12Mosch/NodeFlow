@@ -71,17 +71,17 @@ export function BulkActionsToolbar({
   }
 
   return (
-    <div className="sticky top-14.25 z-40 border-b bg-muted/80 backdrop-blur">
-      <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-sm font-medium">
+    <div className="sticky top-14 z-40 rounded-xl border border-border/70 bg-background/90 shadow-xs backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
           {selectedCount} card{selectedCount !== 1 ? 's' : ''} selected
         </span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onClearSelection}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onClearSelection}>
             Clear
           </Button>
           <Button
-            variant="outline"
+            variant="destructive"
             size="sm"
             onClick={handleBulkSuspend}
             className="gap-1"
@@ -89,7 +89,7 @@ export function BulkActionsToolbar({
             Suspend Selected
           </Button>
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
             onClick={handleBulkUnsuspend}
             className="gap-1"
