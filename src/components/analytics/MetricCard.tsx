@@ -3,7 +3,6 @@ import type { VariantProps } from 'class-variance-authority'
 import type { ReactNode } from 'react'
 
 import { AnalyticsCard } from '@/components/analytics/AnalyticsCard'
-import { cn } from '@/lib/utils'
 
 const metricValueVariants = cva('tracking-tight text-foreground', {
   variants: {
@@ -59,18 +58,15 @@ function MetricCard({
       }
       className={className}
     >
-      <div className={cn(metricContentVariants({ variant }))}>
-        <p
-          className={cn(
-            'text-[0.625rem] leading-none font-medium tracking-[0.2em] text-muted-foreground uppercase',
-          )}
-        >
+      <div className={metricContentVariants({ variant })}>
+        <p className="text-[0.625rem] leading-none font-medium tracking-[0.2em] text-muted-foreground uppercase">
           {label}
         </p>
         <p
-          className={cn(
-            metricValueVariants({ variant, className: valueClassName }),
-          )}
+          className={metricValueVariants({
+            variant,
+            className: valueClassName,
+          })}
         >
           {value}
         </p>

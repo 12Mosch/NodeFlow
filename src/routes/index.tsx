@@ -149,7 +149,7 @@ function DocumentList() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-      <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-8">
           <div className="space-y-2 lg:max-w-2xl xl:max-w-3xl">
             <p className="nf-meta-label text-muted-foreground">Workspace</p>

@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 
 export type StudyMode = 'spaced-repetition' | 'random'
@@ -146,15 +147,7 @@ export function StudyModeDialog({
           </DialogTitle>
           <DialogDescription>
             Select how you want to study your flashcards. Use arrow keys to
-            navigate, or press{' '}
-            <kbd className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-              1
-            </kbd>{' '}
-            /{' '}
-            <kbd className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-              2
-            </kbd>{' '}
-            to select.
+            navigate, or press <Kbd>1</Kbd> / <Kbd>2</Kbd> to select.
           </DialogDescription>
         </DialogHeader>
 

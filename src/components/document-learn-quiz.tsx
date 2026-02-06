@@ -20,6 +20,7 @@ import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 
 interface DocumentLearnQuizProps {
   documentId: Id<'documents'>
@@ -477,9 +478,10 @@ export function DocumentLearnQuiz({
                 variant="outline"
                 size="sm"
                 onClick={handleUndo}
-                className={`gap-2 transition-opacity duration-300 ${
-                  undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
-                }`}
+                className={cn(
+                  'gap-2 transition-opacity duration-300',
+                  undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
+                )}
               >
                 <Undo2 className="h-4 w-4" />
                 Undo

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import * as Sentry from '@sentry/tanstackstart-react'
@@ -42,7 +42,10 @@ export function RandomMode({
   const documents = flashcardData
 
   const selectedDocCount = selectedDocIds.size
-  const selectedCardCount = computeExpandedCardCount(documents, selectedDocIds)
+  const selectedCardCount = useMemo(
+    () => computeExpandedCardCount(documents, selectedDocIds),
+    [documents, selectedDocIds],
+  )
 
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {
@@ -61,7 +64,7 @@ export function RandomMode({
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-      <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/">

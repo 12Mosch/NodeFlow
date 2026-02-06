@@ -12,6 +12,7 @@ import {
 import { api } from '../../../convex/_generated/api'
 import type { ReactNode } from 'react'
 import {
+  AnalyticsBlockHeader,
   AnalyticsCard,
   AnalyticsSection,
   ChartFrame,
@@ -396,7 +397,7 @@ export function AnalyticsDashboard() {
                         (bucket, index) => ({
                           label: bucket.label,
                           value: bucket.count,
-                          color: difficultyColors[index],
+                          color: getDifficultyColor(index),
                         }),
                       )}
                       summary={difficultySummary}
@@ -411,7 +412,7 @@ export function AnalyticsDashboard() {
                             <span
                               className="h-2.5 w-2.5 rounded-full"
                               style={{
-                                backgroundColor: difficultyColors[index],
+                                backgroundColor: getDifficultyColor(index),
                               }}
                             />
                             <span>{bucket.label}</span>
@@ -540,21 +541,6 @@ export function AnalyticsDashboard() {
           </div>
         </AnalyticsSection>
       </div>
-    </div>
-  )
-}
-
-function AnalyticsBlockHeader({
-  title,
-  description,
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="space-y-1">
-      <h3 className="text-base font-semibold tracking-tight">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   )
 }
@@ -705,6 +691,12 @@ function RetentionChart({
 }
 
 const difficultyColors = ['#34d399', '#38bdf8', '#facc15', '#fb923c', '#ef4444']
+
+function getDifficultyColor(index: number) {
+  return (
+    difficultyColors[index] ?? difficultyColors[difficultyColors.length - 1]
+  )
+}
 
 function getCardTypeLabel(cardType: string) {
   if (cardType in CARD_TYPE_LABELS) {

@@ -1,4 +1,5 @@
 export { AnalyticsSection } from './AnalyticsSection'
 export { AnalyticsCard } from './AnalyticsCard'
+export { AnalyticsBlockHeader } from './AnalyticsBlockHeader'
 export { MetricCard } from './MetricCard'
 export { ChartFrame } from './ChartFrame'

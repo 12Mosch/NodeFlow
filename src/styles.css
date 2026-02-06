@@ -226,30 +226,6 @@ code {
   .nf-stack-6 > * + * {
     margin-top: var(--nf-space-6);
   }
-
-  .nf-gap-1 {
-    gap: var(--nf-space-1);
-  }
-
-  .nf-gap-2 {
-    gap: var(--nf-space-2);
-  }
-
-  .nf-gap-3 {
-    gap: var(--nf-space-3);
-  }
-
-  .nf-gap-4 {
-    gap: var(--nf-space-4);
-  }
-
-  .nf-gap-5 {
-    gap: var(--nf-space-5);
-  }
-
-  .nf-gap-6 {
-    gap: var(--nf-space-6);
-  }
 }
 
 /* Tiptap Editor Styles */
