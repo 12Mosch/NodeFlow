@@ -33,13 +33,14 @@ export function DocumentLinkPopover({
   }, [searchQuery])
 
   // Search documents
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    ...convexQuery(api.search.search, {
-      query: debouncedQuery,
-      documentLimit: 10,
-    }),
-    enabled: debouncedQuery.length >= 2,
-  })
+  const { data: searchResults, isLoading: isSearching } = useQuery(
+    convexQuery(
+      api.search.search,
+      debouncedQuery.length >= 2
+        ? { query: debouncedQuery, documentLimit: 10 }
+        : 'skip',
+    ),
+  )
 
   // Get recent documents when not searching
   const { data: recentDocs } = useQuery({

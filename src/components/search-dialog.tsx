@@ -298,10 +298,12 @@ export function SearchDialog() {
 
   const normalizedQuery = debouncedQuery.trim()
 
-  const { data: rawResults, isLoading } = useQuery({
-    ...convexQuery(api.search.search, { query: normalizedQuery }),
-    enabled: isOpen && normalizedQuery.length > 0,
-  })
+  const { data: rawResults, isLoading } = useQuery(
+    convexQuery(
+      api.search.search,
+      isOpen ? { query: normalizedQuery } : 'skip',
+    ),
+  )
 
   // Apply Fuse.js fuzzy filtering to Convex results
   const results = useMemo(() => {

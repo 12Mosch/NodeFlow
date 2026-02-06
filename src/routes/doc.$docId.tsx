@@ -102,18 +102,22 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const navigate = useNavigate()
   const isRestoring = useIsRestoring()
   const { q: searchQuery } = Route.useSearch()
-  const { data: document, isPending } = useQuery({
-    ...convexQuery(api.documents.get, { id: docId }),
-  })
-  const { data: flashcards } = useQuery({
-    ...convexQuery(api.blocks.listFlashcards, { documentId: docId }),
-    enabled: !!document,
-  })
+  const { data: document, isPending } = useQuery(
+    convexQuery(api.documents.get, { id: docId }),
+  )
+  const { data: flashcards } = useQuery(
+    convexQuery(
+      api.blocks.listFlashcards,
+      document ? { documentId: docId } : 'skip',
+    ),
+  )
   // Query blocks for instant preview while editor loads
-  const { data: blocks } = useQuery({
-    ...convexQuery(api.blocks.listByDocument, { documentId: docId }),
-    enabled: !!document,
-  })
+  const { data: blocks } = useQuery(
+    convexQuery(
+      api.blocks.listByDocument,
+      document ? { documentId: docId } : 'skip',
+    ),
+  )
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isStudying, setIsStudying] = useState(false)
   const [studyMode, setStudyMode] = useState<StudyMode | null>(null)
