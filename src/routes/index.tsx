@@ -149,7 +149,7 @@ function DocumentList() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-      <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-8">
           <div className="space-y-2 lg:max-w-2xl xl:max-w-3xl">
             <p className="nf-meta-label text-muted-foreground">Workspace</p>
@@ -206,24 +206,26 @@ function DocumentList() {
         ) : (
           <div className="grid gap-3">
             {documents.map((doc) => (
-              <Link
+              <div
                 key={doc._id}
-                to="/doc/$docId"
-                params={{ docId: doc._id }}
-                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
+                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 motion-reduce:transition-none"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
                   <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground motion-reduce:transition-none">
                     <FileText className="h-4 w-4" />
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <Link
+                    to="/doc/$docId"
+                    params={{ docId: doc._id }}
+                    className="min-w-0 flex-1 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                  >
                     <h3 className="truncate font-medium text-foreground">
                       {doc.title || 'Untitled'}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       Updated {formatDate(doc.updatedAt)}
                     </p>
-                  </div>
+                  </Link>
                 </div>
                 <Button
                   variant="ghost"
@@ -234,7 +236,7 @@ function DocumentList() {
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-              </Link>
+              </div>
             ))}
 
             {hasNextPage && <div ref={sentinelRef} className="h-1" />}
@@ -256,8 +258,16 @@ function DocumentList() {
   )
 }
 
-function formatDate(timestamp: number): string {
+function formatDate(timestamp: number | null | undefined): string {
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) {
+    return 'unknown'
+  }
+
   const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) {
+    return 'unknown'
+  }
+
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)

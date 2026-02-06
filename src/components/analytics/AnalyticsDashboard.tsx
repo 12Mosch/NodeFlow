@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import {  useEffect, useId, useMemo, useState } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { useRouter } from '@tanstack/react-router'
@@ -10,7 +10,7 @@ import {
   PieChart,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
-import type { ReactNode } from 'react'
+import type {ReactNode} from 'react';
 import {
   AnalyticsBlockHeader,
   AnalyticsCard,

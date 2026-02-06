@@ -478,6 +478,8 @@ export function DocumentLearnQuiz({
                 variant="outline"
                 size="sm"
                 onClick={handleUndo}
+                aria-hidden={!undoVisible}
+                tabIndex={undoVisible ? undefined : -1}
                 className={cn(
                   'gap-2 transition-opacity duration-300',
                   undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
