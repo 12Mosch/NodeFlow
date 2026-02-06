@@ -74,12 +74,12 @@ export function SpacedRepetitionMode({
       <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="gap-2">
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link to="/">
                 <ArrowLeft className="h-4 w-4" />
                 Home
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <div className="hidden h-4 w-px bg-border sm:block" />
             <div className="flex min-w-0 items-center gap-2">
               <Brain className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -158,12 +158,16 @@ export function SpacedRepetitionMode({
                         showing elevated difficulty.
                       </p>
                     </div>
-                    <Link to="/study-leeches" className="shrink-0">
-                      <Button variant="outline" className="gap-2">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="shrink-0 gap-2"
+                    >
+                      <Link to="/study-leeches">
                         <Settings className="h-4 w-4" />
                         Manage Leech Cards
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   </div>
                 </AnalyticsCard>
               </AnalyticsSection>
