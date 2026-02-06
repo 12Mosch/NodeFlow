@@ -28,25 +28,49 @@ code {
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  /* NodeFlow design tokens */
+  --nf-font-display:
+    'Instrument Serif', 'Iowan Old Style', 'Times New Roman', Georgia, serif;
+  --nf-font-sans:
+    'Helvetica Neue', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    sans-serif;
+  --nf-bg: oklch(1 0 0);
+  --nf-fg: oklch(0.141 0.005 285.823);
+  --nf-card: oklch(1 0 0);
+  --nf-muted: oklch(0.967 0.001 286.375);
+  --nf-muted-fg: oklch(0.552 0.016 285.938);
+  --nf-border: oklch(0.92 0.004 286.32);
+  --nf-ring: oklch(0.871 0.006 286.286);
+  --nf-accent: oklch(0.577 0.245 27.325);
+  --nf-accent-soft: oklch(0.967 0.001 286.375);
+  --nf-destructive: oklch(0.577 0.245 27.325);
+  --nf-space-1: 0.5rem;
+  --nf-space-2: 1rem;
+  --nf-space-3: 1.5rem;
+  --nf-space-4: 2rem;
+  --nf-space-5: 2.5rem;
+  --nf-space-6: 3rem;
+
+  --background: var(--nf-bg);
+  --foreground: var(--nf-fg);
+  --card: var(--nf-card);
+  --card-foreground: var(--nf-fg);
+  --popover: var(--nf-card);
+  --popover-foreground: var(--nf-fg);
   --primary: oklch(0.21 0.006 285.885);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
+  --muted: var(--nf-muted);
+  --muted-foreground: var(--nf-muted-fg);
+  --accent: var(--nf-accent-soft);
   --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.871 0.006 286.286);
+  --destructive: var(--nf-destructive);
+  --destructive-foreground: #ffffff;
+  --border: var(--nf-border);
+  --input: var(--nf-border);
+  --ring: var(--nf-ring);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -64,25 +88,36 @@ code {
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.141 0.005 285.823);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0 0);
+  --nf-bg: oklch(0.141 0.005 285.823);
+  --nf-fg: oklch(0.985 0 0);
+  --nf-card: oklch(0.141 0.005 285.823);
+  --nf-muted: oklch(0.274 0.006 286.033);
+  --nf-muted-fg: oklch(0.705 0.015 286.067);
+  --nf-border: oklch(0.274 0.006 286.033);
+  --nf-ring: oklch(0.442 0.017 285.786);
+  --nf-accent: oklch(0.637 0.237 25.331);
+  --nf-accent-soft: oklch(0.274 0.006 286.033);
+  --nf-destructive: oklch(0.396 0.141 25.723);
+
+  --background: var(--nf-bg);
+  --foreground: var(--nf-fg);
+  --card: var(--nf-card);
+  --card-foreground: var(--nf-fg);
+  --popover: var(--nf-card);
+  --popover-foreground: var(--nf-fg);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.21 0.006 285.885);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
+  --muted: var(--nf-muted);
+  --muted-foreground: var(--nf-muted-fg);
+  --accent: var(--nf-accent-soft);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.274 0.006 286.033);
-  --input: oklch(0.274 0.006 286.033);
-  --ring: oklch(0.442 0.017 285.786);
+  --destructive: var(--nf-destructive);
+  --destructive-foreground: #ffffff;
+  --border: var(--nf-border);
+  --input: var(--nf-border);
+  --ring: var(--nf-ring);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -143,6 +178,76 @@ code {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .nf-type-display {
+    font-family: var(--nf-font-display);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+  }
+
+  .nf-type-sans {
+    font-family: var(--nf-font-sans);
+  }
+
+  .nf-meta-label {
+    font-family: var(--nf-font-sans);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .nf-stack-1 > * + * {
+    margin-top: var(--nf-space-1);
+  }
+
+  .nf-stack-2 > * + * {
+    margin-top: var(--nf-space-2);
+  }
+
+  .nf-stack-3 > * + * {
+    margin-top: var(--nf-space-3);
+  }
+
+  .nf-stack-4 > * + * {
+    margin-top: var(--nf-space-4);
+  }
+
+  .nf-stack-5 > * + * {
+    margin-top: var(--nf-space-5);
+  }
+
+  .nf-stack-6 > * + * {
+    margin-top: var(--nf-space-6);
+  }
+
+  .nf-gap-1 {
+    gap: var(--nf-space-1);
+  }
+
+  .nf-gap-2 {
+    gap: var(--nf-space-2);
+  }
+
+  .nf-gap-3 {
+    gap: var(--nf-space-3);
+  }
+
+  .nf-gap-4 {
+    gap: var(--nf-space-4);
+  }
+
+  .nf-gap-5 {
+    gap: var(--nf-space-5);
+  }
+
+  .nf-gap-6 {
+    gap: var(--nf-space-6);
   }
 }
 
