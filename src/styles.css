@@ -1435,19 +1435,6 @@ code {
   .presence-cursor {
     animation: none;
   }
-
-  [data-slot='dialog-overlay'],
-  [data-slot='dialog-content'],
-  [data-slot='sheet-overlay'],
-  [data-slot='sheet-content'],
-  [data-slot='tooltip-content'] {
-    animation: none !important;
-    transition-duration: 0ms !important;
-  }
-
-  .animate-spin {
-    animation: none !important;
-  }
 }
 
 .presence-cursor-label {
