@@ -1,9 +1,25 @@
+import { ArrowLeftRight, Braces, FileText, Lightbulb } from 'lucide-react'
+import type { ComponentType } from 'react'
+import type { FlashcardBaseData } from './types'
+
+type FlashcardType = NonNullable<FlashcardBaseData['cardType']>
+
 export const CARD_TYPE_LABELS = {
   basic: 'Basic',
   concept: 'Concept',
   descriptor: 'Descriptor',
   cloze: 'Cloze',
 } as const
+
+export const CARD_TYPE_ICONS: Record<
+  FlashcardType,
+  ComponentType<{ className?: string }>
+> = {
+  basic: ArrowLeftRight,
+  concept: Lightbulb,
+  descriptor: FileText,
+  cloze: Braces,
+}
 
 export const CARD_TYPE_COLORS = {
   basic: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',

@@ -1,7 +1,8 @@
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { FlashcardBlockWithAncestorPath } from '../../../convex/helpers/flashcardContext'
 
 export type LearnCardState = Doc<'cardStates'>
-export type LearnBlock = Doc<'blocks'>
+export type LearnBlock = FlashcardBlockWithAncestorPath
 
 export interface LearnCard {
   cardState: LearnCardState

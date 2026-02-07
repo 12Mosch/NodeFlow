@@ -1,6 +1,7 @@
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Id } from '../../../convex/_generated/dataModel'
+import type { FlashcardBlockWithAncestorPath } from '../../../convex/helpers/flashcardContext'
 
-export type FlashcardBlock = Doc<'blocks'>
+export type FlashcardBlock = FlashcardBlockWithAncestorPath
 
 export interface FlashcardWithDocument {
   document: {
@@ -31,4 +32,5 @@ export interface FlashcardBaseData {
   cardFront: string | null | undefined
   cardBack: string | null | undefined
   textContent: string
+  ancestorPath?: Array<string>
 }

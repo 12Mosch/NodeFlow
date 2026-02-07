@@ -10,6 +10,10 @@ import {
   previewIntervals,
   processReview,
 } from './helpers/fsrs'
+import {
+  buildAncestorPathByNodeId,
+  getCachedAncestorPathFromAttrs,
+} from './helpers/flashcardContext'
 import { fetchRetentionMap, getLeechReason, isLeech } from './helpers/leech'
 import type { CardState } from './helpers/fsrs'
 import type { Id } from './_generated/dataModel'
@@ -67,6 +71,35 @@ const cardStateSnapshotValidator = v.object({
   scheduledDays: v.number(),
   elapsedDays: v.number(),
 })
+
+function normalizeTextContent(textContent: string): string | null {
+  const trimmed = textContent.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function getOutlineAncestorNodeIds(attrs: unknown): Array<string> | null {
+  if (!attrs || typeof attrs !== 'object') {
+    return null
+  }
+
+  const value = (attrs as Record<string, unknown>).outlineAncestorNodeIds
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  const seen = new Set<string>()
+  const nodeIds: Array<string> = []
+
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const nodeId = item.trim()
+    if (!nodeId || seen.has(nodeId)) continue
+    seen.add(nodeId)
+    nodeIds.push(nodeId)
+  }
+
+  return nodeIds
+}
 
 /**
  * Get or create card state for a block+direction combination
@@ -598,63 +631,184 @@ export const getLearnSession = query({
           (card) => !dueCardIds.has(card._id),
         )
 
-        // Combine and fetch blocks
+        // Combine and fetch cards
         const allCardStates = [...dueCards, ...filteredNewCards]
 
-        // Batch-fetch all retention rates in one query
-        const retentionMap = await fetchRetentionMap(ctx, userId)
-
-        const cardsWithBlocks = await Promise.all(
-          allCardStates.map(async (cardState) => {
-            const block = await ctx.db.get(cardState.blockId)
-            if (!block || !block.isCard || block.cardDirection === 'disabled') {
-              return null
-            }
-
-            // Get document for title
-            const document = await ctx.db.get(block.documentId)
-
-            // Calculate retrievability and intervals
-            const state: CardState = {
-              stability: cardState.stability,
-              difficulty: cardState.difficulty,
-              due: cardState.due,
-              lastReview: cardState.lastReview,
-              reps: cardState.reps,
-              lapses: cardState.lapses,
-              state: cardState.state,
-              scheduledDays: cardState.scheduledDays,
-              elapsedDays: cardState.elapsedDays,
-            }
-            const retrievability = getRetrievability(state)
-            const intervals = previewIntervals(state)
-
-            // Calculate leech status
-            const retention = retentionMap.get(cardState._id) ?? null
-            const isLeechCard = isLeech(cardState, retention)
-            const leechReason = isLeechCard
-              ? getLeechReason(cardState, retention)
-              : null
-
-            return {
-              cardState,
-              block,
-              document: document
-                ? { _id: document._id, title: document.title }
-                : null,
-              retrievability,
-              intervalPreviews: {
-                again: formatInterval(intervals.again),
-                hard: formatInterval(intervals.hard),
-                good: formatInterval(intervals.good),
-                easy: formatInterval(intervals.easy),
-              },
-              isLeech: isLeechCard,
-              leechReason,
-              retention,
-            }
-          }),
+        // Fetch retention and block/document data in batches
+        const uniqueBlockIds = Array.from(
+          new Set(allCardStates.map((card) => card.blockId)),
         )
+        const [retentionMap, blocks] = await Promise.all([
+          fetchRetentionMap(ctx, userId),
+          Promise.all(uniqueBlockIds.map((blockId) => ctx.db.get(blockId))),
+        ])
+
+        const enabledBlockById = new Map(
+          blocks
+            .filter(
+              (block): block is NonNullable<typeof block> =>
+                block !== null &&
+                block.isCard === true &&
+                block.cardDirection !== 'disabled',
+            )
+            .map((block) => [block._id, block]),
+        )
+        const ancestorPathByBlockId = new Map<Id<'blocks'>, Array<string>>()
+        const outlineAncestorNodeIdsByBlockId = new Map<
+          Id<'blocks'>,
+          Array<string>
+        >()
+        const ancestorNodeIdsByDocumentId = new Map<
+          Id<'documents'>,
+          Set<string>
+        >()
+
+        for (const block of enabledBlockById.values()) {
+          const outlineAncestorNodeIds = getOutlineAncestorNodeIds(block.attrs)
+          if (outlineAncestorNodeIds && outlineAncestorNodeIds.length > 0) {
+            outlineAncestorNodeIdsByBlockId.set(
+              block._id,
+              outlineAncestorNodeIds,
+            )
+            let ancestorNodeIds = ancestorNodeIdsByDocumentId.get(
+              block.documentId,
+            )
+            if (!ancestorNodeIds) {
+              ancestorNodeIds = new Set<string>()
+              ancestorNodeIdsByDocumentId.set(block.documentId, ancestorNodeIds)
+            }
+
+            for (const nodeId of outlineAncestorNodeIds) {
+              ancestorNodeIds.add(nodeId)
+            }
+            continue
+          }
+
+          const cachedAncestorPath = getCachedAncestorPathFromAttrs(block.attrs)
+          if (cachedAncestorPath && cachedAncestorPath.length > 0) {
+            ancestorPathByBlockId.set(block._id, cachedAncestorPath)
+          }
+        }
+
+        const ancestorTextByDocumentAndNodeId = new Map<string, string>()
+        const getAncestorLookupKey = (
+          documentId: Id<'documents'>,
+          nodeId: string,
+        ) => `${documentId}:${nodeId}`
+
+        await Promise.all(
+          Array.from(ancestorNodeIdsByDocumentId.entries()).flatMap(
+            ([documentId, ancestorNodeIds]) =>
+              Array.from(ancestorNodeIds).map(async (nodeId) => {
+                const ancestorBlock = await ctx.db
+                  .query('blocks')
+                  .withIndex('by_nodeId', (q) =>
+                    q.eq('documentId', documentId).eq('nodeId', nodeId),
+                  )
+                  .unique()
+
+                if (!ancestorBlock) return
+                const normalizedText = normalizeTextContent(
+                  ancestorBlock.textContent,
+                )
+                if (!normalizedText) return
+                ancestorTextByDocumentAndNodeId.set(
+                  getAncestorLookupKey(documentId, nodeId),
+                  normalizedText,
+                )
+              }),
+          ),
+        )
+
+        for (const [
+          blockId,
+          outlineAncestorNodeIds,
+        ] of outlineAncestorNodeIdsByBlockId) {
+          const block = enabledBlockById.get(blockId)
+          if (!block) continue
+          const resolvedPath = outlineAncestorNodeIds
+            .map((nodeId) =>
+              ancestorTextByDocumentAndNodeId.get(
+                getAncestorLookupKey(block.documentId, nodeId),
+              ),
+            )
+            .filter((text): text is string => Boolean(text))
+
+          if (resolvedPath.length > 0) {
+            ancestorPathByBlockId.set(block._id, resolvedPath)
+          }
+        }
+
+        const uniqueDocumentIds = Array.from(
+          new Set(
+            Array.from(enabledBlockById.values()).map(
+              (block) => block.documentId,
+            ),
+          ),
+        )
+        const documents = await Promise.all(
+          uniqueDocumentIds.map((documentId) => ctx.db.get(documentId)),
+        )
+        const documentById = new Map(
+          uniqueDocumentIds.map((documentId, index) => [
+            documentId,
+            documents[index],
+          ]),
+        )
+
+        const cardsWithBlocks = allCardStates.map((cardState) => {
+          const block = enabledBlockById.get(cardState.blockId)
+          if (!block) {
+            return null
+          }
+
+          // Get document for title
+          const document = documentById.get(block.documentId)
+          const ancestorPath = ancestorPathByBlockId.get(block._id)
+
+          // Calculate retrievability and intervals
+          const state: CardState = {
+            stability: cardState.stability,
+            difficulty: cardState.difficulty,
+            due: cardState.due,
+            lastReview: cardState.lastReview,
+            reps: cardState.reps,
+            lapses: cardState.lapses,
+            state: cardState.state,
+            scheduledDays: cardState.scheduledDays,
+            elapsedDays: cardState.elapsedDays,
+          }
+          const retrievability = getRetrievability(state)
+          const intervals = previewIntervals(state)
+
+          // Calculate leech status
+          const retention = retentionMap.get(cardState._id) ?? null
+          const isLeechCard = isLeech(cardState, retention)
+          const leechReason = isLeechCard
+            ? getLeechReason(cardState, retention)
+            : null
+
+          return {
+            cardState,
+            block: {
+              ...block,
+              ancestorPath,
+            },
+            document: document
+              ? { _id: document._id, title: document.title }
+              : null,
+            retrievability,
+            intervalPreviews: {
+              again: formatInterval(intervals.again),
+              hard: formatInterval(intervals.hard),
+              good: formatInterval(intervals.good),
+              easy: formatInterval(intervals.easy),
+            },
+            isLeech: isLeechCard,
+            leechReason,
+            retention,
+          }
+        })
 
         // Filter out nulls and sort: due cards by retrievability, then new cards
         const validCards = cardsWithBlocks.filter(
@@ -698,7 +852,6 @@ export const getDocumentLearnSession = query({
         const newLimit = args.newLimit ?? 20
         const reviewLimit = args.reviewLimit ?? 100
 
-        // Get all blocks for this document that are flashcards
         const documentBlocks = await ctx.db
           .query('blocks')
           .withIndex('by_document_isCard', (q) =>
@@ -710,6 +863,89 @@ export const getDocumentLearnSession = query({
         const enabledBlocks = documentBlocks.filter(
           (block) => block.cardDirection !== 'disabled',
         )
+        const enabledBlockById = new Map(
+          enabledBlocks.map((block) => [block._id, block]),
+        )
+        const metadataAncestorPathByNodeId = new Map<string, Array<string>>()
+        const outlineAncestorNodeIdsByBlockNodeId = new Map<
+          string,
+          Array<string>
+        >()
+        const ancestorNodeIds = new Set<string>()
+
+        for (const block of enabledBlocks) {
+          const outlineAncestorNodeIds = getOutlineAncestorNodeIds(block.attrs)
+          if (outlineAncestorNodeIds && outlineAncestorNodeIds.length > 0) {
+            outlineAncestorNodeIdsByBlockNodeId.set(
+              block.nodeId,
+              outlineAncestorNodeIds,
+            )
+
+            for (const nodeId of outlineAncestorNodeIds) {
+              ancestorNodeIds.add(nodeId)
+            }
+            continue
+          }
+
+          const cachedAncestorPath = getCachedAncestorPathFromAttrs(block.attrs)
+          if (cachedAncestorPath && cachedAncestorPath.length > 0) {
+            metadataAncestorPathByNodeId.set(block.nodeId, cachedAncestorPath)
+          }
+        }
+
+        const ancestorTextByNodeId = new Map<string, string>()
+
+        await Promise.all(
+          Array.from(ancestorNodeIds).map(async (nodeId) => {
+            const ancestorBlock = await ctx.db
+              .query('blocks')
+              .withIndex('by_nodeId', (q) =>
+                q.eq('documentId', args.documentId).eq('nodeId', nodeId),
+              )
+              .unique()
+
+            if (!ancestorBlock) return
+            const normalizedText = normalizeTextContent(
+              ancestorBlock.textContent,
+            )
+            if (!normalizedText) return
+            ancestorTextByNodeId.set(nodeId, normalizedText)
+          }),
+        )
+
+        for (const [
+          blockNodeId,
+          outlineAncestorNodeIds,
+        ] of outlineAncestorNodeIdsByBlockNodeId) {
+          const resolvedPath = outlineAncestorNodeIds
+            .map((nodeId) => ancestorTextByNodeId.get(nodeId))
+            .filter((text): text is string => Boolean(text))
+
+          if (resolvedPath.length > 0) {
+            metadataAncestorPathByNodeId.set(blockNodeId, resolvedPath)
+          }
+        }
+
+        const needsStructuralFallback = enabledBlocks.some(
+          (block) => !metadataAncestorPathByNodeId.has(block.nodeId),
+        )
+
+        const ancestorPathByNodeId = needsStructuralFallback
+          ? new Map([
+              ...buildAncestorPathByNodeId(
+                await ctx.db
+                  .query('blocks')
+                  .withIndex('by_document_position', (q) =>
+                    q.eq('documentId', args.documentId),
+                  )
+                  .order('asc')
+                  .collect(),
+              ),
+              ...metadataAncestorPathByNodeId,
+            ])
+          : metadataAncestorPathByNodeId
+
+        const document = await ctx.db.get(args.documentId)
 
         const blockIds = Array.from(enabledBlocks.map((b) => b._id))
 
@@ -748,57 +984,56 @@ export const getDocumentLearnSession = query({
         // Batch-fetch all retention rates in one query
         const retentionMap = await fetchRetentionMap(ctx, userId)
 
-        const cardsWithBlocks = await Promise.all(
-          allCardStates.map(async (cardState) => {
-            const block = await ctx.db.get(cardState.blockId)
-            if (!block || !block.isCard || block.cardDirection === 'disabled') {
-              return null
-            }
+        const cardsWithBlocks = allCardStates.map((cardState) => {
+          const block = enabledBlockById.get(cardState.blockId)
+          if (!block) {
+            return null
+          }
+          const ancestorPath = ancestorPathByNodeId.get(block.nodeId)
 
-            // Get document for title
-            const document = await ctx.db.get(block.documentId)
+          // Calculate retrievability and intervals
+          const state: CardState = {
+            stability: cardState.stability,
+            difficulty: cardState.difficulty,
+            due: cardState.due,
+            lastReview: cardState.lastReview,
+            reps: cardState.reps,
+            lapses: cardState.lapses,
+            state: cardState.state,
+            scheduledDays: cardState.scheduledDays,
+            elapsedDays: cardState.elapsedDays,
+          }
+          const retrievability = getRetrievability(state)
+          const intervals = previewIntervals(state)
 
-            // Calculate retrievability and intervals
-            const state: CardState = {
-              stability: cardState.stability,
-              difficulty: cardState.difficulty,
-              due: cardState.due,
-              lastReview: cardState.lastReview,
-              reps: cardState.reps,
-              lapses: cardState.lapses,
-              state: cardState.state,
-              scheduledDays: cardState.scheduledDays,
-              elapsedDays: cardState.elapsedDays,
-            }
-            const retrievability = getRetrievability(state)
-            const intervals = previewIntervals(state)
+          // Calculate leech status
+          const retention = retentionMap.get(cardState._id) ?? null
+          const isLeechCard = isLeech(cardState, retention)
+          const leechReason = isLeechCard
+            ? getLeechReason(cardState, retention)
+            : null
 
-            // Calculate leech status
-            const retention = retentionMap.get(cardState._id) ?? null
-            const isLeechCard = isLeech(cardState, retention)
-            const leechReason = isLeechCard
-              ? getLeechReason(cardState, retention)
-              : null
-
-            return {
-              cardState,
-              block,
-              document: document
-                ? { _id: document._id, title: document.title }
-                : null,
-              retrievability,
-              intervalPreviews: {
-                again: formatInterval(intervals.again),
-                hard: formatInterval(intervals.hard),
-                good: formatInterval(intervals.good),
-                easy: formatInterval(intervals.easy),
-              },
-              isLeech: isLeechCard,
-              leechReason,
-              retention,
-            }
-          }),
-        )
+          return {
+            cardState,
+            block: {
+              ...block,
+              ancestorPath,
+            },
+            document: document
+              ? { _id: document._id, title: document.title }
+              : null,
+            retrievability,
+            intervalPreviews: {
+              again: formatInterval(intervals.again),
+              hard: formatInterval(intervals.hard),
+              good: formatInterval(intervals.good),
+              easy: formatInterval(intervals.easy),
+            },
+            isLeech: isLeechCard,
+            leechReason,
+            retention,
+          }
+        })
 
         // Filter out nulls and sort: due cards by retrievability, then new cards
         const validCards = cardsWithBlocks.filter(

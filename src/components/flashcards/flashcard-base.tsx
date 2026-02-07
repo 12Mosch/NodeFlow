@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { AlertTriangle, Ban, ChevronDown, Pencil } from 'lucide-react'
-import { CARD_TYPE_COLORS, CARD_TYPE_LABELS, LEECH_COLOR } from './constants'
+import {
+  CARD_TYPE_COLORS,
+  CARD_TYPE_ICONS,
+  CARD_TYPE_LABELS,
+  LEECH_COLOR,
+} from './constants'
 import { detectListKind, renderClozeText, renderList } from './utils'
 import { RenderLatexText } from './latex-renderer'
 import type { ReactNode } from 'react'
 import type { FlashcardBaseData } from './types'
+import { parseFlashcard } from '@/lib/flashcard-parser'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +46,40 @@ interface FlashcardBaseProps {
   onSuspendCard?: () => void
 }
 
+const renderAncestorText = (ancestor: string) => {
+  const parsed = parseFlashcard(ancestor)
+  const parsedCardType = parsed.isCard ? parsed.cardType : undefined
+  const parsedFront = parsed.cardFront
+  const parsedBack = parsed.cardBack
+
+  if (
+    !parsedCardType ||
+    parsedCardType === 'cloze' ||
+    !parsedFront ||
+    parsedBack === undefined
+  ) {
+    return <RenderLatexText text={ancestor} />
+  }
+
+  const ParsedCardIcon = CARD_TYPE_ICONS[parsedCardType]
+
+  return (
+    <span className="inline-flex items-start gap-2 whitespace-pre-wrap">
+      <RenderLatexText text={parsedFront} />
+      <span
+        className={cn(
+          'inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5',
+          CARD_TYPE_COLORS[parsedCardType],
+        )}
+        aria-label={`${CARD_TYPE_LABELS[parsedCardType]} flashcard`}
+      >
+        <ParsedCardIcon className="h-3.5 w-3.5" />
+      </span>
+      <RenderLatexText text={parsedBack} />
+    </span>
+  )
+}
+
 export function FlashcardBase({
   card,
   isExpanded: controlledExpanded,
@@ -64,6 +104,7 @@ export function FlashcardBase({
     cardFront,
     cardBack,
     textContent,
+    ancestorPath: rawAncestorPath,
   } = card
 
   const isCloze = cardType === 'cloze'
@@ -108,17 +149,21 @@ export function FlashcardBase({
   const { front, back } = getFrontBack()
   const questionListKind = detectListKind(front)
   const answerListKind = detectListKind(back)
+  const hasAnswerContent = isCloze || back.trim().length > 0
   const actionsContent = renderActions?.()
+  const ancestorPath =
+    rawAncestorPath?.filter((ancestor) => ancestor.trim().length > 0) ?? []
+  const hasAncestorContext = ancestorPath.length > 0
 
   return (
-    <Card className="overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5">
+    <Card className="w-full overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5">
       <CardContent className="p-0">
         {/* Header with metadata */}
-        <div className="flex items-center justify-between border-b border-border/50 px-8 py-4">
-          <span className="max-w-50 truncate text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 border-b border-border/50 px-8 py-4">
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
             {documentTitle}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {renderHeaderBadges?.()}
             {isLeech && (
               <Tooltip>
@@ -156,6 +201,27 @@ export function FlashcardBase({
             )}
           </div>
         </div>
+
+        {hasAncestorContext && (
+          <div className="border-b border-border/50 bg-muted/20 px-8 py-4">
+            <div className="text-left">
+              <div className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground/80 uppercase">
+                Context
+              </div>
+              <div className="space-y-1.5">
+                {ancestorPath.map((ancestor, index) => (
+                  <div
+                    key={`${ancestor}-${index}`}
+                    className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground [tab-size:2]"
+                    style={{ paddingInlineStart: `${index * 14}px` }}
+                  >
+                    {renderAncestorText(ancestor)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Front of card - question area */}
         <button
@@ -215,7 +281,9 @@ export function FlashcardBase({
               {/* Answer content */}
               <div
                 className={cn(
-                  'flex min-h-32 flex-col p-8',
+                  'flex flex-col px-8 pt-6',
+                  actionsContent ? 'pb-4' : 'pb-8',
+                  hasAnswerContent ? 'min-h-24' : 'min-h-12',
                   // Center short answers, left-align long ones with extra margins
                   back.length > LONG_ANSWER_THRESHOLD ||
                     answerListKind ||
@@ -237,7 +305,7 @@ export function FlashcardBase({
 
               {/* Action buttons */}
               {actionsContent && (
-                <div className="px-8 pb-8">
+                <div className="px-8 pt-1 pb-6">
                   {actionsContent}
                   {/* Leech management actions */}
                   {isLeech && (onEditCard || onSuspendCard) && (

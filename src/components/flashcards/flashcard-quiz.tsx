@@ -1,20 +1,29 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Shuffle } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Shuffle, Undo2 } from 'lucide-react'
 import { FlashcardItem } from './flashcard-item'
 import { QuizResults } from './quiz-results'
 import { expandCardsForQuiz } from './quiz-card-expansion'
 import type { FlashcardWithDocument, QuizCard, QuizResult } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { AnalyticsCard, MetricCard } from '@/components/analytics'
+import { AnalyticsCard } from '@/components/analytics'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
+import { cn } from '@/lib/utils'
 
 interface FlashcardQuizProps {
   documents: Array<FlashcardWithDocument>
   selectedDocIds: Set<Id<'documents'>>
   onBack: () => void
   onGoHome: () => void
+}
+
+type UndoSnapshot = {
+  shuffledCards: Array<QuizCard>
+  currentIndex: number
+  results: Array<QuizResult>
+  isComplete: boolean
+  isExpanded: boolean
 }
 
 // Fisher-Yates shuffle
@@ -46,18 +55,49 @@ export function FlashcardQuiz({
   const [results, setResults] = useState<Array<QuizResult>>([])
   const [isComplete, setIsComplete] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [lastAnswer, setLastAnswer] = useState<UndoSnapshot | null>(null)
+  const [undoVisible, setUndoVisible] = useState(false)
+  const undoFadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [answeredAtIndex, setAnsweredAtIndex] = useState<number | null>(null)
+  const answeredAtIndexRef = useRef<number | null>(null)
 
   const currentCard = shuffledCards[currentIndex]
-  const answeredCount = results.length
-  const knownCount = results.filter((result) => result.knew).length
-  const remainingCount = Math.max(shuffledCards.length - currentIndex, 0)
   const progress =
     shuffledCards.length > 0
       ? ((currentIndex + (isComplete ? 1 : 0)) / shuffledCards.length) * 100
       : 0
+  const answeredCurrentCard = answeredAtIndex === currentIndex
+  const canAnswer = isExpanded && !answeredCurrentCard
+
+  const scheduleUndoFade = useCallback(() => {
+    setUndoVisible(true)
+    if (undoFadeTimeoutRef.current !== null) {
+      clearTimeout(undoFadeTimeoutRef.current)
+    }
+    undoFadeTimeoutRef.current = setTimeout(() => {
+      undoFadeTimeoutRef.current = null
+      setUndoVisible(false)
+    }, 3000)
+  }, [])
 
   const handleAnswer = useCallback(
     (knew: boolean) => {
+      if (!isExpanded) return
+      if (answeredAtIndexRef.current === currentIndex) return
+
+      answeredAtIndexRef.current = currentIndex
+      setAnsweredAtIndex(currentIndex)
+
+      const snapshot: UndoSnapshot = {
+        shuffledCards,
+        currentIndex,
+        results,
+        isComplete,
+        isExpanded,
+      }
+      setLastAnswer(snapshot)
+      scheduleUndoFade()
+
       const result: QuizResult = {
         card: currentCard,
         knew,
@@ -71,13 +111,38 @@ export function FlashcardQuiz({
         setIsComplete(true)
       }
     },
-    [currentCard, currentIndex, shuffledCards.length],
+    [
+      currentCard,
+      currentIndex,
+      isComplete,
+      isExpanded,
+      results,
+      scheduleUndoFade,
+      shuffledCards,
+    ],
   )
+
+  const handleUndo = useCallback(() => {
+    if (!lastAnswer) return
+
+    if (undoFadeTimeoutRef.current !== null) {
+      clearTimeout(undoFadeTimeoutRef.current)
+      undoFadeTimeoutRef.current = null
+    }
+
+    setUndoVisible(false)
+    setShuffledCards(lastAnswer.shuffledCards)
+    setCurrentIndex(lastAnswer.currentIndex)
+    setResults(lastAnswer.results)
+    setIsComplete(lastAnswer.isComplete)
+    setIsExpanded(lastAnswer.isExpanded)
+    setAnsweredAtIndex(null)
+    answeredAtIndexRef.current = null
+    setLastAnswer(null)
+  }, [lastAnswer])
 
   // Keyboard shortcuts
   useEffect(() => {
-    if (isComplete) return
-
     function handleKeyDown(event: KeyboardEvent) {
       // Ignore if user is typing in an input/textarea
       const target = event.target as HTMLElement
@@ -89,19 +154,32 @@ export function FlashcardQuiz({
         return
       }
 
+      const key = event.key.toLowerCase()
+      const isUndo =
+        (key === 'z' && (event.metaKey || event.ctrlKey)) || key === 'u'
+      if (isUndo) {
+        if (lastAnswer) {
+          event.preventDefault()
+          handleUndo()
+        }
+        return
+      }
+
+      if (isComplete) return
+
       switch (event.key) {
         case ' ': // Space to toggle answer
           event.preventDefault()
           setIsExpanded((prev) => !prev)
           break
         case '1': // Didn't know
-          if (isExpanded) {
+          if (canAnswer) {
             event.preventDefault()
             handleAnswer(false)
           }
           break
         case '2': // Knew it
-          if (isExpanded) {
+          if (canAnswer) {
             event.preventDefault()
             handleAnswer(true)
           }
@@ -111,7 +189,16 @@ export function FlashcardQuiz({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isComplete, isExpanded, handleAnswer])
+  }, [canAnswer, handleAnswer, handleUndo, isComplete, lastAnswer])
+
+  useEffect(() => {
+    return () => {
+      if (undoFadeTimeoutRef.current !== null) {
+        clearTimeout(undoFadeTimeoutRef.current)
+        undoFadeTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   const handleRestart = useCallback(() => {
     setShuffledCards(shuffleArray(allCards))
@@ -119,6 +206,14 @@ export function FlashcardQuiz({
     setResults([])
     setIsComplete(false)
     setIsExpanded(false)
+    setAnsweredAtIndex(null)
+    answeredAtIndexRef.current = null
+    setLastAnswer(null)
+    setUndoVisible(false)
+    if (undoFadeTimeoutRef.current !== null) {
+      clearTimeout(undoFadeTimeoutRef.current)
+      undoFadeTimeoutRef.current = null
+    }
   }, [allCards])
 
   const handleShuffle = useCallback(() => {
@@ -133,7 +228,7 @@ export function FlashcardQuiz({
 
   if (shuffledCards.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl py-8">
+      <div className="mx-auto w-full max-w-2xl py-8">
         <AnalyticsCard className="px-6">
           <div className="py-10 text-center">
             <p className="mb-4 text-muted-foreground">No cards to study.</p>
@@ -156,40 +251,34 @@ export function FlashcardQuiz({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          variant="compact"
-          label="Queue"
-          value={shuffledCards.length}
-          helper="cards loaded"
-        />
-        <MetricCard
-          variant="compact"
-          label="Answered"
-          value={answeredCount}
-          helper="cards scored"
-        />
-        <MetricCard
-          variant="compact"
-          label="Known"
-          value={knownCount}
-          helper="correct responses"
-        />
-      </div>
+    <div className="mx-auto w-full max-w-4xl space-y-5">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
 
-      <AnalyticsCard className="px-6">
-        <div className="space-y-4 py-1">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              {currentIndex + 1} / {shuffledCards.length}
+            </span>
+            {lastAnswer && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUndo}
+                aria-hidden={!undoVisible}
+                tabIndex={undoVisible ? undefined : -1}
+                className={cn(
+                  'gap-2 transition-opacity duration-300',
+                  undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
+                )}
+              >
+                <Undo2 className="h-4 w-4" />
+                Undo
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -201,26 +290,10 @@ export function FlashcardQuiz({
               Shuffle
             </Button>
           </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">
-                {currentIndex + 1} / {shuffledCards.length}
-              </span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          <div className="text-xs text-muted-foreground">
-            Remaining:{' '}
-            <span className="font-medium text-foreground">
-              {remainingCount}
-            </span>{' '}
-            card{remainingCount !== 1 ? 's' : ''}
-          </div>
         </div>
-      </AnalyticsCard>
+
+        <Progress value={progress} className="h-2" />
+      </div>
 
       <FlashcardItem
         card={currentCard}
@@ -229,12 +302,20 @@ export function FlashcardQuiz({
         onExpandedChange={setIsExpanded}
       />
 
-      <AnalyticsCard muted className="px-6">
-        <p className="py-1 text-center text-xs text-muted-foreground">
-          Press <Kbd>Space</Kbd> to reveal answer, then <Kbd>1</Kbd> or{' '}
-          <Kbd>2</Kbd> to answer
-        </p>
-      </AnalyticsCard>
+      <p className="text-center text-xs text-muted-foreground">
+        <Kbd>Space</Kbd> {isExpanded ? 'hide answer' : 'reveal answer'}
+        {canAnswer && (
+          <>
+            , <Kbd>1</Kbd> or <Kbd>2</Kbd> answer
+          </>
+        )}
+        {lastAnswer && (
+          <>
+            , <Kbd>U</Kbd> undo (<Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+<Kbd>Z</Kbd>)
+          </>
+        )}
+        .
+      </p>
     </div>
   )
 }

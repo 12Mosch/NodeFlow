@@ -95,6 +95,9 @@ async function createTestFlashcardBlock(
     cardDirection?: 'forward' | 'reverse' | 'bidirectional' | 'disabled'
     cardFront?: string
     cardBack?: string
+    textContent?: string
+    position?: number
+    attrs?: Record<string, unknown>
   } = {},
 ) {
   return await t.run(async (ctx) => {
@@ -104,8 +107,9 @@ async function createTestFlashcardBlock(
       nodeId: `node-${Date.now()}-${Math.random()}`,
       type: 'paragraph',
       content: {},
-      textContent: 'Test flashcard',
-      position: 0,
+      textContent: options.textContent ?? 'Test flashcard',
+      position: options.position ?? 0,
+      attrs: options.attrs,
       isCard: true,
       cardType: options.cardType ?? 'basic',
       cardDirection: options.cardDirection ?? 'forward',
@@ -938,6 +942,106 @@ describe('cardStates', () => {
       expect(stats.dueNow).toBe(0)
       expect(stats.reviewedToday).toBe(0)
       expect(stats.retentionRate).toBeNull()
+    })
+  })
+
+  describe('learn session ancestor context', () => {
+    it('getLearnSession should include block.ancestorPath from outlineAncestorNodeIds', async () => {
+      const now = Date.now()
+      const sessionDocId = await createTestDocument(t, userId, 'Biology Notes')
+      const ancestorNodeId = 'ancestor-node'
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('blocks', {
+          documentId: sessionDocId,
+          userId,
+          nodeId: ancestorNodeId,
+          type: 'paragraph',
+          content: {},
+          textContent: 'Cell',
+          position: 0,
+          isCard: false,
+        })
+      })
+
+      const cardBlockId = await createTestFlashcardBlock(
+        t,
+        userId,
+        sessionDocId,
+        {
+          cardFront: 'Mitochondria',
+          cardBack: 'Powerhouse',
+          position: 1,
+          attrs: { outlineAncestorNodeIds: [ancestorNodeId] },
+        },
+      )
+
+      await createTestCardState(t, userId, cardBlockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 10,
+        difficulty: 5,
+        lastReview: now - 10 * 24 * 60 * 60 * 1000,
+      })
+
+      const result = (await asUser.query(api.cardStates.getLearnSession, {}))!
+
+      expect(result.length).toBe(1)
+      expect(result[0]?.block.ancestorPath).toEqual(['Cell'])
+    })
+
+    it('getDocumentLearnSession should include block.ancestorPath from outlineAncestorNodeIds', async () => {
+      const now = Date.now()
+      const sessionDocId = await createTestDocument(
+        t,
+        userId,
+        'Chemistry Notes',
+      )
+      const ancestorNodeId = 'ancestor-node'
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('blocks', {
+          documentId: sessionDocId,
+          userId,
+          nodeId: ancestorNodeId,
+          type: 'heading',
+          content: {},
+          textContent: 'Atoms',
+          position: 0,
+          attrs: { level: 1 },
+          isCard: false,
+        })
+      })
+
+      const cardBlockId = await createTestFlashcardBlock(
+        t,
+        userId,
+        sessionDocId,
+        {
+          cardFront: 'Electron',
+          cardBack: 'Negatively charged particle',
+          position: 1,
+          attrs: { outlineAncestorNodeIds: [ancestorNodeId] },
+        },
+      )
+
+      await createTestCardState(t, userId, cardBlockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 8,
+        difficulty: 5,
+        lastReview: now - 8 * 24 * 60 * 60 * 1000,
+      })
+
+      const result = (await asUser.query(
+        api.cardStates.getDocumentLearnSession,
+        {
+          documentId: sessionDocId,
+        },
+      ))!
+
+      expect(result.length).toBe(1)
+      expect(result[0]?.block.ancestorPath).toEqual(['Atoms'])
     })
   })
 

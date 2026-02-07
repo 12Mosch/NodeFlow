@@ -7,8 +7,13 @@ import {
   queryDocumentAccess,
 } from './helpers/documentAccess'
 import { createNewCardState } from './helpers/fsrs'
+import {
+  buildAncestorPathByNodeId,
+  getCachedAncestorPathFromAttrs,
+} from './helpers/flashcardContext'
+import type { FlashcardBlockWithAncestorPath } from './helpers/flashcardContext'
 import type { MutationCtx } from './_generated/server'
-import type { Doc, Id } from './_generated/dataModel'
+import type { Id } from './_generated/dataModel'
 
 type Direction = 'forward' | 'reverse'
 
@@ -602,7 +607,10 @@ export const listFlashcards = query({
   args: {
     documentId: v.id('documents'),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Array<FlashcardBlockWithAncestorPath>> => {
     return await Sentry.startSpan(
       { name: 'blocks.listFlashcards', op: 'convex.query' },
       async () => {
@@ -610,14 +618,49 @@ export const listFlashcards = query({
         const access = await queryDocumentAccess(ctx, args.documentId)
         if (!access) return []
 
-        const blocks = await ctx.db
+        const flashcards = filterOutDisabledCards(
+          await ctx.db
+            .query('blocks')
+            .withIndex('by_document_isCard', (q) =>
+              q.eq('documentId', args.documentId).eq('isCard', true),
+            )
+            .collect(),
+        )
+        const cachedAncestorPathByNodeId = new Map<string, Array<string>>()
+
+        for (const block of flashcards) {
+          const cachedAncestorPath = getCachedAncestorPathFromAttrs(block.attrs)
+          if (!cachedAncestorPath || cachedAncestorPath.length === 0) continue
+          cachedAncestorPathByNodeId.set(block.nodeId, cachedAncestorPath)
+        }
+
+        const needsStructuralFallback = flashcards.some(
+          (block) => !cachedAncestorPathByNodeId.has(block.nodeId),
+        )
+
+        if (!needsStructuralFallback) {
+          return flashcards.map((block) => ({
+            ...block,
+            ancestorPath: cachedAncestorPathByNodeId.get(block.nodeId),
+          }))
+        }
+
+        const allBlocks = await ctx.db
           .query('blocks')
-          .withIndex('by_document_isCard', (q) =>
-            q.eq('documentId', args.documentId).eq('isCard', true),
+          .withIndex('by_document_position', (q) =>
+            q.eq('documentId', args.documentId),
           )
+          .order('asc')
           .collect()
 
-        return filterOutDisabledCards(blocks)
+        const ancestorPathByNodeId = buildAncestorPathByNodeId(allBlocks)
+
+        return flashcards.map((block) => ({
+          ...block,
+          ancestorPath:
+            cachedAncestorPathByNodeId.get(block.nodeId) ??
+            ancestorPathByNodeId.get(block.nodeId),
+        }))
       },
     )
   },
@@ -666,7 +709,7 @@ export const listAllFlashcards = query({
         _id: Id<'documents'>
         title: string
       }
-      flashcards: Array<Doc<'blocks'>>
+      flashcards: Array<FlashcardBlockWithAncestorPath>
     }>
   > => {
     return await Sentry.startSpan(
@@ -683,8 +726,12 @@ export const listAllFlashcards = query({
           )
           .collect()
 
-        const flashcards: Array<Doc<'blocks'>> =
-          filterOutDisabledCards(allFlashcardBlocks)
+        const flashcards: Array<FlashcardBlockWithAncestorPath> =
+          filterOutDisabledCards(allFlashcardBlocks).map((flashcard) => ({
+            ...flashcard,
+            ancestorPath:
+              getCachedAncestorPathFromAttrs(flashcard.attrs) ?? undefined,
+          }))
 
         // Get all user's documents to map flashcards to documents
         const documents = await ctx.db
@@ -698,7 +745,7 @@ export const listAllFlashcards = query({
         // Group flashcards by document
         const flashcardsByDocumentId = new Map<
           Id<'documents'>,
-          Array<Doc<'blocks'>>
+          Array<FlashcardBlockWithAncestorPath>
         >()
         for (const flashcard of flashcards) {
           const docId = flashcard.documentId
@@ -714,7 +761,7 @@ export const listAllFlashcards = query({
             _id: Id<'documents'>
             title: string
           }
-          flashcards: Array<Doc<'blocks'>>
+          flashcards: Array<FlashcardBlockWithAncestorPath>
         }> = []
         for (const [documentId, flashcardList] of flashcardsByDocumentId) {
           if (flashcardList.length === 0) continue
