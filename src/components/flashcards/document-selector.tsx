@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { pluralize } from '@/lib/pluralize'
 import { cn } from '@/lib/utils'
 
 interface DocumentSelectorProps {
@@ -41,6 +42,8 @@ export function DocumentSelector({
   const totalCards = documents
     .filter((d) => selectedDocIds.has(d.document._id))
     .reduce((sum, d) => sum + d.flashcards.length, 0)
+  const totalCardLabel = pluralize(totalCards, 'card')
+  const selectedDocumentLabel = pluralize(selectedDocIds.size, 'document')
 
   if (documents.length === 0) {
     return (
@@ -82,6 +85,7 @@ export function DocumentSelector({
           {documents.map(({ document, flashcards }) => {
             const isSelected = selectedDocIds.has(document._id)
             const count = flashcards.length
+            const cardLabel = pluralize(count, 'card')
             return (
               <label
                 key={document._id}
@@ -101,7 +105,7 @@ export function DocumentSelector({
                   </p>
                 </div>
                 <Badge variant="secondary" className="shrink-0">
-                  {count} card{count !== 1 ? 's' : ''}
+                  {count} {cardLabel}
                 </Badge>
               </label>
             )
@@ -118,11 +122,11 @@ export function DocumentSelector({
                 <span className="font-medium text-foreground">
                   {totalCards}
                 </span>{' '}
-                cards from{' '}
+                {totalCardLabel} from{' '}
                 <span className="font-medium text-foreground">
                   {selectedDocIds.size}
                 </span>{' '}
-                document{selectedDocIds.size !== 1 ? 's' : ''}
+                {selectedDocumentLabel}
               </>
             )}
           </p>

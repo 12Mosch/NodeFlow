@@ -3,6 +3,7 @@ import { CheckCircle } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
+import { pluralize } from '@/lib/pluralize'
 
 interface BulkActionsToolbarProps {
   selectedCount: number
@@ -15,6 +16,7 @@ export function BulkActionsToolbar({
   selectedCardIds,
   onClearSelection,
 }: BulkActionsToolbarProps) {
+  const selectedCardLabel = pluralize(selectedCount, 'card')
   const bulkSuspend = useMutation(
     api.cardStates.bulkSuspendCards,
   ).withOptimisticUpdate((localStore, args) => {
@@ -74,7 +76,7 @@ export function BulkActionsToolbar({
     <div className="sticky top-14 z-40 rounded-xl border border-border/70 bg-background/90 shadow-xs backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          {selectedCount} card{selectedCount !== 1 ? 's' : ''} selected
+          {selectedCount} {selectedCardLabel} selected
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onClearSelection}>

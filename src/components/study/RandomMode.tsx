@@ -13,12 +13,14 @@ import {
   computeExpandedCardCount,
 } from '@/components/flashcards'
 import {
+  ActionSuggestionCard,
   AnalyticsCard,
   AnalyticsSection,
   MetricCard,
 } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
+import { pluralize } from '@/lib/pluralize'
 
 interface RandomModeProps {
   studyState: StudyState
@@ -46,6 +48,23 @@ export function RandomMode({
     () => computeExpandedCardCount(documents, selectedDocIds),
     [documents, selectedDocIds],
   )
+  const selectedCardLabel = pluralize(selectedCardCount, 'card')
+  const selectedDocumentLabel = pluralize(selectedDocCount, 'document')
+  const selectionSuggestion = useMemo(() => {
+    if (selectedDocCount === 0) {
+      return 'Select at least one document, then run a short 5-minute random round to warm up.'
+    }
+    if (selectedDocCount > 0 && selectedCardCount === 0) {
+      return 'Your selected documents do not contain flashcards yet. Pick different documents or add cards before starting.'
+    }
+    if (selectedCardCount > 80) {
+      return 'Large random queues can hide weak cards. Split this into smaller sets, or switch to Spaced Repetition for better long-term scheduling.'
+    }
+    if (selectedCardCount <= 12) {
+      return 'This is a fast checkpoint set. Run it now, then immediately rewrite any cards you miss.'
+    }
+    return 'Start this mixed deck now. If your accuracy drops below 70% in results, switch to Spaced Repetition for targeted recovery.'
+  }, [selectedCardCount, selectedDocCount])
 
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {
@@ -120,6 +139,7 @@ export function RandomMode({
                   helper="across selection"
                 />
               </div>
+              <ActionSuggestionCard>{selectionSuggestion}</ActionSuggestionCard>
             </AnalyticsSection>
 
             <AnalyticsSection
@@ -149,15 +169,18 @@ export function RandomMode({
             <AnalyticsCard muted className="px-6">
               <div className="flex flex-wrap items-center justify-between gap-3 py-1">
                 <p className="text-sm text-muted-foreground">
-                  Reviewing {selectedCardCount} card
-                  {selectedCardCount !== 1 ? 's' : ''} from {selectedDocCount}{' '}
-                  document{selectedDocCount !== 1 ? 's' : ''}.
+                  Reviewing {selectedCardCount} {selectedCardLabel} from{' '}
+                  {selectedDocCount} {selectedDocumentLabel}.
                 </p>
                 <Button variant="outline" size="sm" onClick={handleBack}>
                   Back to Selection
                 </Button>
               </div>
             </AnalyticsCard>
+            <ActionSuggestionCard tone="success">
+              Keep random sessions short. After this run, move missed cards into
+              a spaced repetition session to lock in retention.
+            </ActionSuggestionCard>
             <FlashcardQuiz
               documents={documents}
               selectedDocIds={selectedDocIds}
