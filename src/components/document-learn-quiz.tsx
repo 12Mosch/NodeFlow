@@ -16,7 +16,6 @@ import { SessionComplete } from './learn/session-complete'
 import { calculateSuccessRate } from './learn/types'
 import type { Id } from '../../convex/_generated/dataModel'
 import type { LearnCard as LearnCardType, Rating } from './learn/types'
-import { AnalyticsCard, MetricCard } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
@@ -361,22 +360,18 @@ export function DocumentLearnQuiz({
   // Error state
   if (isError) {
     return (
-      <div className="mx-auto max-w-2xl py-8">
-        <AnalyticsCard className="px-6">
-          <div className="py-8 text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-            <h2 className="mt-4 text-2xl font-bold">Failed to load cards</h2>
-            <p className="mt-2 text-muted-foreground">
-              Something went wrong while loading your cards.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <Button onClick={() => refetch()} variant="outline">
-                Try Again
-              </Button>
-              <Button onClick={onGoHome}>Go Home</Button>
-            </div>
-          </div>
-        </AnalyticsCard>
+      <div className="py-12 text-center">
+        <AlertCircle className="mx-auto h-16 w-16 text-destructive" />
+        <h2 className="mt-4 text-2xl font-bold">Failed to load cards</h2>
+        <p className="mt-2 text-muted-foreground">
+          Something went wrong while loading your cards.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Button onClick={() => refetch()} variant="outline">
+            Try Again
+          </Button>
+          <Button onClick={onGoHome}>Go Home</Button>
+        </div>
       </div>
     )
   }
@@ -384,13 +379,9 @@ export function DocumentLearnQuiz({
   // Loading state
   if (isLoading || stableCards === null) {
     return (
-      <div className="mx-auto max-w-2xl py-8">
-        <AnalyticsCard className="px-6">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Loading cards...</p>
-          </div>
-        </AnalyticsCard>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-muted-foreground">Loading cards...</p>
       </div>
     )
   }
@@ -398,22 +389,18 @@ export function DocumentLearnQuiz({
   // No cards to review
   if (totalCards === 0) {
     return (
-      <div className="mx-auto max-w-2xl py-8">
-        <AnalyticsCard className="px-6">
-          <div className="py-10 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-            <h2 className="mt-4 text-2xl font-bold">All caught up!</h2>
-            <p className="mt-2 text-muted-foreground">
-              You have no cards due for review right now.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <Button onClick={onBack} variant="outline">
-                Go Back
-              </Button>
-              <Button onClick={onGoHome}>Go Home</Button>
-            </div>
-          </div>
-        </AnalyticsCard>
+      <div className="py-12 text-center">
+        <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
+        <h2 className="mt-4 text-2xl font-bold">All caught up!</h2>
+        <p className="mt-2 text-muted-foreground">
+          You have no cards due for review right now.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Button onClick={onBack} variant="outline">
+            Go Back
+          </Button>
+          <Button onClick={onGoHome}>Go Home</Button>
+        </div>
       </div>
     )
   }
@@ -436,72 +423,49 @@ export function DocumentLearnQuiz({
   }
 
   const progress = (currentIndex / totalCards) * 100
-  const remainingCount = Math.max(totalCards - currentIndex, 0)
+  const canRate = isExpanded && !ratedCurrentCard
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          variant="compact"
-          label="Reviewed"
-          value={reviewedCount}
-          helper="cards rated"
-        />
-        <MetricCard
-          variant="compact"
-          label="Remaining"
-          value={remainingCount}
-          helper="cards left"
-        />
-        <MetricCard
-          variant="compact"
-          label="Success"
-          value={`${successRate}%`}
-          helper="current session"
-        />
-      </div>
-
-      <AnalyticsCard className="px-6">
-        <div className="space-y-4 py-1">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-2xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div className="flex items-center gap-3">
+          {lastRating && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={onBack}
-              className="gap-2"
+              onClick={handleUndo}
+              aria-hidden={!undoVisible}
+              tabIndex={undoVisible ? undefined : -1}
+              className={cn(
+                'gap-2 transition-opacity duration-300',
+                undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
+              )}
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              <Undo2 className="h-4 w-4" />
+              Undo
             </Button>
-            {lastRating && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleUndo}
-                aria-hidden={!undoVisible}
-                tabIndex={undoVisible ? undefined : -1}
-                className={cn(
-                  'gap-2 transition-opacity duration-300',
-                  undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
-                )}
-              >
-                <Undo2 className="h-4 w-4" />
-                Undo
-              </Button>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">
-                {currentIndex + 1} / {totalCards}
-              </span>
-            </div>
-            <Progress value={progress} className="h-2" />
+          )}
+          <div className="text-sm text-muted-foreground">
+            Reviewed: {reviewedCount}
           </div>
         </div>
-      </AnalyticsCard>
+      </div>
+
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Progress</span>
+          <span className="font-medium">
+            {currentIndex + 1} / {totalCards}
+          </span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
 
       <LearnCard
         card={currentCard}
@@ -510,13 +474,21 @@ export function DocumentLearnQuiz({
         onExpandedChange={setIsExpanded}
       />
 
-      <AnalyticsCard muted className="px-6">
-        <p className="py-1 text-center text-xs text-muted-foreground">
-          Press <Kbd>Space</Kbd> to reveal, then <Kbd>1</Kbd>-<Kbd>4</Kbd> to
-          rate. Undo: <Kbd>U</Kbd> or <Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+
-          <Kbd>Z</Kbd>
-        </p>
-      </AnalyticsCard>
+      {/* Keyboard shortcuts hint */}
+      <p className="text-center text-xs text-muted-foreground">
+        <Kbd>Space</Kbd> {isExpanded ? 'hide answer' : 'reveal answer'}
+        {canRate && (
+          <>
+            , <Kbd>1</Kbd>-<Kbd>4</Kbd> rate
+          </>
+        )}
+        {lastRating && (
+          <>
+            , <Kbd>U</Kbd> undo (<Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+<Kbd>Z</Kbd>)
+          </>
+        )}
+        .
+      </p>
     </div>
   )
 }

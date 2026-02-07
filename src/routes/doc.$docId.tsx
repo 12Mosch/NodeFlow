@@ -195,7 +195,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   if (isStudying && flashcards && flashcards.length > 0) {
     if (studyMode === 'spaced-repetition') {
       return (
-        <div className="mx-auto max-w-4xl p-8">
+        <div className="mx-auto w-full max-w-2xl p-8 lg:max-w-3xl xl:max-w-4xl">
           <DocumentLearnQuiz
             documentId={docId}
             onBack={() => {
@@ -217,7 +217,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     ]
 
     return (
-      <div className="mx-auto max-w-4xl p-8">
+      <div className="mx-auto w-full max-w-2xl p-8 lg:max-w-3xl xl:max-w-4xl">
         <FlashcardQuiz
           documents={documentData}
           selectedDocIds={new Set([docId])}

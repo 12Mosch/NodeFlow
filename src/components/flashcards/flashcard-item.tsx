@@ -28,6 +28,7 @@ export function FlashcardItem({
     cardFront: block.cardFront,
     cardBack: block.cardBack,
     textContent: block.textContent,
+    ancestorPath: block.ancestorPath,
   }
 
   const renderActions = () => {

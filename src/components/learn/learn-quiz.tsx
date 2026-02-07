@@ -17,6 +17,7 @@ import { calculateSuccessRate } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
 import type { LearnCard as LearnCardType, Rating } from './types'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
 
 interface LearnQuizProps {
@@ -442,6 +443,7 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
   }
 
   const progress = (currentIndex / totalCards) * 100
+  const canRate = isExpanded && !ratedCurrentCard
 
   return (
     <div className="space-y-6">
@@ -451,24 +453,21 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <div className="flex items-center gap-3">
-          {lastRating && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleUndo}
-              className={`gap-2 transition-opacity duration-300 ${
-                undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
-              }`}
-            >
-              <Undo2 className="h-4 w-4" />
-              Undo
-            </Button>
-          )}
-          <div className="text-sm text-muted-foreground">
-            Reviewed: {reviewedCount}
-          </div>
-        </div>
+        {lastRating && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUndo}
+            aria-hidden={!undoVisible}
+            tabIndex={undoVisible ? undefined : -1}
+            className={`gap-2 transition-opacity duration-300 ${
+              undoVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+            }`}
+          >
+            <Undo2 className="h-4 w-4" />
+            Undo
+          </Button>
+        )}
       </div>
 
       {/* Progress */}
@@ -493,34 +492,18 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
 
       {/* Keyboard shortcuts hint */}
       <p className="text-center text-xs text-muted-foreground">
-        Press{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Space
-        </kbd>{' '}
-        to reveal, then{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          1
-        </kbd>
-        -
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          4
-        </kbd>{' '}
-        to rate. Undo:{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          U
-        </kbd>{' '}
-        or{' '}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Ctrl
-        </kbd>
-        /
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Cmd
-        </kbd>
-        +
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-foreground">
-          Z
-        </kbd>
+        <Kbd>Space</Kbd> {isExpanded ? 'hide answer' : 'reveal answer'}
+        {canRate && (
+          <>
+            , <Kbd>1</Kbd>-<Kbd>4</Kbd> rate
+          </>
+        )}
+        {lastRating && (
+          <>
+            , <Kbd>U</Kbd> undo (<Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+<Kbd>Z</Kbd>)
+          </>
+        )}
+        .
       </p>
     </div>
   )

@@ -72,6 +72,7 @@ export function LearnCard({
     cardFront: block.cardFront,
     cardBack: block.cardBack,
     textContent: block.textContent,
+    ancestorPath: block.ancestorPath,
   }
 
   const renderHeaderBadges = () => (
