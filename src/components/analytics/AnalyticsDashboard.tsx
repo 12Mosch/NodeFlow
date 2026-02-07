@@ -10,8 +10,38 @@ import {
   PieChart,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
+import {
+  HOURLY_CANDIDATE_MIN_REVIEWS,
+  INTERVAL_CANDIDATE_MIN_REVIEWS,
+  LOW_DATA_RECENT_14_DAY_REVIEWS_THRESHOLD,
+  LOW_DATA_TOTAL_REVIEWS_THRESHOLD,
+  NO_INTERVAL_HIGHLIGHT,
+  findMinMaxBy,
+  formatLocalHour,
+  formatPercent,
+  getCardTypeLabel,
+  getCardTypeSampleFloor,
+  getForecastAction,
+  getForecastSpikeDayThreshold,
+  getForecastTone,
+  getIntervalAction,
+  getIntervalTone,
+  getLocalMinutes,
+  getRetentionAction,
+  getRetentionTone,
+  getTrendsAction,
+  getTrendsTone,
+  getWorkloadAction,
+  getWorkloadTone,
+  lastNonNull,
+  roundToOne,
+  safeAverage,
+} from './suggestion-helpers'
+import type { FunctionReturnType } from 'convex/server'
+import type { HourlyPerformance, PeakHourLabel } from './suggestion-helpers'
 import type { ReactNode } from 'react'
 import {
+  ActionSuggestionCard,
   AnalyticsBlockHeader,
   AnalyticsCard,
   AnalyticsSection,
@@ -22,28 +52,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
 import { cn } from '@/lib/utils'
-import { CARD_TYPE_LABELS } from '@/components/flashcards/constants'
-
-type RetentionPoint = {
-  date: number
-  total: number
-  correct: number
-  rate: number | null
-  rolling7: number | null
-  rolling30: number | null
-  rolling90: number | null
-}
-
-type HourlyPerformance = {
-  hourUtc: number
-  total: number
-  rate: number | null
-}
-
-function formatPercent(value: number | null) {
-  if (value === null || Number.isNaN(value)) return '—'
-  return `${value.toFixed(1)}%`
-}
 
 function formatDuration(ms: number) {
   if (!ms || ms <= 0) return '0m'
@@ -60,34 +68,239 @@ function formatDurationShort(ms: number | null) {
   return formatDuration(ms)
 }
 
-function getLocalMinutes(hourUtc: number, offsetMinutes: number) {
-  return (((hourUtc * 60 - offsetMinutes) % 1440) + 1440) % 1440
-}
+type AnalyticsDashboardData = FunctionReturnType<
+  typeof api.cardStates.getAnalyticsDashboard
+>
 
-function lastNonNull(points: Array<RetentionPoint>, key: keyof RetentionPoint) {
-  for (let i = points.length - 1; i >= 0; i -= 1) {
-    const value = points[i][key]
-    if (typeof value === 'number') return value
-  }
-  return null
-}
-
-function formatLocalHour(
-  hourUtc: number,
+function useDerivedAnalytics(
+  data: AnalyticsDashboardData | undefined,
   offsetMinutes: number,
-  compact = false,
 ) {
-  const totalMinutes = getLocalMinutes(hourUtc, offsetMinutes)
-  const hour = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  const meridiem = hour >= 12 ? 'PM' : 'AM'
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12
-  const minutePart = minutes === 0 ? '' : `:${String(minutes).padStart(2, '0')}`
-  if (compact) {
-    const compactMeridiem = meridiem === 'AM' ? 'a' : 'p'
-    return `${displayHour}${minutePart}${compactMeridiem}`
-  }
-  return `${displayHour}${minutePart} ${meridiem}`
+  return useMemo(() => {
+    if (!data) return null
+
+    const hasReviews = data.retention.daily.some((day) => day.total > 0)
+    const latest7 = lastNonNull(data.retention.daily, 'rolling7')
+    const latest30 = lastNonNull(data.retention.daily, 'rolling30')
+    const latest90 = lastNonNull(data.retention.daily, 'rolling90')
+
+    const peakHoursLabel = data.time.peakHours
+      .map((hour) => ({
+        ...hour,
+        label: formatLocalHour(hour.hourUtc, offsetMinutes),
+      }))
+      .filter((hour): hour is PeakHourLabel => hour.rate !== null)
+
+    const intervalHighlight = data.retention.optimalInterval
+      ? `${data.retention.optimalInterval.label} (${formatPercent(
+          data.retention.optimalInterval.rate,
+        )})`
+      : NO_INTERVAL_HIGHLIGHT
+
+    const forecastCounts = data.forecast.duePerDay.map((d) => d.count)
+    const peakDayValue =
+      forecastCounts.length === 0 ? '-' : Math.max(...forecastCounts).toString()
+    const hasHourlyPerformance = data.time.hourlyPerformance.some(
+      (hour) => hour.total > 0,
+    )
+    const hasForecast = data.forecast.duePerDay.some((day) => day.count > 0)
+    const totalReviews = data.retention.daily.reduce(
+      (sum, day) => sum + day.total,
+      0,
+    )
+    const recent7Reviews = data.retention.daily
+      .slice(-7)
+      .reduce((sum, day) => sum + day.total, 0)
+    const recent14Reviews = data.retention.daily
+      .slice(-14)
+      .reduce((sum, day) => sum + day.total, 0)
+    const hourlyRates = data.time.hourlyPerformance
+      .map((hour) => hour.rate)
+      .filter((rate): rate is number => rate !== null)
+    const peakHourlyRate =
+      hourlyRates.length > 0 ? Math.max(...hourlyRates) : null
+    const retentionDelta7to30 =
+      latest7 !== null && latest30 !== null
+        ? roundToOne(latest7 - latest30)
+        : null
+
+    const cardTypeSampleFloor = getCardTypeSampleFloor(totalReviews)
+    const cardTypeCandidates = data.retention.byCardType.filter(
+      (item) => item.total >= cardTypeSampleFloor && item.rate !== null,
+    )
+    const { min: weakestCardType, max: strongestCardType } = findMinMaxBy(
+      cardTypeCandidates,
+      (item) => item.rate,
+    )
+    const cardTypeSpread =
+      weakestCardType &&
+      strongestCardType &&
+      weakestCardType.rate !== null &&
+      strongestCardType.rate !== null
+        ? roundToOne(strongestCardType.rate - weakestCardType.rate)
+        : null
+
+    const intervalCandidates = data.retention.intervalBuckets.filter(
+      (bucket) =>
+        bucket.total >= INTERVAL_CANDIDATE_MIN_REVIEWS && bucket.rate !== null,
+    )
+    const { min: weakestIntervalBucket, max: bestIntervalBucket } =
+      findMinMaxBy(intervalCandidates, (bucket) => bucket.rate)
+    const intervalSpread =
+      weakestIntervalBucket &&
+      bestIntervalBucket &&
+      weakestIntervalBucket.rate !== null &&
+      bestIntervalBucket.rate !== null
+        ? roundToOne(bestIntervalBucket.rate - weakestIntervalBucket.rate)
+        : null
+
+    const hourlyCandidates = data.time.hourlyPerformance.filter(
+      (hour) =>
+        hour.total >= HOURLY_CANDIDATE_MIN_REVIEWS && hour.rate !== null,
+    )
+    const { min: weakestHour, max: strongestHour } = findMinMaxBy(
+      hourlyCandidates,
+      (hour) => hour.rate,
+    )
+    const hourlySpread =
+      strongestHour &&
+      weakestHour &&
+      strongestHour.rate !== null &&
+      weakestHour.rate !== null
+        ? roundToOne(strongestHour.rate - weakestHour.rate)
+        : null
+
+    const first7Due = data.forecast.duePerDay.slice(0, 7)
+    const first7DueTotal = first7Due.reduce((sum, day) => sum + day.count, 0)
+    const first7DailyAverage = safeAverage(first7Due.map((day) => day.count))
+    const forecastPeakCount =
+      forecastCounts.length === 0 ? 0 : Math.max(...forecastCounts)
+    const forecastSpikeRatio =
+      data.forecast.averagePerDay > 0
+        ? forecastPeakCount / data.forecast.averagePerDay
+        : 0
+    const forecastSpikeDays = data.forecast.duePerDay.filter(
+      (day) =>
+        day.count >=
+          getForecastSpikeDayThreshold(data.forecast.averagePerDay) &&
+        data.forecast.averagePerDay > 0,
+    ).length
+    const first7Share =
+      data.forecast.totalDueNext30 > 0
+        ? first7DueTotal / data.forecast.totalDueNext30
+        : 0
+
+    const retentionSummary = hasReviews
+      ? `Latest rolling retention is ${formatPercent(latest7)} for 7-day, ${formatPercent(latest30)} for 30-day, and ${formatPercent(latest90)} for 90-day performance.`
+      : 'No retention trend data is available yet.'
+
+    const difficultySummary =
+      data.difficulty.total === 0
+        ? 'No active cards are available for difficulty distribution.'
+        : `${data.difficulty.total} active cards by bucket: ${data.difficulty.buckets
+            .map((bucket) => `${bucket.label} ${bucket.count}`)
+            .join(', ')}.`
+
+    const hourlySummary = hasHourlyPerformance
+      ? peakHoursLabel.length > 0
+        ? `Best local hours are ${peakHoursLabel
+            .slice(0, 3)
+            .map((hour) => `${hour.label} at ${formatPercent(hour.rate)}`)
+            .join(
+              ', ',
+            )}. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
+        : `Hourly data is available but no peak hours can be highlighted. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
+      : 'No hourly performance data is available yet.'
+
+    const forecastSummary = hasForecast
+      ? `In the next 30 days, ${data.forecast.totalDueNext30.toLocaleString()} cards are due, averaging ${data.forecast.averagePerDay.toFixed(1)} cards per day with a highest day of ${peakDayValue} cards.`
+      : 'No upcoming review load is scheduled yet.'
+
+    const retentionAction = getRetentionAction({
+      hasReviews,
+      latest7,
+      latest30,
+      retentionDelta7to30,
+      recent7Reviews,
+    })
+    const trendsAction = getTrendsAction({
+      weakestCardType,
+      strongestCardType,
+      cardTypeSpread,
+    })
+    const intervalAction = getIntervalAction({
+      weakestIntervalBucket,
+      bestIntervalBucket,
+      intervalSpread,
+      intervalHighlight,
+    })
+    const workloadAction = getWorkloadAction({
+      hasHourlyPerformance,
+      strongestHour,
+      weakestHour,
+      hourlySpread,
+      peakHoursLabel,
+      offsetMinutes,
+    })
+    const forecastAction = getForecastAction({
+      hasForecast,
+      forecastSpikeRatio,
+      forecastPeakCount,
+      averagePerDay: data.forecast.averagePerDay,
+      first7Share,
+      first7DailyAverage,
+      forecastSpikeDays,
+    })
+
+    const isLowDataVolume =
+      totalReviews < LOW_DATA_TOTAL_REVIEWS_THRESHOLD ||
+      recent14Reviews < LOW_DATA_RECENT_14_DAY_REVIEWS_THRESHOLD
+    const recommendationAction = isLowDataVolume ? (
+      <Badge variant="secondary" className="text-[10px]">
+        Low data confidence
+      </Badge>
+    ) : data.meta.reviewLogsTruncated ? (
+      <Badge variant="secondary" className="text-[10px]">
+        Based on latest logs
+      </Badge>
+    ) : null
+
+    const retentionTone = getRetentionTone({ hasReviews, latest7 })
+    const trendsTone = getTrendsTone({ weakestCardType, cardTypeSpread })
+    const intervalTone = getIntervalTone({
+      weakestIntervalBucket,
+      intervalSpread,
+    })
+    const workloadTone = getWorkloadTone({ hourlySpread, hasHourlyPerformance })
+    const forecastTone = getForecastTone({ forecastSpikeRatio, first7Share })
+
+    return {
+      difficultySummary,
+      forecastAction,
+      forecastSummary,
+      forecastTone,
+      hasForecast,
+      hasHourlyPerformance,
+      hasReviews,
+      hourlySummary,
+      intervalAction,
+      intervalHighlight,
+      intervalTone,
+      latest30,
+      latest7,
+      latest90,
+      peakDayValue,
+      peakHoursLabel,
+      recommendationAction,
+      retentionAction,
+      retentionSummary,
+      retentionTone,
+      trendsAction,
+      trendsTone,
+      workloadAction,
+      workloadTone,
+    }
+  }, [data, offsetMinutes])
 }
 
 export function AnalyticsDashboard() {
@@ -116,64 +329,36 @@ export function AnalyticsDashboard() {
     [data],
   )
 
-  if (!data) return null
+  const derived = useDerivedAnalytics(data, offsetMinutes)
 
-  const hasReviews = data.retention.daily.some((day) => day.total > 0)
-  const latest7 = lastNonNull(data.retention.daily, 'rolling7')
-  const latest30 = lastNonNull(data.retention.daily, 'rolling30')
-  const latest90 = lastNonNull(data.retention.daily, 'rolling90')
+  if (!data || !derived) return null
 
-  const peakHoursLabel = data.time.peakHours
-    .map((hour) => ({
-      ...hour,
-      label: formatLocalHour(hour.hourUtc, offsetMinutes),
-    }))
-    .filter((hour) => hour.rate !== null)
-
-  const intervalHighlight = data.retention.optimalInterval
-    ? `${data.retention.optimalInterval.label} (${formatPercent(
-        data.retention.optimalInterval.rate,
-      )})`
-    : '—'
-
-  const forecastCounts = data.forecast.duePerDay.map((d) => d.count)
-  const peakDayValue =
-    forecastCounts.length === 0 ? '-' : Math.max(...forecastCounts).toString()
-  const hasHourlyPerformance = data.time.hourlyPerformance.some(
-    (hour) => hour.total > 0,
-  )
-  const hasForecast = data.forecast.duePerDay.some((day) => day.count > 0)
-  const hourlyRates = data.time.hourlyPerformance
-    .map((hour) => hour.rate)
-    .filter((rate): rate is number => rate !== null)
-  const peakHourlyRate =
-    hourlyRates.length > 0 ? Math.max(...hourlyRates) : null
-
-  const retentionSummary = hasReviews
-    ? `Latest rolling retention is ${formatPercent(latest7)} for 7-day, ${formatPercent(latest30)} for 30-day, and ${formatPercent(latest90)} for 90-day performance.`
-    : 'No retention trend data is available yet.'
-
-  const difficultySummary =
-    data.difficulty.total === 0
-      ? 'No active cards are available for difficulty distribution.'
-      : `${data.difficulty.total} active cards by bucket: ${data.difficulty.buckets
-          .map((bucket) => `${bucket.label} ${bucket.count}`)
-          .join(', ')}.`
-
-  const hourlySummary = hasHourlyPerformance
-    ? peakHoursLabel.length > 0
-      ? `Best local hours are ${peakHoursLabel
-          .slice(0, 3)
-          .map((hour) => `${hour.label} at ${formatPercent(hour.rate)}`)
-          .join(
-            ', ',
-          )}. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
-      : `Hourly data is available but no peak hours can be highlighted. Peak hourly retention is ${formatPercent(peakHourlyRate)}.`
-    : 'No hourly performance data is available yet.'
-
-  const forecastSummary = hasForecast
-    ? `In the next 30 days, ${data.forecast.totalDueNext30.toLocaleString()} cards are due, averaging ${data.forecast.averagePerDay.toFixed(1)} cards per day with a highest day of ${peakDayValue} cards.`
-    : 'No upcoming review load is scheduled yet.'
+  const {
+    difficultySummary,
+    forecastAction,
+    forecastSummary,
+    forecastTone,
+    hasForecast,
+    hasHourlyPerformance,
+    hasReviews,
+    hourlySummary,
+    intervalAction,
+    intervalHighlight,
+    intervalTone,
+    latest30,
+    latest7,
+    latest90,
+    peakDayValue,
+    peakHoursLabel,
+    recommendationAction,
+    retentionAction,
+    retentionSummary,
+    retentionTone,
+    trendsAction,
+    trendsTone,
+    workloadAction,
+    workloadTone,
+  } = derived
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -229,6 +414,12 @@ export function AnalyticsDashboard() {
               helper="Rolling average"
             />
           </div>
+          <ActionSuggestionCard
+            tone={retentionTone}
+            action={recommendationAction}
+          >
+            {retentionAction}
+          </ActionSuggestionCard>
         </AnalyticsSection>
 
         <AnalyticsSection
@@ -308,6 +499,9 @@ export function AnalyticsDashboard() {
               )}
             </AnalyticsCard>
           </div>
+          <ActionSuggestionCard tone={trendsTone} action={recommendationAction}>
+            {trendsAction}
+          </ActionSuggestionCard>
         </AnalyticsSection>
 
         <AnalyticsSection
@@ -431,6 +625,12 @@ export function AnalyticsDashboard() {
               </div>
             </AnalyticsCard>
           </div>
+          <ActionSuggestionCard
+            tone={intervalTone}
+            action={recommendationAction}
+          >
+            {intervalAction}
+          </ActionSuggestionCard>
         </AnalyticsSection>
 
         <AnalyticsSection
@@ -539,6 +739,18 @@ export function AnalyticsDashboard() {
               </div>
             </AnalyticsCard>
           </div>
+          <ActionSuggestionCard
+            tone={workloadTone}
+            action={recommendationAction}
+          >
+            {workloadAction}
+          </ActionSuggestionCard>
+          <ActionSuggestionCard
+            tone={forecastTone}
+            action={recommendationAction}
+          >
+            {forecastAction}
+          </ActionSuggestionCard>
         </AnalyticsSection>
       </div>
     </div>
@@ -696,13 +908,6 @@ function getDifficultyColor(index: number) {
   return (
     difficultyColors[index] ?? difficultyColors[difficultyColors.length - 1]
   )
-}
-
-function getCardTypeLabel(cardType: string) {
-  if (cardType in CARD_TYPE_LABELS) {
-    return CARD_TYPE_LABELS[cardType as keyof typeof CARD_TYPE_LABELS]
-  }
-  return 'Other'
 }
 
 function DonutChart({
