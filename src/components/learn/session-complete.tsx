@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { pluralize } from '@/lib/pluralize'
 
 // Confetti configuration
 const HIGH_SUCCESS_THRESHOLD = 80
@@ -57,6 +58,8 @@ export function SessionComplete({
   onBack,
   onGoHome,
 }: SessionCompleteProps) {
+  const reviewedCardLabel = pluralize(reviewedCount, 'card')
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     const prefersReducedMotion = window.matchMedia(
@@ -89,8 +92,7 @@ export function SessionComplete({
       <span className="text-5xl">{celebrationEmoji}</span>
       <h2 className="mt-4 text-2xl font-bold">{celebrationMessage}</h2>
       <p className="mt-2 text-muted-foreground">
-        You reviewed {reviewedCount} card{reviewedCount !== 1 ? 's' : ''} in
-        this session.
+        You reviewed {reviewedCount} {reviewedCardLabel} in this session.
       </p>
       <div className="mt-6 flex justify-center gap-3">
         <Button onClick={onBack} variant="outline">
