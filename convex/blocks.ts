@@ -248,6 +248,77 @@ async function cleanupOrphanedCardStates(
   await batchDelete(ctx, cardStateIds)
 }
 
+function normalizeHeadingTitle(textContent: string): string {
+  return textContent.trim()
+}
+
+async function syncGhostTitleFromHeadings(
+  ctx: MutationCtx,
+  documentId: Id<'documents'>,
+): Promise<void> {
+  const document = await ctx.db.get(documentId)
+  if (!document || document.titleMode !== 'auto') return
+
+  let hasInvalidTitleSource = false
+
+  if (document.titleSourceNodeId) {
+    const sourceNodeId = document.titleSourceNodeId
+    const sourceBlock = await ctx.db
+      .query('blocks')
+      .withIndex('by_nodeId', (q) =>
+        q.eq('documentId', documentId).eq('nodeId', sourceNodeId),
+      )
+      .unique()
+
+    if (!sourceBlock || sourceBlock.type !== 'heading') {
+      hasInvalidTitleSource = true
+    } else {
+      const nextTitle = normalizeHeadingTitle(sourceBlock.textContent)
+      if (!nextTitle) {
+        hasInvalidTitleSource = true
+      } else if (nextTitle === document.title) {
+        return
+      } else {
+        await ctx.db.patch(documentId, { title: nextTitle })
+        return
+      }
+    }
+  }
+
+  const allBlocks = await ctx.db
+    .query('blocks')
+    .withIndex('by_document_position', (q) => q.eq('documentId', documentId))
+    .order('asc')
+    .collect()
+
+  const firstHeading = allBlocks.find(
+    (block) =>
+      block.type === 'heading' &&
+      normalizeHeadingTitle(block.textContent).length > 0,
+  )
+
+  if (!firstHeading) {
+    if (hasInvalidTitleSource) {
+      await ctx.db.patch(documentId, { titleSourceNodeId: undefined })
+    }
+    return
+  }
+
+  const nextTitle = normalizeHeadingTitle(firstHeading.textContent)
+  const patch: {
+    title?: string
+    titleSourceNodeId?: string
+  } = {
+    titleSourceNodeId: firstHeading.nodeId,
+  }
+
+  if (nextTitle !== document.title) {
+    patch.title = nextTitle
+  }
+
+  await ctx.db.patch(documentId, patch)
+}
+
 // Get all blocks for a document
 export const listByDocument = query({
   args: {
@@ -313,6 +384,8 @@ export const upsertBlock = mutation({
           )
           .unique()
 
+        let blockId: Id<'blocks'>
+
         if (existingBlock) {
           // Update existing block
           await ctx.db.patch(existingBlock._id, {
@@ -362,11 +435,10 @@ export const upsertBlock = mutation({
               }
             }
           }
-
-          return existingBlock._id
+          blockId = existingBlock._id
         } else {
           // Create new block
-          const id = await ctx.db.insert('blocks', {
+          blockId = await ctx.db.insert('blocks', {
             documentId: args.documentId,
             userId: effectiveUserId,
             nodeId: args.nodeId,
@@ -388,12 +460,13 @@ export const upsertBlock = mutation({
           if (args.isCard && args.cardDirection !== 'disabled') {
             const directions = getDirectionsForCard(args.cardDirection)
             for (const direction of directions) {
-              await createCardState(ctx, id, effectiveUserId, direction)
+              await createCardState(ctx, blockId, effectiveUserId, direction)
             }
           }
-
-          return id
         }
+
+        await syncGhostTitleFromHeadings(ctx, args.documentId)
+        return blockId
       },
     )
   },
@@ -422,6 +495,8 @@ export const deleteBlock = mutation({
         if (block) {
           await cascadeDeleteBlock(ctx, block._id)
         }
+
+        await syncGhostTitleFromHeadings(ctx, args.documentId)
       },
     )
   },
@@ -458,6 +533,8 @@ export const deleteBlocks = mutation({
             await cascadeDeleteBlock(ctx, block._id)
           }
         }
+
+        await syncGhostTitleFromHeadings(ctx, args.documentId)
       },
     )
   },
@@ -597,6 +674,8 @@ export const syncBlocks = mutation({
             }
           }
         }
+
+        await syncGhostTitleFromHeadings(ctx, args.documentId)
       },
     )
   },
