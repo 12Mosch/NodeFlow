@@ -30,11 +30,10 @@ export function RatingButtons({
     baseClassName: string
     hoverClassName: string
     activeClassName: string
-    keyHint: string
   }> = [
     {
       rating: 1,
-      label: 'Again',
+      label: 'Forgot',
       interval: intervalPreviews.again,
       icon: RotateCcw,
       baseClassName: 'border-red-500/30 text-red-600 dark:text-red-400',
@@ -42,7 +41,6 @@ export function RatingButtons({
         'hover:bg-red-500/15 hover:border-red-500/50 hover:shadow-[0_0_12px_rgba(239,68,68,0.15)] dark:hover:shadow-[0_0_12px_rgba(239,68,68,0.25)]',
       activeClassName:
         'bg-red-500/20 border-red-500/60 shadow-[0_0_16px_rgba(239,68,68,0.3)]',
-      keyHint: '1',
     },
     {
       rating: 2,
@@ -55,7 +53,6 @@ export function RatingButtons({
         'hover:bg-orange-500/15 hover:border-orange-500/50 hover:shadow-[0_0_12px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_0_12px_rgba(249,115,22,0.25)]',
       activeClassName:
         'bg-orange-500/20 border-orange-500/60 shadow-[0_0_16px_rgba(249,115,22,0.3)]',
-      keyHint: '2',
     },
     {
       rating: 3,
@@ -68,7 +65,6 @@ export function RatingButtons({
         'hover:bg-emerald-500/15 hover:border-emerald-500/50 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] dark:hover:shadow-[0_0_12px_rgba(16,185,129,0.25)]',
       activeClassName:
         'bg-emerald-500/20 border-emerald-500/60 shadow-[0_0_16px_rgba(16,185,129,0.3)]',
-      keyHint: '3',
     },
     {
       rating: 4,
@@ -80,7 +76,6 @@ export function RatingButtons({
         'hover:bg-sky-500/15 hover:border-sky-500/50 hover:shadow-[0_0_12px_rgba(14,165,233,0.15)] dark:hover:shadow-[0_0_12px_rgba(14,165,233,0.25)]',
       activeClassName:
         'bg-sky-500/20 border-sky-500/60 shadow-[0_0_16px_rgba(14,165,233,0.3)]',
-      keyHint: '4',
     },
   ]
 
@@ -95,7 +90,6 @@ export function RatingButtons({
           baseClassName,
           hoverClassName,
           activeClassName,
-          keyHint,
         }) => (
           <Button
             key={rating}
@@ -114,9 +108,6 @@ export function RatingButtons({
               <span className="font-medium">{label}</span>
             </div>
             <span className="text-xs opacity-70">{interval}</span>
-            <kbd className="mt-1 rounded border border-current/20 bg-current/5 px-1.5 py-0.5 text-[10px] font-semibold opacity-50">
-              {keyHint}
-            </kbd>
           </Button>
         ),
       )}

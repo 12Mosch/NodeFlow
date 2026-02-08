@@ -6,9 +6,12 @@ import { expandCardsForQuiz } from './quiz-card-expansion'
 import type { FlashcardWithDocument, QuizCard, QuizResult } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { AnalyticsCard } from '@/components/analytics'
+import {
+  KeyboardShortcutsHint,
+  RANDOM_MODE_SHORTCUTS,
+} from '@/components/learn/keyboard-shortcuts-hint'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 
 interface FlashcardQuizProps {
@@ -302,20 +305,12 @@ export function FlashcardQuiz({
         onExpandedChange={setIsExpanded}
       />
 
-      <p className="text-center text-xs text-muted-foreground">
-        <Kbd>Space</Kbd> {isExpanded ? 'hide answer' : 'reveal answer'}
-        {canAnswer && (
-          <>
-            , <Kbd>1</Kbd> or <Kbd>2</Kbd> answer
-          </>
-        )}
-        {lastAnswer && (
-          <>
-            , <Kbd>U</Kbd> undo (<Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+<Kbd>Z</Kbd>)
-          </>
-        )}
-        .
-      </p>
+      <KeyboardShortcutsHint
+        isExpanded={isExpanded}
+        shortcuts={RANDOM_MODE_SHORTCUTS}
+        showShortcuts={canAnswer}
+        canUndo={lastAnswer !== null}
+      />
     </div>
   )
 }

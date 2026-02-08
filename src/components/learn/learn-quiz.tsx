@@ -11,13 +11,16 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
+import {
+  KeyboardShortcutsHint,
+  STUDY_RATING_SHORTCUTS,
+} from './keyboard-shortcuts-hint'
 import { LearnCard } from './learn-card'
 import { SessionComplete } from './session-complete'
 import { calculateSuccessRate } from './types'
 import type { Id } from '../../../convex/_generated/dataModel'
 import type { LearnCard as LearnCardType, Rating } from './types'
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
 import { Progress } from '@/components/ui/progress'
 
 interface LearnQuizProps {
@@ -490,21 +493,12 @@ export function LearnQuiz({ onBack, onGoHome }: LearnQuizProps) {
         activeRating={activeRating}
       />
 
-      {/* Keyboard shortcuts hint */}
-      <p className="text-center text-xs text-muted-foreground">
-        <Kbd>Space</Kbd> {isExpanded ? 'hide answer' : 'reveal answer'}
-        {canRate && (
-          <>
-            , <Kbd>1</Kbd>-<Kbd>4</Kbd> rate
-          </>
-        )}
-        {lastRating && (
-          <>
-            , <Kbd>U</Kbd> undo (<Kbd>Ctrl</Kbd>/<Kbd>Cmd</Kbd>+<Kbd>Z</Kbd>)
-          </>
-        )}
-        .
-      </p>
+      <KeyboardShortcutsHint
+        isExpanded={isExpanded}
+        shortcuts={STUDY_RATING_SHORTCUTS}
+        showShortcuts={canRate}
+        canUndo={lastRating !== null}
+      />
     </div>
   )
 }
