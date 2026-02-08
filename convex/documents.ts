@@ -82,10 +82,13 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx)
     const now = Date.now()
+    const initialTitle = args.title ?? 'Untitled'
+    const isAutoTitle = initialTitle === 'Untitled'
 
     const id = await ctx.db.insert('documents', {
       userId,
-      title: args.title ?? 'Untitled',
+      title: initialTitle,
+      titleMode: isAutoTitle ? 'auto' : 'manual',
       createdAt: now,
       updatedAt: now,
     })
@@ -104,6 +107,8 @@ export const updateTitle = mutation({
 
     await ctx.db.patch(args.id, {
       title: args.title,
+      titleMode: 'manual',
+      titleSourceNodeId: undefined,
       updatedAt: Date.now(),
     })
   },

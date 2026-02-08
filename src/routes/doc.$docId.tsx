@@ -101,6 +101,7 @@ function DocumentPage() {
 function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const navigate = useNavigate()
   const isRestoring = useIsRestoring()
+  const queryClient = useQueryClient()
   const { q: searchQuery } = Route.useSearch()
   const { data: document, isPending } = useQuery(
     convexQuery(api.documents.get, { id: docId }),
@@ -123,11 +124,28 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const [studyMode, setStudyMode] = useState<StudyMode | null>(null)
   const [showStudyModeDialog, setShowStudyModeDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
+  const previousTitleRef = useRef<string | null>(null)
 
   // Presence for collaborative editing
   const { collaborators, updateCursor } = usePresence({ documentId: docId })
 
   const flashcardCount = flashcards?.length ?? 0
+
+  useEffect(() => {
+    if (!document) return
+
+    const previousTitle = previousTitleRef.current
+    if (previousTitle === null) {
+      previousTitleRef.current = document.title
+      return
+    }
+
+    if (previousTitle !== document.title) {
+      void queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
+    }
+
+    previousTitleRef.current = document.title
+  }, [document, queryClient])
 
   const handleStudyClick = () => {
     setShowStudyModeDialog(true)

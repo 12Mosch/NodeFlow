@@ -19,6 +19,8 @@ export default defineSchema({
   documents: defineTable({
     userId: v.id('users'),
     title: v.string(),
+    titleMode: v.optional(v.union(v.literal('auto'), v.literal('manual'))),
+    titleSourceNodeId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
     // Sharing fields
