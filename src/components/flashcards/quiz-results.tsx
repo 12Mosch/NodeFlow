@@ -1,13 +1,17 @@
+import { Link } from '@tanstack/react-router'
 import { Check, Home, RotateCcw, Trophy, X } from 'lucide-react'
+import { analyzeQuizMistakes } from './quiz-mistake-analysis'
 import { renderClozeText } from './utils'
 import type { QuizResult } from './types'
 import {
+  ActionSuggestionCard,
   AnalyticsCard,
   AnalyticsSection,
   MetricCard,
 } from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { pluralize } from '@/lib/pluralize'
 import { cn } from '@/lib/utils'
 
 interface QuizResultsProps {
@@ -25,8 +29,20 @@ export function QuizResults({
 }: QuizResultsProps) {
   const knewCount = results.filter((r) => r.knew).length
   const totalCount = results.length
+  const missedCount = totalCount - knewCount
   const percentage =
     totalCount > 0 ? Math.round((knewCount / totalCount) * 100) : 0
+  const { topProblemCards, topMistakeShare } = analyzeQuizMistakes(results)
+  const topProblemCardLabel = pluralize(topProblemCards, 'card')
+  const recommendation =
+    percentage < 65
+      ? `Random recall landed at ${percentage}%. Run your next session in Spaced Repetition mode to recover weak cards faster.`
+      : percentage < 80
+        ? `You're in a mixed zone at ${percentage}% accuracy. Review missed cards immediately, then retest this deck in a shorter batch.`
+        : `Strong run at ${percentage}% accuracy. Keep random mode for quick checks, and use Spaced Repetition to lock in long-term retention.`
+  const recommendationTone =
+    percentage < 65 ? 'warning' : percentage < 80 ? 'default' : 'success'
+  const problemCardsTone = percentage >= 80 ? 'default' : 'warning'
 
   const getMessage = () => {
     if (percentage === 100) return { text: 'Perfect score!', icon: '🎉' }
@@ -60,10 +76,30 @@ export function QuizResults({
           <MetricCard
             variant="compact"
             label="Missed"
-            value={totalCount - knewCount}
+            value={missedCount}
             helper="needs review"
           />
         </div>
+        <ActionSuggestionCard
+          tone={recommendationTone}
+          action={
+            percentage < 65 ? (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/study" search={{ mode: 'spaced-repetition' }}>
+                  Switch to Spaced
+                </Link>
+              </Button>
+            ) : null
+          }
+        >
+          {recommendation}
+        </ActionSuggestionCard>
+        {missedCount > 0 ? (
+          <ActionSuggestionCard tone={problemCardsTone}>
+            {topProblemCards} {topProblemCardLabel} caused {topMistakeShare}% of
+            your misses. Review those first, then rerun this deck.
+          </ActionSuggestionCard>
+        ) : null}
 
         <AnalyticsCard className="px-6">
           <div className="space-y-6 py-1">
@@ -98,7 +134,7 @@ export function QuizResults({
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {totalCount - knewCount}
+                    {missedCount}
                   </p>
                   <p className="text-sm text-muted-foreground">Didn't know</p>
                 </div>

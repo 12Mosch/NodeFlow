@@ -8,9 +8,14 @@ import { LeechStatsOverview } from './LeechStatsOverview'
 import { LeechesTable } from './LeechesTable'
 import { BulkActionsToolbar } from './BulkActionsToolbar'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { AnalyticsCard, AnalyticsSection } from '@/components/analytics'
+import {
+  ActionSuggestionCard,
+  AnalyticsCard,
+  AnalyticsSection,
+} from '@/components/analytics'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
+import { pluralize } from '@/lib/pluralize'
 
 type FilterMode = 'all' | 'suspended' | 'unsuspended'
 
@@ -43,6 +48,8 @@ export function LeechesPage() {
     }
     return true // 'all'
   })
+  const leechCardLabel = pluralize(stats.totalLeeches, 'leech card')
+  const leechVerb = pluralize(stats.totalLeeches, 'is', 'are')
 
   const handleToggleSelect = (cardId: Id<'cardStates'>) => {
     setSelectedCards((prev) => {
@@ -98,6 +105,10 @@ export function LeechesPage() {
                 </p>
               </div>
             </AnalyticsCard>
+            <ActionSuggestionCard tone="success">
+              Keep this clean by doing a quick weekly leech check and rewriting
+              any card that feels ambiguous before it slips.
+            </ActionSuggestionCard>
           </AnalyticsSection>
         ) : (
           <>
@@ -106,6 +117,11 @@ export function LeechesPage() {
               description="Cards flagged for repeated lapses or low retention."
             >
               <LeechStatsOverview stats={stats} />
+              <ActionSuggestionCard tone="warning">
+                {stats.totalLeeches} {leechCardLabel} {leechVerb} creating most
+                repeated mistakes. Spend 5 minutes rewriting the worst cards
+                before your next full review.
+              </ActionSuggestionCard>
             </AnalyticsSection>
 
             <AnalyticsSection

@@ -6,6 +6,10 @@ export {
   computeExpandedCardCount,
   expandCardsForQuiz,
 } from './quiz-card-expansion'
+export {
+  analyzeQuizMistakes,
+  TOP_MISTAKE_CONTRIBUTION_THRESHOLD,
+} from './quiz-mistake-analysis'
 export type {
   FlashcardBlock,
   FlashcardWithDocument,

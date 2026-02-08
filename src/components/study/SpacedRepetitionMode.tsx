@@ -14,6 +14,7 @@ import { api } from '../../../convex/_generated/api'
 import type { StudyState } from './types'
 import { LearnQuiz } from '@/components/learn'
 import {
+  ActionSuggestionCard,
   AnalyticsCard,
   AnalyticsSection,
   MetricCard,
@@ -21,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Progress } from '@/components/ui/progress'
+import { pluralize } from '@/lib/pluralize'
 
 interface SpacedRepetitionModeProps {
   studyState: StudyState
@@ -61,6 +63,10 @@ export function SpacedRepetitionMode({
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
   const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
   const totalDue = dueCards.length + newCards.length
+  const leechCardLabel = pluralize(leechStats.totalLeeches, 'card')
+  const leechQueueLabel = pluralize(leechStats.totalLeeches, 'leech card')
+  const leechVerb = pluralize(leechStats.totalLeeches, 'is', 'are')
+  const reviewLabel = pluralize(dueCards.length, 'review')
   const readiness =
     totalDue > 0
       ? Math.min(
@@ -68,6 +74,14 @@ export function SpacedRepetitionMode({
           Math.max(0, Math.round((stats.reviewedToday / totalDue) * 100)),
         )
       : 0
+  const sessionSuggestion =
+    stats.retentionRate === null
+      ? 'No reviews yet, retention is unknown. Start with due cards and calibrate before scaling up new cards.'
+      : stats.retentionRate < 75
+        ? `Today's retention is ${stats.retentionRate}%. Prioritize due cards first and reduce new cards until retention recovers.`
+        : stats.dueNow > Math.max(20, stats.newCards * 2)
+          ? `Due load is building (${stats.dueNow} due now). Clear reviews before introducing more new cards.`
+          : "You're in a healthy range. Keep honest ratings and finish today's due cards to maintain momentum."
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
@@ -136,6 +150,7 @@ export function SpacedRepetitionMode({
                   helper="today's accuracy"
                 />
               </div>
+              <ActionSuggestionCard>{sessionSuggestion}</ActionSuggestionCard>
             </AnalyticsSection>
 
             {leechStats.totalLeeches > 0 && (
@@ -153,8 +168,7 @@ export function SpacedRepetitionMode({
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {leechStats.totalLeeches} card
-                        {leechStats.totalLeeches !== 1 ? 's are' : ' is'}{' '}
+                        {leechStats.totalLeeches} {leechCardLabel} {leechVerb}{' '}
                         showing elevated difficulty.
                       </p>
                     </div>
@@ -170,6 +184,11 @@ export function SpacedRepetitionMode({
                     </Button>
                   </div>
                 </AnalyticsCard>
+                <ActionSuggestionCard tone="warning">
+                  {leechStats.totalLeeches} {leechQueueLabel} {leechVerb}{' '}
+                  generating repeated misses. Rewrite the hardest ones before
+                  adding new material.
+                </ActionSuggestionCard>
               </AnalyticsSection>
             )}
 
@@ -184,9 +203,8 @@ export function SpacedRepetitionMode({
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-foreground">
-                            {dueCards.length} review
-                            {dueCards.length !== 1 ? 's' : ''},{' '}
-                            {newCards.length} new
+                            {dueCards.length} {reviewLabel}, {newCards.length}{' '}
+                            new
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {totalDue} total cards in this session.
@@ -211,6 +229,11 @@ export function SpacedRepetitionMode({
                         <Brain className="h-5 w-5" />
                         Start Learning
                       </Button>
+                      <ActionSuggestionCard tone="success">
+                        {leechStats.totalLeeches > 0
+                          ? 'Run this queue now, then check leech cards at the end of session for a focused 5-minute cleanup.'
+                          : 'Run this queue now to keep your momentum while the queue is clean.'}
+                      </ActionSuggestionCard>
                     </>
                   ) : (
                     <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center">
