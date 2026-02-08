@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import {
   ArrowLeft,
   CalendarClock,
@@ -10,6 +10,7 @@ import {
   PieChart,
 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
+import { isDifficultyBucketLabel } from '../../../shared/analytics-buckets'
 import {
   HOURLY_CANDIDATE_MIN_REVIEWS,
   INTERVAL_CANDIDATE_MIN_REVIEWS,
@@ -38,6 +39,7 @@ import {
   safeAverage,
 } from './suggestion-helpers'
 import type { FunctionReturnType } from 'convex/server'
+import type { DifficultyBucketLabel } from '../../../shared/analytics-buckets'
 import type { HourlyPerformance, PeakHourLabel } from './suggestion-helpers'
 import type { ReactNode } from 'react'
 import {
@@ -71,6 +73,16 @@ function formatDurationShort(ms: number | null) {
 type AnalyticsDashboardData = FunctionReturnType<
   typeof api.cardStates.getAnalyticsDashboard
 >
+type DifficultyBucketCardsResult = FunctionReturnType<
+  typeof api.cardStates.listCardsByDifficultyBucket
+>
+type RetentionSeriesKey = 'seven' | 'thirty' | 'ninety'
+type DifficultyBucketCardItem =
+  NonNullable<DifficultyBucketCardsResult>['cards'][number]
+
+function toDifficultyBucketLabel(label: string): DifficultyBucketLabel | null {
+  return isDifficultyBucketLabel(label) ? label : null
+}
 
 function useDerivedAnalytics(
   data: AnalyticsDashboardData | undefined,
@@ -308,6 +320,26 @@ export function AnalyticsDashboard() {
   const { data } = useSuspenseQuery(
     convexQuery(api.cardStates.getAnalyticsDashboard, {}),
   )
+  const [selectedDifficultyBucket, setSelectedDifficultyBucket] =
+    useState<DifficultyBucketLabel | null>(null)
+  const [hoveredDifficultyBucket, setHoveredDifficultyBucket] =
+    useState<DifficultyBucketLabel | null>(null)
+  const [selectedRetentionSeries, setSelectedRetentionSeries] =
+    useState<RetentionSeriesKey | null>(null)
+  const [hoveredRetentionSeries, setHoveredRetentionSeries] =
+    useState<RetentionSeriesKey | null>(null)
+  const { data: difficultyBucketCards, isPending: isDifficultyCardsPending } =
+    useQuery(
+      convexQuery(
+        api.cardStates.listCardsByDifficultyBucket,
+        selectedDifficultyBucket
+          ? {
+              bucketLabel: selectedDifficultyBucket,
+              limit: 20,
+            }
+          : 'skip',
+      ),
+    )
 
   // Compute timezone offset only on client to avoid hydration mismatch
   const [offsetMinutes, setOffsetMinutes] = useState(0)
@@ -359,6 +391,8 @@ export function AnalyticsDashboard() {
     workloadAction,
     workloadTone,
   } = derived
+  const highlightedRetentionSeries =
+    hoveredRetentionSeries ?? selectedRetentionSeries
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -433,12 +467,55 @@ export function AnalyticsDashboard() {
                 description="7, 30, and 90-day rolling retention trends."
               />
               <ChartFrame
-                caption="Dashed reference line marks the 85% benchmark."
+                caption="Shaded band highlights the 80-90% target zone; dashed line marks the 85% benchmark."
                 legend={
                   <>
-                    <LegendItem label="7-day" className="bg-emerald-500" />
-                    <LegendItem label="30-day" className="bg-sky-500" />
-                    <LegendItem label="90-day" className="bg-amber-500" />
+                    <LegendItem
+                      label="7-day"
+                      className="bg-emerald-500"
+                      isInteractive
+                      isActive={highlightedRetentionSeries === 'seven'}
+                      isPressed={selectedRetentionSeries === 'seven'}
+                      onPointerEnter={() => setHoveredRetentionSeries('seven')}
+                      onPointerLeave={() => setHoveredRetentionSeries(null)}
+                      onToggle={() =>
+                        setSelectedRetentionSeries((current) =>
+                          current === 'seven' ? null : 'seven',
+                        )
+                      }
+                    />
+                    <LegendItem
+                      label="30-day"
+                      className="bg-sky-500"
+                      isInteractive
+                      isActive={highlightedRetentionSeries === 'thirty'}
+                      isPressed={selectedRetentionSeries === 'thirty'}
+                      onPointerEnter={() => setHoveredRetentionSeries('thirty')}
+                      onPointerLeave={() => setHoveredRetentionSeries(null)}
+                      onToggle={() =>
+                        setSelectedRetentionSeries((current) =>
+                          current === 'thirty' ? null : 'thirty',
+                        )
+                      }
+                    />
+                    <LegendItem
+                      label="90-day"
+                      className="bg-amber-500"
+                      isInteractive
+                      isActive={highlightedRetentionSeries === 'ninety'}
+                      isPressed={selectedRetentionSeries === 'ninety'}
+                      onPointerEnter={() => setHoveredRetentionSeries('ninety')}
+                      onPointerLeave={() => setHoveredRetentionSeries(null)}
+                      onToggle={() =>
+                        setSelectedRetentionSeries((current) =>
+                          current === 'ninety' ? null : 'ninety',
+                        )
+                      }
+                    />
+                    <LegendItem
+                      label="80-90% target zone"
+                      className="border border-emerald-500/60 bg-emerald-500/25"
+                    />
                     <LegendItem
                       label="85% benchmark"
                       className="bg-muted-foreground"
@@ -451,6 +528,10 @@ export function AnalyticsDashboard() {
                 <RetentionChart
                   series={retentionSeries}
                   summary={retentionSummary}
+                  hoveredSeries={hoveredRetentionSeries}
+                  selectedSeries={selectedRetentionSeries}
+                  onSeriesHoverChange={setHoveredRetentionSeries}
+                  onSeriesSelectChange={setSelectedRetentionSeries}
                 />
               </ChartFrame>
             </AnalyticsCard>
@@ -587,20 +668,74 @@ export function AnalyticsDashboard() {
                   <>
                     <DonutChart
                       total={data.difficulty.total}
-                      segments={data.difficulty.buckets.map(
-                        (bucket, index) => ({
-                          label: bucket.label,
-                          value: bucket.count,
-                          color: getDifficultyColor(index),
-                        }),
-                      )}
+                      segments={data.difficulty.buckets
+                        .map((bucket, index) => {
+                          const label = toDifficultyBucketLabel(bucket.label)
+                          if (!label) return null
+                          return {
+                            label,
+                            value: bucket.count,
+                            color: getDifficultyColor(index),
+                          }
+                        })
+                        .filter(
+                          (
+                            segment,
+                          ): segment is {
+                            label: DifficultyBucketLabel
+                            value: number
+                            color: string
+                          } => segment !== null,
+                        )}
                       summary={difficultySummary}
+                      selectedLabel={selectedDifficultyBucket}
+                      hoveredLabel={hoveredDifficultyBucket}
+                      onSelectLabel={(label) => {
+                        setSelectedDifficultyBucket((current) =>
+                          current === label ? null : label,
+                        )
+                      }}
+                      onHoverLabelChange={setHoveredDifficultyBucket}
                     />
                     <div className="space-y-2">
                       {data.difficulty.buckets.map((bucket, index) => (
-                        <div
+                        <button
                           key={bucket.label}
-                          className="flex items-center justify-between text-sm"
+                          type="button"
+                          className={cn(
+                            'flex w-full items-center justify-between rounded-md px-2 py-1 text-sm transition-colors motion-reduce:transition-none',
+                            (selectedDifficultyBucket !== null ||
+                              hoveredDifficultyBucket !== null) &&
+                              selectedDifficultyBucket !== bucket.label &&
+                              hoveredDifficultyBucket !== bucket.label
+                              ? 'opacity-45'
+                              : 'opacity-100',
+                            selectedDifficultyBucket === bucket.label
+                              ? 'bg-muted text-foreground'
+                              : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                          )}
+                          onClick={() => {
+                            const label = toDifficultyBucketLabel(bucket.label)
+                            if (!label) return
+                            setSelectedDifficultyBucket((current) =>
+                              current === label ? null : label,
+                            )
+                          }}
+                          onMouseEnter={() => {
+                            const label = toDifficultyBucketLabel(bucket.label)
+                            if (!label) return
+                            setHoveredDifficultyBucket(label)
+                          }}
+                          onMouseLeave={() => setHoveredDifficultyBucket(null)}
+                          onFocus={() => {
+                            const label = toDifficultyBucketLabel(bucket.label)
+                            if (!label) return
+                            setHoveredDifficultyBucket(label)
+                          }}
+                          onBlur={() => setHoveredDifficultyBucket(null)}
+                          aria-pressed={
+                            selectedDifficultyBucket === bucket.label
+                          }
                         >
                           <div className="flex items-center gap-2">
                             <span
@@ -614,7 +749,7 @@ export function AnalyticsDashboard() {
                           <span className="text-muted-foreground">
                             {bucket.count}
                           </span>
-                        </div>
+                        </button>
                       ))}
                       <div className="pt-2 text-xs text-muted-foreground">
                         {data.difficulty.total} active cards
@@ -623,6 +758,14 @@ export function AnalyticsDashboard() {
                   </>
                 )}
               </div>
+              {data.difficulty.total > 0 ? (
+                <DifficultyBucketCardList
+                  selectedBucket={selectedDifficultyBucket}
+                  isPending={isDifficultyCardsPending}
+                  result={difficultyBucketCards}
+                  onClear={() => setSelectedDifficultyBucket(null)}
+                />
+              ) : null}
             </AnalyticsCard>
           </div>
           <ActionSuggestionCard
@@ -780,15 +923,50 @@ function MetricInline({
 function LegendItem({
   label,
   className,
+  isInteractive = false,
+  isActive = false,
+  isPressed = false,
+  onPointerEnter,
+  onPointerLeave,
+  onToggle,
 }: {
   label: string
   className: string
+  isInteractive?: boolean
+  isActive?: boolean
+  isPressed?: boolean
+  onPointerEnter?: () => void
+  onPointerLeave?: () => void
+  onToggle?: () => void
 }) {
+  if (!isInteractive) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className={cn('h-2.5 w-2.5 rounded-full', className)} />
+        <span>{label}</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center gap-2">
+    <button
+      type="button"
+      className={cn(
+        'inline-flex items-center gap-2 rounded-sm px-1.5 py-0.5 transition-colors motion-reduce:transition-none',
+        isActive
+          ? 'bg-muted/80 text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+      aria-pressed={isPressed}
+      onMouseEnter={onPointerEnter}
+      onMouseLeave={onPointerLeave}
+      onFocus={onPointerEnter}
+      onBlur={onPointerLeave}
+      onClick={onToggle}
+    >
       <span className={cn('h-2.5 w-2.5 rounded-full', className)} />
       <span>{label}</span>
-    </div>
+    </button>
   )
 }
 
@@ -800,9 +978,142 @@ function EmptyState({ message }: { message: string }) {
   )
 }
 
+function formatDueDateLabel(due: number) {
+  if (due <= Date.now()) return 'Due now'
+  return new Date(due).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function getDifficultyCardPreview(
+  item: Pick<DifficultyBucketCardItem, 'cardState' | 'block'>,
+) {
+  if (item.block.cardType === 'cloze') {
+    return item.block.cardFront || 'Cloze card'
+  }
+
+  const front = item.block.cardFront?.trim() || 'Front'
+  const back = item.block.cardBack?.trim() || 'Back'
+  return item.cardState.direction === 'forward'
+    ? `${front} → ${back}`
+    : `${back} → ${front}`
+}
+
+function DifficultyBucketCardList({
+  selectedBucket,
+  isPending,
+  result,
+  onClear,
+}: {
+  selectedBucket: DifficultyBucketLabel | null
+  isPending: boolean
+  result: DifficultyBucketCardsResult | undefined
+  onClear: () => void
+}) {
+  if (!selectedBucket) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/15 px-4 py-5 text-sm text-muted-foreground">
+        Click a difficulty slice to inspect cards in that bucket.
+      </div>
+    )
+  }
+
+  if (isPending || result === undefined) {
+    return (
+      <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 px-4 py-4">
+        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+        <div className="h-8 w-full animate-pulse rounded bg-muted" />
+        <div className="h-8 w-full animate-pulse rounded bg-muted" />
+      </div>
+    )
+  }
+
+  if (result === null || result.cards.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/15 px-4 py-5 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <span>No active cards found in difficulty {selectedBucket}.</span>
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            Clear filter
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/70 bg-muted/15 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-medium text-muted-foreground uppercase">
+          Difficulty {result.bucketLabel} · Showing {result.cards.length} of{' '}
+          {result.totalMatching}
+        </div>
+        <Button variant="ghost" size="sm" onClick={onClear}>
+          Clear filter
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead className="border-b border-border/70 text-muted-foreground">
+            <tr className="text-left">
+              <th className="px-2 py-2 font-medium">Card</th>
+              <th className="px-2 py-2 font-medium">Document</th>
+              <th className="px-2 py-2 font-medium">Difficulty</th>
+              <th className="px-2 py-2 font-medium">Lapses</th>
+              <th className="px-2 py-2 font-medium">Due</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70">
+            {result.cards.map((item: DifficultyBucketCardItem) => (
+              <tr key={item.cardState._id} className="align-top">
+                <td className="max-w-64 px-2 py-2">
+                  <div className="truncate font-medium">
+                    {getDifficultyCardPreview(item)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {item.cardState.direction === 'forward'
+                      ? 'Front → Back'
+                      : 'Back → Front'}
+                  </div>
+                </td>
+                <td className="max-w-44 px-2 py-2">
+                  {item.document ? (
+                    <Link
+                      to="/doc/$docId"
+                      params={{ docId: item.document._id }}
+                      className="truncate text-foreground underline-offset-4 hover:text-primary hover:underline"
+                    >
+                      {item.document.title}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">(Unknown)</span>
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  {item.cardState.difficulty.toFixed(1)}
+                </td>
+                <td className="px-2 py-2">{item.cardState.lapses}</td>
+                <td className="px-2 py-2 text-muted-foreground">
+                  {formatDueDateLabel(item.cardState.due)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function RetentionChart({
   series,
   summary,
+  hoveredSeries,
+  selectedSeries,
+  onSeriesHoverChange,
+  onSeriesSelectChange,
 }: {
   series: {
     seven: Array<number | null>
@@ -810,6 +1121,10 @@ function RetentionChart({
     ninety: Array<number | null>
   }
   summary: string
+  hoveredSeries: RetentionSeriesKey | null
+  selectedSeries: RetentionSeriesKey | null
+  onSeriesHoverChange: (series: RetentionSeriesKey | null) => void
+  onSeriesSelectChange: (series: RetentionSeriesKey | null) => void
 }) {
   const chartId = useId()
   const titleId = `${chartId}-title`
@@ -819,6 +1134,13 @@ function RetentionChart({
   const padding = 24
   const benchmark = 85
   const benchmarkY = padding + (1 - benchmark / 100) * (height - padding * 2)
+  const targetTop = 90
+  const targetBottom = 80
+  const targetTopY = padding + (1 - targetTop / 100) * (height - padding * 2)
+  const targetBottomY =
+    padding + (1 - targetBottom / 100) * (height - padding * 2)
+  const focusedSeries = hoveredSeries ?? selectedSeries
+  const hasFocusedSeries = focusedSeries !== null
 
   const buildPath = (values: Array<number | null>) => {
     if (values.length === 0) return ''
@@ -844,6 +1166,46 @@ function RetentionChart({
     return path
   }
 
+  const getPathState = (key: RetentionSeriesKey) => {
+    const isActive = focusedSeries === key
+    const isDimmed = hasFocusedSeries && !isActive
+    return {
+      isActive,
+      isDimmed,
+      strokeWidth: isActive ? 3 : 2.3,
+    }
+  }
+
+  const toggleSeries = (key: RetentionSeriesKey) => {
+    onSeriesSelectChange(selectedSeries === key ? null : key)
+  }
+
+  const seriesConfigs: Array<{
+    key: RetentionSeriesKey
+    values: Array<number | null>
+    strokeClassName: string
+    ariaLabel: string
+  }> = [
+    {
+      key: 'ninety',
+      values: series.ninety,
+      strokeClassName: 'stroke-amber-500',
+      ariaLabel: '90-day retention',
+    },
+    {
+      key: 'thirty',
+      values: series.thirty,
+      strokeClassName: 'stroke-sky-500',
+      ariaLabel: '30-day retention',
+    },
+    {
+      key: 'seven',
+      values: series.seven,
+      strokeClassName: 'stroke-emerald-500',
+      ariaLabel: '7-day retention',
+    },
+  ]
+
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -853,6 +1215,13 @@ function RetentionChart({
     >
       <title id={titleId}>Retention chart</title>
       <desc id={summaryId}>{summary}</desc>
+      <rect
+        x={padding}
+        y={targetTopY}
+        width={width - padding * 2}
+        height={targetBottomY - targetTopY}
+        className="fill-emerald-500/20"
+      />
       <g className="text-muted-foreground/35">
         {[0, 25, 50, 75, 100].map((value) => {
           const y = padding + (1 - value / 100) * (height - padding * 2)
@@ -880,24 +1249,35 @@ function RetentionChart({
         strokeDasharray="6 4"
         strokeWidth="1"
       />
-      <path
-        d={buildPath(series.ninety)}
-        fill="none"
-        strokeWidth="2"
-        className="stroke-amber-500"
-      />
-      <path
-        d={buildPath(series.thirty)}
-        fill="none"
-        strokeWidth="2"
-        className="stroke-sky-500"
-      />
-      <path
-        d={buildPath(series.seven)}
-        fill="none"
-        strokeWidth="2"
-        className="stroke-emerald-500"
-      />
+      {seriesConfigs.map((seriesConfig) => {
+        const pathState = getPathState(seriesConfig.key)
+        return (
+          <path
+            key={seriesConfig.key}
+            d={buildPath(seriesConfig.values)}
+            fill="none"
+            strokeWidth={pathState.strokeWidth}
+            className={cn(
+              `${seriesConfig.strokeClassName} transition-[opacity,stroke-width] motion-reduce:transition-none`,
+              pathState.isDimmed ? 'opacity-35' : 'opacity-90',
+            )}
+            tabIndex={0}
+            role="button"
+            aria-label={seriesConfig.ariaLabel}
+            onMouseEnter={() => onSeriesHoverChange(seriesConfig.key)}
+            onMouseLeave={() => onSeriesHoverChange(null)}
+            onFocus={() => onSeriesHoverChange(seriesConfig.key)}
+            onBlur={() => onSeriesHoverChange(null)}
+            onClick={() => toggleSeries(seriesConfig.key)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                toggleSeries(seriesConfig.key)
+              }
+            }}
+          />
+        )
+      })}
     </svg>
   )
 }
@@ -914,10 +1294,22 @@ function DonutChart({
   total,
   segments,
   summary,
+  selectedLabel,
+  hoveredLabel,
+  onSelectLabel,
+  onHoverLabelChange,
 }: {
   total: number
-  segments: Array<{ label: string; value: number; color: string }>
+  segments: Array<{
+    label: DifficultyBucketLabel
+    value: number
+    color: string
+  }>
   summary: string
+  selectedLabel: DifficultyBucketLabel | null
+  hoveredLabel: DifficultyBucketLabel | null
+  onSelectLabel: (label: DifficultyBucketLabel) => void
+  onHoverLabelChange: (label: DifficultyBucketLabel | null) => void
 }) {
   const chartId = useId()
   const titleId = `${chartId}-title`
@@ -925,6 +1317,7 @@ function DonutChart({
   const radius = 44
   const strokeWidth = 12
   const circumference = 2 * Math.PI * radius
+  const highlightedLabel = hoveredLabel ?? selectedLabel
   const segmentData = segments.reduce(
     (acc, segment) => {
       const fraction = total > 0 ? segment.value / total : 0
@@ -942,7 +1335,7 @@ function DonutChart({
     {
       offset: 0,
       entries: [] as Array<{
-        label: string
+        label: DifficultyBucketLabel
         value: number
         color: string
         dash: number
@@ -968,6 +1361,9 @@ function DonutChart({
               circumference - segment.dash
             }`
             const strokeDashoffset = -segment.offset
+            const isActive = highlightedLabel === segment.label
+            const isDimmed = highlightedLabel !== null && !isActive
+            const canInteract = segment.value > 0
             return (
               <circle
                 key={segment.label}
@@ -976,9 +1372,41 @@ function DonutChart({
                 r={radius}
                 fill="transparent"
                 stroke={segment.color}
-                strokeWidth={strokeWidth}
+                strokeWidth={isActive ? strokeWidth + 2 : strokeWidth}
                 strokeDasharray={strokeDasharray}
                 strokeDashoffset={strokeDashoffset}
+                className={cn(
+                  'transition-[opacity,stroke-width] motion-reduce:transition-none',
+                  isDimmed ? 'opacity-35' : 'opacity-80',
+                  canInteract
+                    ? 'cursor-pointer focus-visible:outline-none'
+                    : '',
+                )}
+                tabIndex={canInteract ? 0 : -1}
+                role={canInteract ? 'button' : undefined}
+                aria-label={`${segment.label} difficulty bucket`}
+                aria-pressed={selectedLabel === segment.label}
+                onClick={() => {
+                  if (!canInteract) return
+                  onSelectLabel(segment.label)
+                }}
+                onMouseEnter={() => {
+                  if (!canInteract) return
+                  onHoverLabelChange(segment.label)
+                }}
+                onMouseLeave={() => onHoverLabelChange(null)}
+                onFocus={() => {
+                  if (!canInteract) return
+                  onHoverLabelChange(segment.label)
+                }}
+                onBlur={() => onHoverLabelChange(null)}
+                onKeyDown={(event) => {
+                  if (!canInteract) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onSelectLabel(segment.label)
+                  }
+                }}
               />
             )
           })}

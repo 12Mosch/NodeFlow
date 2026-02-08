@@ -945,6 +945,175 @@ describe('cardStates', () => {
     })
   })
 
+  describe('listCardsByDifficultyBucket', () => {
+    const listCardsByDifficultyBucketRef =
+      api.cardStates.listCardsByDifficultyBucket
+
+    it('returns null for unauthenticated users', async () => {
+      const result = await t.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+      })
+
+      expect(result).toBeNull()
+    })
+
+    it('filters cards by the selected bucket range', async () => {
+      const inRangeBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, inRangeBlock, {
+        difficulty: 6,
+        lapses: 1,
+        due: Date.now() + 1000,
+      })
+
+      const outOfRangeBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      await createTestCardState(t, userId, outOfRangeBlock, {
+        difficulty: 8,
+        lapses: 10,
+        due: Date.now(),
+      })
+
+      const result = (await asUser.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+      }))!
+
+      expect(result.bucketLabel).toBe('5-6')
+      expect(result.totalMatching).toBe(1)
+      expect(result.cards).toHaveLength(1)
+      expect(result.cards[0].cardState.difficulty).toBe(6)
+    })
+
+    it('excludes suspended cards from results', async () => {
+      const activeBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, activeBlock, {
+        difficulty: 5,
+        suspended: false,
+      })
+
+      const suspendedBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      await createTestCardState(t, userId, suspendedBlock, {
+        difficulty: 5,
+        suspended: true,
+      })
+
+      const result = (await asUser.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+      }))!
+
+      expect(result.totalMatching).toBe(1)
+      expect(result.cards).toHaveLength(1)
+      expect(result.cards[0].cardState.suspended).toBe(false)
+    })
+
+    it('sorts by lapses desc, then due asc, then difficulty desc', async () => {
+      const now = Date.now()
+
+      const highestLapsesBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      const highestLapsesCard = await createTestCardState(
+        t,
+        userId,
+        highestLapsesBlock,
+        {
+          difficulty: 5.2,
+          lapses: 7,
+          due: now + 30_000,
+        },
+      )
+
+      const tieDueEarlierBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      const tieDueEarlierCard = await createTestCardState(
+        t,
+        userId,
+        tieDueEarlierBlock,
+        {
+          difficulty: 5.1,
+          lapses: 4,
+          due: now + 1_000,
+        },
+      )
+
+      const tieDueLaterHigherDifficultyBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      const tieDueLaterHigherDifficultyCard = await createTestCardState(
+        t,
+        userId,
+        tieDueLaterHigherDifficultyBlock,
+        {
+          difficulty: 6,
+          lapses: 4,
+          due: now + 10_000,
+        },
+      )
+
+      const tieDueLaterLowerDifficultyBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      const tieDueLaterLowerDifficultyCard = await createTestCardState(
+        t,
+        userId,
+        tieDueLaterLowerDifficultyBlock,
+        {
+          difficulty: 5.3,
+          lapses: 4,
+          due: now + 10_000,
+        },
+      )
+
+      const result = (await asUser.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+      }))!
+      const orderedIds = result.cards.map(
+        (item: { cardState: { _id: string } }) => item.cardState._id,
+      )
+
+      expect(orderedIds).toEqual([
+        highestLapsesCard,
+        tieDueEarlierCard,
+        tieDueLaterHigherDifficultyCard,
+        tieDueLaterLowerDifficultyCard,
+      ])
+    })
+
+    it('respects limit and still returns total matching count', async () => {
+      for (let i = 0; i < 3; i += 1) {
+        const blockId = await createTestFlashcardBlock(t, userId, documentId)
+        await createTestCardState(t, userId, blockId, {
+          difficulty: 6,
+          lapses: i,
+          due: Date.now() + i * 1000,
+        })
+      }
+
+      const result = (await asUser.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+        limit: 2,
+      }))!
+
+      expect(result.totalMatching).toBe(3)
+      expect(result.cards).toHaveLength(2)
+    })
+  })
+
   describe('learn session ancestor context', () => {
     it('getLearnSession should include block.ancestorPath from outlineAncestorNodeIds', async () => {
       const now = Date.now()

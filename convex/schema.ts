@@ -110,6 +110,11 @@ export default defineSchema({
     .index('by_block_direction', ['blockId', 'direction'])
     .index('by_user_due', ['userId', 'due'])
     .index('by_user_due_suspended', ['userId', 'suspended', 'due'])
+    .index('by_user_suspended_difficulty', [
+      'userId',
+      'suspended',
+      'difficulty',
+    ])
     .index('by_user_state', ['userId', 'state'])
     .index('by_user_state_due', ['userId', 'state', 'due'])
     .index('by_user_state_suspended', ['userId', 'state', 'suspended'])

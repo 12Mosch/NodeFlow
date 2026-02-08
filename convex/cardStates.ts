@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/tanstackstart-react'
 import { v } from 'convex/values'
+import { DIFFICULTY_BUCKETS } from '../shared/analytics-buckets'
 import { mutation, query } from './_generated/server'
 import { getUser, requireUser } from './auth'
 import { requireDocumentAccess } from './helpers/documentAccess'
@@ -16,17 +17,22 @@ import {
 } from './helpers/flashcardContext'
 import { fetchRetentionMap, getLeechReason, isLeech } from './helpers/leech'
 import type { CardState } from './helpers/fsrs'
+import type { DifficultyBucketLabel } from '../shared/analytics-buckets'
 import type { Id } from './_generated/dataModel'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-const difficultyBuckets = [
-  { label: '1-2', min: 1, max: 2 },
-  { label: '3-4', min: 3, max: 4 },
-  { label: '5-6', min: 5, max: 6 },
-  { label: '7-8', min: 7, max: 8 },
-  { label: '9-10', min: 9, max: 10 },
-]
+type DifficultyBucketLiteralValidator = ReturnType<
+  typeof v.literal<DifficultyBucketLabel>
+>
+
+const difficultyBucketLabelValidator = v.union(
+  ...(DIFFICULTY_BUCKETS.map((bucket) => v.literal(bucket.label)) as [
+    DifficultyBucketLiteralValidator,
+    DifficultyBucketLiteralValidator,
+    ...Array<DifficultyBucketLiteralValidator>,
+  ]),
+)
 
 const intervalBuckets = [
   { label: '0-1d', min: 0, max: 1 },
@@ -1391,6 +1397,110 @@ export const getLeechStats = query({
 })
 
 /**
+ * List active cards in a selected difficulty bucket for analytics drilldown
+ */
+export const listCardsByDifficultyBucket = query({
+  args: {
+    bucketLabel: difficultyBucketLabelValidator,
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await Sentry.startSpan(
+      { name: 'cardStates.listCardsByDifficultyBucket', op: 'convex.query' },
+      async () => {
+        const userId = await getUser(ctx)
+        if (!userId) return null
+
+        const limit = Math.min(Math.max(Math.trunc(args.limit ?? 20), 1), 100)
+        const bucket = DIFFICULTY_BUCKETS.find(
+          (entry) => entry.label === args.bucketLabel,
+        )
+        if (!bucket) {
+          return {
+            bucketLabel: args.bucketLabel,
+            totalMatching: 0,
+            cards: [],
+          }
+        }
+
+        const matchingCardStates = (
+          await ctx.db
+            .query('cardStates')
+            .withIndex('by_user_suspended_difficulty', (q) =>
+              q
+                .eq('userId', userId)
+                .eq('suspended', false)
+                .gte('difficulty', bucket.min)
+                .lte('difficulty', bucket.max),
+            )
+            .collect()
+        ).sort((a, b) => {
+          if (a.lapses !== b.lapses) return b.lapses - a.lapses
+          if (a.due !== b.due) return a.due - b.due
+          return b.difficulty - a.difficulty
+        })
+
+        const totalMatching = matchingCardStates.length
+        const limitedCardStates = matchingCardStates.slice(0, limit)
+
+        const uniqueBlockIds = Array.from(
+          new Set(limitedCardStates.map((cardState) => cardState.blockId)),
+        )
+        const blocks = await Promise.all(
+          uniqueBlockIds.map((blockId) => ctx.db.get(blockId)),
+        )
+        const blockById = new Map(
+          blocks
+            .filter(
+              (block): block is NonNullable<typeof block> => block !== null,
+            )
+            .map((block) => [block._id, block]),
+        )
+
+        const uniqueDocumentIds = Array.from(
+          new Set(
+            Array.from(blockById.values()).map((block) => block.documentId),
+          ),
+        )
+        const documents = await Promise.all(
+          uniqueDocumentIds.map((documentId) => ctx.db.get(documentId)),
+        )
+        const documentById = new Map(
+          documents
+            .filter(
+              (document): document is NonNullable<typeof document> =>
+                document !== null,
+            )
+            .map((document) => [document._id, document]),
+        )
+
+        const cards = limitedCardStates
+          .map((cardState) => {
+            const block = blockById.get(cardState.blockId)
+            if (!block) return null
+            const document = documentById.get(block.documentId)
+
+            return {
+              cardState,
+              block,
+              document: document
+                ? { _id: document._id, title: document.title }
+                : null,
+            }
+          })
+          .filter((card): card is NonNullable<typeof card> => card !== null)
+
+        return {
+          bucketLabel: args.bucketLabel,
+          totalMatching,
+          cards,
+        }
+      },
+    )
+  },
+})
+
+/**
  * Bulk suspend or unsuspend multiple cards
  */
 export const bulkSuspendCards = mutation({
@@ -1496,14 +1606,14 @@ export const getAnalyticsDashboard = query({
         )
 
         // Difficulty distribution
-        const difficultyStats = difficultyBuckets.map((bucket) => ({
+        const difficultyStats = DIFFICULTY_BUCKETS.map((bucket) => ({
           label: bucket.label,
           count: 0,
         }))
 
         for (const card of activeCardStates) {
           const value = Math.max(1, Math.min(10, card.difficulty))
-          const bucketIndex = difficultyBuckets.findIndex(
+          const bucketIndex = DIFFICULTY_BUCKETS.findIndex(
             (bucket) => value >= bucket.min && value <= bucket.max,
           )
           if (bucketIndex >= 0) {
