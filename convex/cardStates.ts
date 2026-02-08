@@ -56,6 +56,13 @@ function toRate(correct: number, total: number) {
   return Math.round((correct / total) * 1000) / 10
 }
 
+function getDifficultyBucketMaxExclusive(index: number) {
+  if (index >= DIFFICULTY_BUCKETS.length - 1) {
+    return Number.POSITIVE_INFINITY
+  }
+  return DIFFICULTY_BUCKETS[index + 1].min
+}
+
 // Direction validator
 const directionValidator = v.union(v.literal('forward'), v.literal('reverse'))
 
@@ -1412,27 +1419,31 @@ export const listCardsByDifficultyBucket = query({
         if (!userId) return null
 
         const limit = Math.min(Math.max(Math.trunc(args.limit ?? 20), 1), 100)
-        const bucket = DIFFICULTY_BUCKETS.find(
+        const bucketIndex = DIFFICULTY_BUCKETS.findIndex(
           (entry) => entry.label === args.bucketLabel,
         )
-        if (!bucket) {
+        if (bucketIndex < 0) {
           return {
             bucketLabel: args.bucketLabel,
             totalMatching: 0,
             cards: [],
           }
         }
+        const bucket = DIFFICULTY_BUCKETS[bucketIndex]
+        const maxExclusive = getDifficultyBucketMaxExclusive(bucketIndex)
 
         const matchingCardStates = (
           await ctx.db
             .query('cardStates')
-            .withIndex('by_user_suspended_difficulty', (q) =>
-              q
+            .withIndex('by_user_suspended_difficulty', (q) => {
+              const baseQuery = q
                 .eq('userId', userId)
                 .eq('suspended', false)
                 .gte('difficulty', bucket.min)
-                .lte('difficulty', bucket.max),
-            )
+              return Number.isFinite(maxExclusive)
+                ? baseQuery.lt('difficulty', maxExclusive)
+                : baseQuery
+            })
             .collect()
         ).sort((a, b) => {
           if (a.lapses !== b.lapses) return b.lapses - a.lapses
@@ -1614,7 +1625,9 @@ export const getAnalyticsDashboard = query({
         for (const card of activeCardStates) {
           const value = Math.max(1, Math.min(10, card.difficulty))
           const bucketIndex = DIFFICULTY_BUCKETS.findIndex(
-            (bucket) => value >= bucket.min && value <= bucket.max,
+            (bucket, index) =>
+              value >= bucket.min &&
+              value < getDifficultyBucketMaxExclusive(index),
           )
           if (bucketIndex >= 0) {
             difficultyStats[bucketIndex].count += 1
