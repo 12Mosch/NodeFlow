@@ -986,6 +986,30 @@ describe('cardStates', () => {
       expect(result.cards[0].cardState.difficulty).toBe(6)
     })
 
+    it('includes fractional values within continuous bucket ranges', async () => {
+      const inRangeBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, inRangeBlock, {
+        difficulty: 6.7,
+      })
+
+      const outOfRangeBlock = await createTestFlashcardBlock(
+        t,
+        userId,
+        documentId,
+      )
+      await createTestCardState(t, userId, outOfRangeBlock, {
+        difficulty: 7,
+      })
+
+      const result = (await asUser.query(listCardsByDifficultyBucketRef, {
+        bucketLabel: '5-6',
+      }))!
+
+      expect(result.totalMatching).toBe(1)
+      expect(result.cards).toHaveLength(1)
+      expect(result.cards[0].cardState.difficulty).toBe(6.7)
+    })
+
     it('excludes suspended cards from results', async () => {
       const activeBlock = await createTestFlashcardBlock(t, userId, documentId)
       await createTestCardState(t, userId, activeBlock, {
@@ -1111,6 +1135,37 @@ describe('cardStates', () => {
 
       expect(result.totalMatching).toBe(3)
       expect(result.cards).toHaveLength(2)
+    })
+  })
+
+  describe('getAnalyticsDashboard', () => {
+    it('assigns fractional difficulty values to continuous buckets', async () => {
+      const firstBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, firstBlock, {
+        difficulty: 2.5,
+      })
+
+      const secondBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, secondBlock, {
+        difficulty: 4.3,
+      })
+
+      const thirdBlock = await createTestFlashcardBlock(t, userId, documentId)
+      await createTestCardState(t, userId, thirdBlock, {
+        difficulty: 6.8,
+      })
+
+      const result = (await asUser.query(api.cardStates.getAnalyticsDashboard, {
+        rangeDays: 30,
+      }))!
+
+      const countByLabel = new Map(
+        result.difficulty.buckets.map((bucket) => [bucket.label, bucket.count]),
+      )
+
+      expect(countByLabel.get('1-2')).toBe(1)
+      expect(countByLabel.get('3-4')).toBe(1)
+      expect(countByLabel.get('5-6')).toBe(1)
     })
   })
 
