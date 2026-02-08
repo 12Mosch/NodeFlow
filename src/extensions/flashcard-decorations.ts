@@ -1,8 +1,12 @@
-import { Extension } from '@tiptap/react'
+import { Extension } from '@tiptap/core'
+import { ReactRenderer } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorState } from '@tiptap/pm/state'
+import type { Editor } from '@tiptap/core'
+import type { CardType } from '@/lib/flashcard-parser'
+import { FlashcardIconTooltip } from '@/components/editor/flashcard-icon-tooltip'
 
 export const flashcardDecorationsPluginKey = new PluginKey(
   'flashcardDecorations',
@@ -12,7 +16,7 @@ export const flashcardDecorationsPluginKey = new PluginKey(
 // Order matters: more specific patterns must come first
 interface SyntaxPattern {
   pattern: RegExp
-  type: 'basic' | 'concept' | 'descriptor' | 'cloze'
+  type: CardType
   disabled: boolean
 }
 
@@ -59,31 +63,69 @@ const SYNTAX_PATTERNS: Array<SyntaxPattern> = [
   { pattern: /\{\{(.*?)\}\}/g, type: 'cloze', disabled: false },
 ]
 
-// Icon SVGs from lucide-react (defined once at module level)
-const FLASHCARD_ICONS = {
-  basic: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`,
-  concept: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`,
-  descriptor: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`,
-  cloze: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 8h.01"/><path d="M16 8h.01"/><path d="M12 12h.01"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg>`,
-} as const
+const INTERACTIVE_EVENT_TYPES = new Set([
+  'mousedown',
+  'mouseup',
+  'click',
+  'dblclick',
+  'contextmenu',
+  'pointerdown',
+  'pointerup',
+  'touchstart',
+  'touchend',
+  'keydown',
+  'keyup',
+  'keypress',
+  'beforeinput',
+  'input',
+  'compositionstart',
+  'compositionupdate',
+  'compositionend',
+])
 
-// Create icon HTML for a given card type
-function createIconHTML(
-  type: 'basic' | 'concept' | 'descriptor' | 'cloze',
+function createIconWidget(
+  pos: number,
+  type: CardType,
   disabled: boolean,
-): string {
-  const iconClass = disabled
-    ? 'flashcard-icon flashcard-icon-disabled'
-    : `flashcard-icon flashcard-icon-${type}`
+  key: string,
+  side: number,
+  editor: Editor,
+): Decoration {
+  let renderer: ReactRenderer | null = null
 
-  return `<span class="${iconClass}" contenteditable="false">${FLASHCARD_ICONS[type]}</span>`
+  return Decoration.widget(
+    pos,
+    () => {
+      renderer = new ReactRenderer(FlashcardIconTooltip, {
+        editor,
+        as: 'span',
+        props: {
+          type,
+          disabled,
+        },
+      })
+
+      return renderer.element
+    },
+    {
+      side,
+      key,
+      ignoreSelection: true,
+      stopEvent: (event: Event) =>
+        INTERACTIVE_EVENT_TYPES.has(event.type.toLowerCase()),
+      destroy: () => {
+        renderer?.destroy()
+        renderer = null
+      },
+    },
+  )
 }
 
 // Find flashcard syntax positions in text
 interface SyntaxMatch {
   from: number
   to: number
-  type: 'basic' | 'concept' | 'descriptor' | 'cloze'
+  type: CardType
   disabled: boolean
   text: string
 }
@@ -162,7 +204,7 @@ function getCursorNodePos(state: EditorState): number | null {
 }
 
 // Build decorations for a document
-function buildDecorations(state: EditorState): DecorationSet {
+function buildDecorations(state: EditorState, editor: Editor): DecorationSet {
   const decorations: Array<Decoration> = []
 
   state.doc.descendants((node: ProseMirrorNode, pos: number) => {
@@ -192,17 +234,15 @@ function buildDecorations(state: EditorState): DecorationSet {
 
       // Special handling for cloze cards - show the content, hide only delimiters
       if (match.type === 'cloze') {
-        // Icon before opening {{
-        const iconBefore = createIconHTML(match.type, match.disabled)
-        const widgetBefore = document.createElement('span')
-        widgetBefore.innerHTML = iconBefore
-        widgetBefore.contentEditable = 'false'
-
         decorations.push(
-          Decoration.widget(from, widgetBefore, {
-            side: -1,
-            key: `flashcard-icon-before-${from}`,
-          }),
+          createIconWidget(
+            from,
+            match.type,
+            match.disabled,
+            `flashcard-icon-before-${from}`,
+            -1,
+            editor,
+          ),
         )
 
         // Hide opening {{
@@ -226,30 +266,27 @@ function buildDecorations(state: EditorState): DecorationSet {
           }),
         )
 
-        // Icon after closing }}
-        const iconAfter = createIconHTML(match.type, match.disabled)
-        const widgetAfter = document.createElement('span')
-        widgetAfter.innerHTML = iconAfter
-        widgetAfter.contentEditable = 'false'
-
         decorations.push(
-          Decoration.widget(to, widgetAfter, {
-            side: 1,
-            key: `flashcard-icon-after-${from}`,
-          }),
+          createIconWidget(
+            to,
+            match.type,
+            match.disabled,
+            `flashcard-icon-after-${from}`,
+            1,
+            editor,
+          ),
         )
       } else {
         // For other card types, show icon and hide entire syntax
-        const icon = createIconHTML(match.type, match.disabled)
-        const widget = document.createElement('span')
-        widget.innerHTML = icon
-        widget.contentEditable = 'false'
-
         decorations.push(
-          Decoration.widget(from, widget, {
-            side: -1,
-            key: `flashcard-icon-${from}`,
-          }),
+          createIconWidget(
+            from,
+            match.type,
+            match.disabled,
+            `flashcard-icon-${from}`,
+            -1,
+            editor,
+          ),
         )
 
         // Create inline decoration to hide the syntax
@@ -271,6 +308,7 @@ export const FlashcardDecorations = Extension.create({
   addProseMirrorPlugins() {
     // Track the cursor node position to avoid unnecessary rebuilds
     let lastCursorNodePos: number | null = null
+    const editor = this.editor
 
     return [
       new Plugin({
@@ -278,13 +316,13 @@ export const FlashcardDecorations = Extension.create({
         state: {
           init(_, state) {
             lastCursorNodePos = getCursorNodePos(state)
-            return buildDecorations(state)
+            return buildDecorations(state, editor)
           },
           apply(tr, oldDecorationSet, _oldState, newState) {
             // Always rebuild on document changes
             if (tr.docChanged) {
               lastCursorNodePos = getCursorNodePos(newState)
-              return buildDecorations(newState)
+              return buildDecorations(newState, editor)
             }
 
             // For selection changes, only rebuild if cursor moved to a different node
@@ -294,7 +332,7 @@ export const FlashcardDecorations = Extension.create({
               // Rebuild if cursor moved between different nodes
               if (currentCursorNodePos !== lastCursorNodePos) {
                 lastCursorNodePos = currentCursorNodePos
-                return buildDecorations(newState)
+                return buildDecorations(newState, editor)
               }
 
               // Cursor is in the same node, no rebuild needed
