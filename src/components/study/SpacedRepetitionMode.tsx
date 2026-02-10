@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { Link } from '@tanstack/react-router'
+import { usePostHog } from '@posthog/react'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -28,11 +29,24 @@ interface SpacedRepetitionModeProps {
   setStudyState: (state: StudyState) => void
   onGoHome: () => void
 }
+
+function hasCapture(value: unknown): value is {
+  capture: (event: string, properties?: Record<string, unknown>) => void
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'capture' in value &&
+    typeof value.capture === 'function'
+  )
+}
+
 export function SpacedRepetitionMode({
   studyState,
   setStudyState,
   onGoHome,
 }: SpacedRepetitionModeProps) {
+  const posthog = usePostHog()
   const { data: stats } = useSuspenseQuery(
     convexQuery(api.cardStates.getStats, {}),
   )
@@ -43,17 +57,23 @@ export function SpacedRepetitionMode({
     convexQuery(api.cardStates.getLeechStats, {}),
   )
   if (!stats || !sessionCards || !leechStats) return null
+  const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
+  const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
+  const totalDue = dueCards.length + newCards.length
   const handleStartLearning = () => {
-    ;(() => {
-      setStudyState('studying')
-    })()
+    if (hasCapture(posthog as unknown)) {
+      posthog.capture('study_start_learning_clicked', {
+        mode: 'spaced-repetition',
+        due_count: dueCards.length,
+        new_count: newCards.length,
+        total_due: totalDue,
+      })
+    }
+    setStudyState('studying')
   }
   const handleBack = () => {
     setStudyState('overview')
   }
-  const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
-  const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
-  const totalDue = dueCards.length + newCards.length
   const leechCardLabel = pluralize(leechStats.totalLeeches, 'card')
   const leechQueueLabel = pluralize(leechStats.totalLeeches, 'leech card')
   const leechVerb = pluralize(leechStats.totalLeeches, 'is', 'are')

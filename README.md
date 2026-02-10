@@ -48,9 +48,14 @@ VITE_CONVEX_URL=your_convex_url
 VITE_WORKOS_CLIENT_ID=your_workos_client_id
 VITE_WORKOS_API_HOSTNAME=your_workos_api_hostname
 VITE_WORKOS_REDIRECT_URI=http://localhost:3000/callback
+
+# PostHog
+VITE_PUBLIC_POSTHOG_KEY=your_posthog_project_api_key
+VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 > **Note**: For authentication to work in the backend, you must also set `WORKOS_CLIENT_ID` (and optionally `WORKOS_API_HOSTNAME` if you are using a custom one) in your [Convex Dashboard](https://dashboard.convex.dev/) under **Settings > Environment Variables**.
+> **Note**: If PostHog variables are missing, the app continues without analytics and logs a warning in the console.
 
 ### Installation
 

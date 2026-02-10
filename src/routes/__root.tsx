@@ -14,6 +14,7 @@ import { api } from '../../convex/_generated/api'
 
 import WorkOSProvider from '../integrations/workos/provider'
 import ConvexProvider from '../integrations/convex/provider'
+import AppPostHogProvider from '../integrations/posthog/provider'
 import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { Toaster } from '../components/ui/sonner'
@@ -129,26 +130,28 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         {/* Root wrapper required for @base-ui/react portals/popovers/dialogs to stack correctly */}
         <div className="root">
           <ThemeProvider defaultTheme="system" storageKey="nodeflow-ui-theme">
-            <WorkOSProvider>
-              <ConvexProvider>
-                <TanStackQuery.Provider queryClient={queryClient}>
-                  <AuthGuard>{children}</AuthGuard>
-                  <Toaster />
-                  <TanStackDevtools
-                    config={{
-                      position: 'bottom-right',
-                    }}
-                    plugins={[
-                      {
-                        name: 'Tanstack Router',
-                        render: <TanStackRouterDevtoolsPanel />,
-                      },
-                      TanStackQueryDevtools,
-                    ]}
-                  />
-                </TanStackQuery.Provider>
-              </ConvexProvider>
-            </WorkOSProvider>
+            <AppPostHogProvider>
+              <WorkOSProvider>
+                <ConvexProvider>
+                  <TanStackQuery.Provider queryClient={queryClient}>
+                    <AuthGuard>{children}</AuthGuard>
+                    <Toaster />
+                    <TanStackDevtools
+                      config={{
+                        position: 'bottom-right',
+                      }}
+                      plugins={[
+                        {
+                          name: 'Tanstack Router',
+                          render: <TanStackRouterDevtoolsPanel />,
+                        },
+                        TanStackQueryDevtools,
+                      ]}
+                    />
+                  </TanStackQuery.Provider>
+                </ConvexProvider>
+              </WorkOSProvider>
+            </AppPostHogProvider>
           </ThemeProvider>
         </div>
         <Scripts />
