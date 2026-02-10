@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from 'convex/react'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { Copy, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
@@ -22,7 +21,6 @@ interface ShareDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
-
 export function ShareDialog({
   documentId,
   open,
@@ -33,7 +31,6 @@ export function ShareDialog({
     api.sharing.getSharingSettings,
     open ? { documentId } : 'skip',
   )
-
   const toggleSharing = useMutation(
     api.sharing.toggleSharing,
   ).withOptimisticUpdate((localStore, args) => {
@@ -53,7 +50,6 @@ export function ShareDialog({
       )
     }
   })
-
   const updatePermission = useMutation(
     api.sharing.updatePublicPermission,
   ).withOptimisticUpdate((localStore, args) => {
@@ -73,29 +69,21 @@ export function ShareDialog({
       )
     }
   })
-
   const regenerateSlug = useMutation(api.sharing.regeneratePublicSlug)
-
   const shareUrl = settings?.publicSlug
     ? `${window.location.origin}/share/${settings.publicSlug}`
     : null
-
   const handleCopyLink = async () => {
     if (!shareUrl) {
       return
     }
-
     try {
       await navigator.clipboard.writeText(shareUrl)
       toast.success('Link copied to clipboard')
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'sharing.copyLink' },
-      })
       toast.error('Failed to copy link. Please try copying manually.')
     }
   }
-
   const handleToggleSharing = async (checked: boolean) => {
     try {
       await toggleSharing({ documentId, isPublic: checked })
@@ -105,42 +93,29 @@ export function ShareDialog({
         toast.success('Sharing disabled')
       }
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'sharing.toggleSharing' },
-      })
       toast.error('Failed to toggle sharing')
     }
   }
-
   const handlePermissionChange = async (value: string) => {
     // Type guard to ensure value is a valid permission
     if (value !== 'view' && value !== 'edit') {
       return
     }
-
     try {
       await updatePermission({ documentId, permission: value })
       toast.success(`Permission updated to ${value}`)
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'sharing.updatePermission' },
-      })
       toast.error('Failed to update permission')
     }
   }
-
   const handleRegenerateLink = async () => {
     try {
       await regenerateSlug({ documentId })
       toast.success('New link generated')
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'sharing.regenerateSlug' },
-      })
       toast.error('Failed to generate new link')
     }
   }
-
   if (settings == null) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,7 +129,6 @@ export function ShareDialog({
       </Dialog>
     )
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-125">

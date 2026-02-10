@@ -3,7 +3,6 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { GraduationCap, Redo, Search, Share2, Undo } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
@@ -29,7 +28,6 @@ import { CollaboratorAvatars } from '@/components/presence/collaborator-avatars'
 type DocSearch = {
   q?: string
 }
-
 export const Route = createFileRoute('/doc/$docId')({
   component: DocumentPage,
   validateSearch: (search: Record<string, unknown>): DocSearch => {
@@ -56,13 +54,10 @@ export const Route = createFileRoute('/doc/$docId')({
     </div>
   ),
 })
-
 function DocumentPage() {
   const { docId } = Route.useParams()
-
   // Basic ID validation
   const isValidPattern = /^[a-z0-9]+$/i.test(docId)
-
   if (!isValidPattern) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
@@ -81,7 +76,6 @@ function DocumentPage() {
       </div>
     )
   }
-
   return (
     <DocumentSidebar>
       <SidebarInset className="min-h-screen bg-background text-foreground">
@@ -97,7 +91,6 @@ function DocumentPage() {
     </DocumentSidebar>
   )
 }
-
 function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const navigate = useNavigate()
   const isRestoring = useIsRestoring()
@@ -125,36 +118,27 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const [showStudyModeDialog, setShowStudyModeDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const previousTitleRef = useRef<string | null>(null)
-
   // Presence for collaborative editing
   const { collaborators, updateCursor } = usePresence({ documentId: docId })
-
   const flashcardCount = flashcards?.length ?? 0
-
   useEffect(() => {
     if (!document) return
-
     const previousTitle = previousTitleRef.current
     if (previousTitle === null) {
       previousTitleRef.current = document.title
       return
     }
-
     if (previousTitle !== document.title) {
       void queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
     }
-
     previousTitleRef.current = document.title
   }, [document, queryClient])
-
   const handleStudyClick = () => {
     setShowStudyModeDialog(true)
   }
-
   const initializeCardStates = useMutation(
     api.cardStates.initializeDocumentCardStates,
   )
-
   const handleSelectStudyMode = async (mode: StudyMode) => {
     if (mode === 'spaced-repetition') {
       // Initialize card states for all flashcards in this document
@@ -172,13 +156,11 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     setStudyMode(mode)
     setIsStudying(true)
   }
-
   // During cache restoration from IndexedDB, wait briefly to see if cached data is available
   // This prevents showing loading/not-found states before we check the persisted cache
   if (isRestoring) {
     return null
   }
-
   // Show loading only when there's no cached data and we're fetching
   if (isPending) {
     return (
@@ -189,7 +171,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       </div>
     )
   }
-
   if (!document) {
     return (
       <div className="mx-auto max-w-4xl p-8">
@@ -208,7 +189,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       </div>
     )
   }
-
   // Study mode for this document
   if (isStudying && flashcards && flashcards.length > 0) {
     if (studyMode === 'spaced-repetition') {
@@ -225,7 +205,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         </div>
       )
     }
-
     // Random mode (default)
     const documentData: Array<FlashcardWithDocument> = [
       {
@@ -233,7 +212,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
         flashcards,
       },
     ]
-
     return (
       <div className="mx-auto w-full max-w-2xl p-8 lg:max-w-3xl xl:max-w-4xl">
         <FlashcardQuiz
@@ -248,7 +226,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       </div>
     )
   }
-
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
       {/* Minimal header */}
@@ -296,7 +273,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
     </div>
   )
 }
-
 function MinimalHeader({
   editor,
   flashcardCount,
@@ -314,31 +290,25 @@ function MinimalHeader({
   // Track undo/redo availability reactively
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
-
   useEffect(() => {
     if (!editor) {
       // Reset state when editor becomes unavailable
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCanUndo(false)
-
       setCanRedo(false)
       return
     }
-
     const updateUndoRedo = () => {
       setCanUndo(editor.can().undo())
       setCanRedo(editor.can().redo())
     }
-
     // Set initial state and subscribe to transactions
     updateUndoRedo()
     editor.on('transaction', updateUndoRedo)
-
     return () => {
       editor.off('transaction', updateUndoRedo)
     }
   }, [editor])
-
   return (
     <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 lg:-mx-8">
       <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-8">
@@ -429,11 +399,13 @@ function MinimalHeader({
     </header>
   )
 }
-
 function DocumentTitle({
   document,
 }: {
-  document: { _id: Id<'documents'>; title: string }
+  document: {
+    _id: Id<'documents'>
+    title: string
+  }
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(document.title)
@@ -441,20 +413,15 @@ function DocumentTitle({
   const queryClient = useQueryClient()
   const isSavingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
-
   const handleSave = async () => {
-    await Sentry.startSpan(
-      { name: 'DocumentTitle.updateTitle', op: 'ui.interaction' },
-      async () => {
-        await updateTitle({ id: document._id, title: title || 'Untitled' })
-        setIsEditing(false)
-        // Invalidate the document list query to update the sidebar
-        await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
-      },
-    )
+    await (async () => {
+      await updateTitle({ id: document._id, title: title || 'Untitled' })
+      setIsEditing(false)
+      // Invalidate the document list query to update the sidebar
+      await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
+    })()
     isSavingRef.current = false
   }
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -464,31 +431,26 @@ function DocumentTitle({
       setIsEditing(false)
     }
   }
-
   const handleBlur = () => {
     if (!isSavingRef.current) {
       handleSave()
     }
   }
-
   const handleClick = () => {
     setTitle(document.title)
     setIsEditing(true)
   }
-
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLHeadingElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       handleClick()
     }
   }
-
   // Ref callback to focus input when mounted and store ref for blur handling
   const inputRefCallback = (node: HTMLInputElement | null) => {
     inputRef.current = node
     node?.focus()
   }
-
   return (
     <div className="pt-8 pb-4 sm:pt-10">
       <p className="nf-meta-label mb-2 text-muted-foreground">Document</p>

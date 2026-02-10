@@ -1,5 +1,4 @@
 'use client'
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorProvider, useCurrentEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -20,7 +19,6 @@ import { useTiptapSync } from '@convex-dev/prosemirror-sync/tiptap'
 import { useMutation } from 'convex/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -89,9 +87,7 @@ interface TiptapEditorProps {
   /** Visual wrapper style for embedding in parent layouts */
   variant?: 'card' | 'plain'
 }
-
 const EMPTY_DOC = { type: 'doc', content: [] }
-
 /**
  * Extended Link extension that adds documentId attribute for internal document links.
  * - External links: { href: "https://example.com", documentId: null }
@@ -114,7 +110,6 @@ const ExtendedLink = Link.extend({
     }
   },
 })
-
 export function TiptapEditor({
   documentId,
   onEditorReady,
@@ -127,15 +122,12 @@ export function TiptapEditor({
   const sync = useTiptapSync(api.prosemirrorSync, documentId)
   const { isLoading, initialContent, create, extension } = sync
   const hasCardChrome = variant === 'card'
-
   // Store editor instance for math onClick handlers
   const editorRef = useRef<Editor | null>(null)
-
   // Mutations for block-level sync
   const upsertBlock = useMutation(api.blocks.upsertBlock)
   const deleteBlocks = useMutation(api.blocks.deleteBlocks)
   const syncBlocks = useMutation(api.blocks.syncBlocks)
-
   // Wrap onEditorReady to also set our ref
   const handleEditorReady = useCallback(
     (editor: Editor) => {
@@ -144,7 +136,6 @@ export function TiptapEditor({
     },
     [onEditorReady],
   )
-
   // Math onClick handlers factory - creates handlers that capture editor ref safely
   // These are only called during user interaction (onClick), never during render
   const createMathHandlers = useCallback(
@@ -168,105 +159,86 @@ export function TiptapEditor({
     }),
     [],
   )
-
   // Callbacks for block sync extension
   const handleBlockUpdate = useCallback(
     (docId: Id<'documents'>, block: BlockData) => {
-      void Sentry.startSpan(
-        { name: 'BlockSync.upsertBlock', op: 'convex.mutation' },
-        async () => {
-          await upsertBlock({
-            documentId: docId,
-            nodeId: block.nodeId,
-            type: block.type,
-            content: block.content,
-            textContent: block.textContent,
-            position: block.position,
-            attrs: block.attrs,
-            // Flashcard fields
-            isCard: block.isCard,
-            cardType: block.cardType,
-            cardDirection: block.cardDirection,
-            cardFront: block.cardFront,
-            cardBack: block.cardBack,
-            clozeOcclusions: block.clozeOcclusions,
-          })
-        },
-      ).catch((error) => {
-        // Errors are already captured by Sentry span, but we need to handle the rejection
+      void (async () => {
+        await upsertBlock({
+          documentId: docId,
+          nodeId: block.nodeId,
+          type: block.type,
+          content: block.content,
+          textContent: block.textContent,
+          position: block.position,
+          attrs: block.attrs,
+          // Flashcard fields
+          isCard: block.isCard,
+          cardType: block.cardType,
+          cardDirection: block.cardDirection,
+          cardFront: block.cardFront,
+          cardBack: block.cardBack,
+          clozeOcclusions: block.clozeOcclusions,
+        })
+      })().catch((error) => {
         console.error('Failed to upsert block:', error)
       })
     },
     [upsertBlock],
   )
-
   const handleBlocksDelete = useCallback(
     (docId: Id<'documents'>, nodeIds: Array<string>) => {
-      void Sentry.startSpan(
-        { name: 'BlockSync.deleteBlocks', op: 'convex.mutation' },
-        async () => {
-          await deleteBlocks({
-            documentId: docId,
-            nodeIds,
-          })
-        },
-      ).catch((error) => {
-        // Errors are already captured by Sentry span, but we need to handle the rejection
+      void (async () => {
+        await deleteBlocks({
+          documentId: docId,
+          nodeIds,
+        })
+      })().catch((error) => {
         console.error('Failed to delete blocks:', error)
       })
     },
     [deleteBlocks],
   )
-
   const handleInitialSync = useCallback(
     (docId: Id<'documents'>, blocks: Array<BlockData>) => {
-      void Sentry.startSpan(
-        { name: 'BlockSync.syncBlocks', op: 'convex.mutation' },
-        async () => {
-          await syncBlocks({
-            documentId: docId,
-            blocks: blocks.map((b) => ({
-              nodeId: b.nodeId,
-              type: b.type,
-              content: b.content,
-              textContent: b.textContent,
-              position: b.position,
-              attrs: b.attrs,
-              // Flashcard fields
-              isCard: b.isCard,
-              cardType: b.cardType,
-              cardDirection: b.cardDirection,
-              cardFront: b.cardFront,
-              cardBack: b.cardBack,
-              clozeOcclusions: b.clozeOcclusions,
-            })),
-          })
-        },
-      ).catch((error) => {
-        // Errors are already captured by Sentry span, but we need to handle the rejection
+      void (async () => {
+        await syncBlocks({
+          documentId: docId,
+          blocks: blocks.map((b) => ({
+            nodeId: b.nodeId,
+            type: b.type,
+            content: b.content,
+            textContent: b.textContent,
+            position: b.position,
+            attrs: b.attrs,
+            // Flashcard fields
+            isCard: b.isCard,
+            cardType: b.cardType,
+            cardDirection: b.cardDirection,
+            cardFront: b.cardFront,
+            cardBack: b.cardBack,
+            clozeOcclusions: b.clozeOcclusions,
+          })),
+        })
+      })().catch((error) => {
         console.error('Failed to sync blocks:', error)
       })
     },
     [syncBlocks],
   )
-
   // Auto-create the document in prosemirror-sync if it doesn't exist yet
   useEffect(() => {
     if (!isLoading && initialContent === null) {
       create(EMPTY_DOC)
     }
   }, [isLoading, initialContent, create])
-
   // Update presence collaborators when they change
   useEffect(() => {
     setPresenceCollaborators(collaborators)
   }, [collaborators])
-
   // Update search query for highlighting when it changes
   useEffect(() => {
     setSearchQuery(searchQuery ?? '')
   }, [searchQuery])
-
   // Memoize extensions array (must be before early returns to satisfy hooks rules)
   const extensions = useMemo(() => {
     const mathHandlers = createMathHandlers()
@@ -386,7 +358,6 @@ export function TiptapEditor({
     onCursorChange,
     extension,
   ])
-
   if (isLoading || initialContent === null) {
     // Show cached preview content if available, otherwise show loading indicator
     if (previewBlocks && previewBlocks.length > 0) {
@@ -402,7 +373,6 @@ export function TiptapEditor({
         </div>
       )
     }
-
     return (
       <div
         className={
@@ -417,7 +387,6 @@ export function TiptapEditor({
       </div>
     )
   }
-
   return (
     <div className="flex w-full flex-1 flex-col">
       <EditorProvider
@@ -434,7 +403,6 @@ export function TiptapEditor({
     </div>
   )
 }
-
 interface MathEditorState {
   isOpen: boolean
   nodeType: 'inlineMath' | 'blockMath' | null
@@ -442,7 +410,6 @@ interface MathEditorState {
   currentLatex: string
   anchorRect: DOMRect | null
 }
-
 function EditorContentWrapper({
   documentId,
   onEditorReady,
@@ -472,11 +439,13 @@ function EditorContentWrapper({
   const [showDocumentLinkPicker, setShowDocumentLinkPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Track pending "Link" placeholder insertion for cleanup on cancel
-  const pendingLinkRangeRef = useRef<{ from: number; to: number } | null>(null)
+  const pendingLinkRangeRef = useRef<{
+    from: number
+    to: number
+  } | null>(null)
   const linkWasAppliedRef = useRef(false)
   const isMountedRef = useRef(true)
   const editorRef = useRef<Editor | null>(null)
-
   // Track component mount status separately from editor updates
   useEffect(() => {
     isMountedRef.current = true
@@ -484,12 +453,10 @@ function EditorContentWrapper({
       isMountedRef.current = false
     }
   }, []) // Empty deps - only runs on mount/unmount
-
   // Update editor ref when editor changes
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
-
   const { uploadImage } = useImageUpload({
     documentId,
     onUploadStart: () => {
@@ -516,19 +483,11 @@ function EditorContentWrapper({
               },
             })
             .run()
-
           if (!result) {
             console.error('Failed to insert image: command returned false')
-            Sentry.captureMessage('Failed to insert image into editor', {
-              level: 'error',
-              extra: { url, dimensions },
-            })
           }
         } catch (error) {
           console.error('Error inserting image:', error)
-          Sentry.captureException(error, {
-            extra: { url, dimensions },
-          })
           toast.error('Failed to insert image into editor')
         }
       }
@@ -540,7 +499,6 @@ function EditorContentWrapper({
       })
     },
   })
-
   // Handle file input change for slash command image upload
   const handleFileInputChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -558,33 +516,31 @@ function EditorContentWrapper({
     // Reset the input so the same file can be selected again
     e.target.value = ''
   }
-
   // Listen for image upload event from slash commands
   useEffect(() => {
     const handleImageUploadEvent = () => {
       fileInputRef.current?.click()
     }
-
     window.addEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
     return () => {
       window.removeEventListener(IMAGE_UPLOAD_EVENT, handleImageUploadEvent)
     }
   }, [])
-
   // Listen for image drop/paste events from FileHandler extension
   useEffect(() => {
     const handleImageDropPaste = async (e: Event) => {
-      const customEvent = e as CustomEvent<{ files: Array<File>; pos?: number }>
+      const customEvent = e as CustomEvent<{
+        files: Array<File>
+        pos?: number
+      }>
       const { files } = customEvent.detail
       // Note: pos parameter is available but not used. Images are inserted at the
       // current cursor position (via editor.chain().focus()) rather than the original
       // drop position. This is intentional: during async uploads, the user may have
       // moved the cursor, and tracking the original position would add complexity
       // without significant UX benefit.
-
       // Filter to only image files
       const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-
       // Upload all dropped/pasted images in parallel for better UX
       // The onUploadComplete callback handles inserting each image into the editor
       // Using Promise.allSettled to continue even if some uploads fail
@@ -599,13 +555,11 @@ function EditorContentWrapper({
         ),
       )
     }
-
     window.addEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
     return () => {
       window.removeEventListener(IMAGE_DROP_PASTE_EVENT, handleImageDropPaste)
     }
   }, [uploadImage])
-
   // Listen for math edit events
   useEffect(() => {
     const handleMathEdit = (e: Event) => {
@@ -617,7 +571,6 @@ function EditorContentWrapper({
       const { nodeType, pos, latex } = customEvent.detail
       const currentEditor = editorRef.current
       if (!currentEditor) return
-
       // Get DOM rect for positioning using nodeDOM which returns the node view's DOM element
       try {
         const mathElement = currentEditor.view.nodeDOM(
@@ -625,7 +578,6 @@ function EditorContentWrapper({
         ) as HTMLElement | null
         if (mathElement) {
           const rect = mathElement.getBoundingClientRect()
-
           // Select the math node so presence indicators show it as selected
           // This helps collaborators see that someone is editing this math block
           const { state } = currentEditor.view
@@ -634,7 +586,6 @@ function EditorContentWrapper({
             const nodeSelection = NodeSelection.create(state.doc, pos)
             currentEditor.view.dispatch(state.tr.setSelection(nodeSelection))
           }
-
           setMathEditor({
             isOpen: true,
             nodeType,
@@ -645,24 +596,18 @@ function EditorContentWrapper({
         }
       } catch (error) {
         console.error('Error opening math editor:', error)
-        Sentry.captureException(error, {
-          extra: { nodeType, pos, latex },
-        })
       }
     }
-
     window.addEventListener(MATH_EDIT_EVENT, handleMathEdit)
     return () => {
       window.removeEventListener(MATH_EDIT_EVENT, handleMathEdit)
     }
   }, [])
-
   // Listen for document link events from slash commands
   useEffect(() => {
     const handleDocumentLinkEvent = () => {
       const currentEditor = editorRef.current
       if (!currentEditor) return
-
       // If there's no selection, insert placeholder text "Link" and select it
       const { from, to } = currentEditor.state.selection
       if (from === to) {
@@ -679,28 +624,22 @@ function EditorContentWrapper({
         // Clear any previous pending range when there's already a selection
         pendingLinkRangeRef.current = null
       }
-
       // Reset the link applied flag before opening the picker
       linkWasAppliedRef.current = false
-
       // Open the document link picker
       setShowDocumentLinkPicker(true)
     }
-
     window.addEventListener(DOCUMENT_LINK_EVENT, handleDocumentLinkEvent)
     return () => {
       window.removeEventListener(DOCUMENT_LINK_EVENT, handleDocumentLinkEvent)
     }
   }, [])
-
   // Update math editor anchor position on scroll/resize to prevent stale positioning
   useEffect(() => {
     if (!mathEditor.isOpen || mathEditor.position === null) return
-
     const updateAnchorPosition = () => {
       const currentEditor = editorRef.current
       if (!currentEditor) return
-
       try {
         const mathElement = currentEditor.view.nodeDOM(
           mathEditor.position as number,
@@ -714,66 +653,53 @@ function EditorContentWrapper({
         setMathEditor((prev) => ({ ...prev, isOpen: false }))
       }
     }
-
     // Listen for scroll on the editor container and window
     const editorContainer = editorRef.current?.view.dom.closest(
       '.editor-scroll-container',
     )
-
     window.addEventListener('scroll', updateAnchorPosition, true)
     window.addEventListener('resize', updateAnchorPosition)
     editorContainer?.addEventListener('scroll', updateAnchorPosition)
-
     return () => {
       window.removeEventListener('scroll', updateAnchorPosition, true)
       window.removeEventListener('resize', updateAnchorPosition)
       editorContainer?.removeEventListener('scroll', updateAnchorPosition)
     }
   }, [mathEditor.isOpen, mathEditor.position])
-
   // Notify parent when editor is ready
   useEffect(() => {
     if (editor && onEditorReady) {
       onEditorReady(editor)
     }
   }, [editor, onEditorReady])
-
   const handleLinkClick = useCallback(
     (e: Event) => {
       if (!editor) return
-
       const mouseEvent = e as MouseEvent
       if (mouseEvent.button !== 0) return
-
       const targetNode = mouseEvent.target
       if (!(targetNode instanceof Node)) return
       if (!editor.view.dom.contains(targetNode)) return
-
       // Try to get the position of the click in the editor
       const pos = editor.view.posAtCoords({
         left: mouseEvent.clientX,
         top: mouseEvent.clientY,
       })
-
       if (!pos) return
-
       // Check if there's a link mark at this position (works even if the DOM target is a text node)
       const $pos = editor.state.doc.resolve(pos.pos)
       const linkMark = editor.schema.marks.link
       const linkMarkInstance = $pos.marks().find((m) => m.type === linkMark)
       const href = linkMarkInstance?.attrs.href as string | undefined
       if (!href) return
-
       // Check if this is a document link
       const linkDocumentId = linkMarkInstance?.attrs.documentId as
         | string
         | undefined
-
       // Prevent default navigation / other click handlers
       mouseEvent.preventDefault()
       mouseEvent.stopImmediatePropagation()
       mouseEvent.stopPropagation()
-
       if (linkDocumentId) {
         // Document link - check if document exists before navigating
         void (async () => {
@@ -805,19 +731,15 @@ function EditorContentWrapper({
     },
     [editor, navigate, queryClient],
   )
-
   useEffect(() => {
     if (!editor) return
-
     // Attach at document level (capture phase) so we run before any other handlers that might open the link.
     const doc = editor.view.dom.ownerDocument
     doc.addEventListener('click', handleLinkClick, true)
-
     return () => {
       doc.removeEventListener('click', handleLinkClick, true)
     }
   }, [editor, handleLinkClick])
-
   const handleConfirmOpenLink = useCallback(() => {
     if (pendingLinkUrl) {
       window.open(pendingLinkUrl, '_blank', 'noopener,noreferrer')
@@ -825,16 +747,13 @@ function EditorContentWrapper({
     setShowLinkWarning(false)
     setPendingLinkUrl(null)
   }, [pendingLinkUrl])
-
   const handleCancelOpenLink = useCallback(() => {
     setShowLinkWarning(false)
     setPendingLinkUrl(null)
   }, [])
-
   if (!editor) {
     return null
   }
-
   return (
     <div
       className={

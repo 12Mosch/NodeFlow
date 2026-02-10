@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, GraduationCap, Shuffle } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
@@ -27,7 +26,6 @@ interface RandomModeProps {
   setStudyState: (state: StudyState) => void
   onGoHome: () => void
 }
-
 export function RandomMode({
   studyState,
   setStudyState,
@@ -36,13 +34,10 @@ export function RandomMode({
   const { data: flashcardData } = useSuspenseQuery(
     convexQuery(api.blocks.listAllFlashcards, {}),
   )
-
   const [selectedDocIds, setSelectedDocIds] = useState<Set<Id<'documents'>>>(
     new Set(),
   )
-
   const documents = flashcardData
-
   const selectedDocCount = selectedDocIds.size
   const selectedCardCount = useMemo(
     () => computeExpandedCardCount(documents, selectedDocIds),
@@ -65,22 +60,16 @@ export function RandomMode({
     }
     return 'Start this mixed deck now. If your accuracy drops below 70% in results, switch to Spaced Repetition for targeted recovery.'
   }, [selectedCardCount, selectedDocCount])
-
   const handleStartStudy = () => {
     if (selectedDocIds.size > 0) {
-      Sentry.startSpan(
-        { name: 'RandomMode.startStudy', op: 'ui.interaction' },
-        () => {
-          setStudyState('studying')
-        },
-      )
+      ;(() => {
+        setStudyState('studying')
+      })()
     }
   }
-
   const handleBack = () => {
     setStudyState('selecting')
   }
-
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
       <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">

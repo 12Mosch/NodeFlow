@@ -1,7 +1,6 @@
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { AlertTriangle, BarChart3, Home, Loader2, Plus } from 'lucide-react'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { AccountMenu } from '../account-menu'
@@ -31,39 +30,29 @@ export function DocumentSidebarContent() {
   })
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
-
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useDocumentList({ numItems: 50 })
-
   const createDocument = useMutation(api.documents.create)
   const topNavButtonClass = 'flex items-center gap-2'
   const isHomeActive = pathname === '/'
   const isAnalyticsActive = pathname.startsWith('/analytics')
   const isLeechCardsActive = pathname.startsWith('/study-leeches')
-
   const documents = data?.pages.flatMap((p) => p.page) || []
-
   const sentinelRef = useIntersectionObserver({
     onIntersect: () => fetchNextPage(),
     enabled: !isCollapsed && hasNextPage && !isFetchingNextPage,
   })
-
   const handleCreateDocument = async () => {
     try {
-      await Sentry.startSpan(
-        { name: 'DocumentSidebar.createDocument', op: 'ui.interaction' },
-        async () => {
-          const id = await createDocument({})
-          navigate({ to: '/doc/$docId', params: { docId: id } })
-        },
-      )
+      await (async () => {
+        const id = await createDocument({})
+        navigate({ to: '/doc/$docId', params: { docId: id } })
+      })()
     } catch (error) {
-      Sentry.captureException(error)
       toast.error('Failed to create document. Please try again.')
       console.error('Error creating document:', error)
     }
   }
-
   return (
     <>
       <SidebarHeader className="border-b border-sidebar-border/80 px-2.5 py-2">

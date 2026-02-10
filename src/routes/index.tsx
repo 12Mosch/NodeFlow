@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useMutation } from 'convex/react'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import {
   FileText,
@@ -24,11 +23,9 @@ import { Button } from '@/components/ui/button'
 import { useSearch } from '@/components/search-provider'
 
 const DOCUMENTS_PER_PAGE = 10
-
 export const Route = createFileRoute('/')({
   component: App,
 })
-
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -36,7 +33,6 @@ function App() {
     </div>
   )
 }
-
 function DocumentList() {
   const { isAuthenticated } = useConvexAuth()
   const {
@@ -48,10 +44,8 @@ function DocumentList() {
     isError,
     error: queryError,
   } = useDocumentList({ numItems: DOCUMENTS_PER_PAGE })
-
   const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
   const createDocument = useMutation(api.documents.create)
-
   const sentinelRef = useIntersectionObserver({
     onIntersect: () => fetchNextPage(),
     enabled: hasNextPage && !isFetchingNextPage,
@@ -61,56 +55,46 @@ function DocumentList() {
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
   const { open: openSearch } = useSearch()
   const { queryClient } = Route.useRouteContext()
-
   const handleCreate = async () => {
     try {
-      await Sentry.startSpan(
-        { name: 'DocumentList.create', op: 'ui.interaction' },
-        async () => {
-          const id = await createDocument({})
-          navigate({ to: '/doc/$docId', params: { docId: id } })
-        },
-      )
+      await (async () => {
+        const id = await createDocument({})
+        navigate({ to: '/doc/$docId', params: { docId: id } })
+      })()
     } catch (error) {
       toast.error('Failed to create document. Please try again.')
       console.error('Error creating document:', error)
     }
   }
-
   const handleDelete = async (id: Id<'documents'>, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
     // Capture current data for rollback
     const previousData = queryClient.getQueryData([
       'documents',
       'list',
       DOCUMENTS_PER_PAGE,
     ])
-
     try {
-      await Sentry.startSpan(
-        { name: 'DocumentList.delete', op: 'ui.interaction' },
-        async () => {
-          await deleteDocument.withOptimisticUpdate(() => {
-            // Manually update the TanStack Query cache for the infinite query
-            queryClient.setQueryData<InfiniteData<DocumentPage, string | null>>(
-              ['documents', 'list', DOCUMENTS_PER_PAGE],
-              (oldData) => {
-                if (!oldData) return oldData
-                return {
-                  ...oldData,
-                  pages: oldData.pages.map((page) => ({
-                    ...page,
-                    page: page.page.filter((doc) => doc._id !== id),
-                  })),
-                }
-              },
-            )
-          })({ id })
-          toast.success('Document deleted')
-        },
-      )
+      await (async () => {
+        await deleteDocument.withOptimisticUpdate(() => {
+          // Manually update the TanStack Query cache for the infinite query
+          queryClient.setQueryData<InfiniteData<DocumentPage, string | null>>(
+            ['documents', 'list', DOCUMENTS_PER_PAGE],
+            (oldData) => {
+              if (!oldData) return oldData
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page) => ({
+                  ...page,
+                  page: page.page.filter((doc) => doc._id !== id),
+                })),
+              }
+            },
+          )
+        })({ id })
+        toast.success('Document deleted')
+      })()
     } catch (error) {
       // Rollback on error
       queryClient.setQueryData(
@@ -121,11 +105,9 @@ function DocumentList() {
       console.error('Error deleting document:', error)
     }
   }
-
   const handleSelectStudyMode = (mode: StudyMode) => {
     navigate({ to: '/study', search: { mode } })
   }
-
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center p-8 text-muted-foreground">
@@ -136,7 +118,6 @@ function DocumentList() {
       </div>
     )
   }
-
   if (isError) {
     return (
       <div className="flex min-h-screen items-center justify-center p-8">
@@ -146,7 +127,6 @@ function DocumentList() {
       </div>
     )
   }
-
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
       <header className="sticky top-0 z-40 -mx-4 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
@@ -257,27 +237,22 @@ function DocumentList() {
     </div>
   )
 }
-
 function formatDate(timestamp: number | null | undefined): string {
   if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) {
     return 'unknown'
   }
-
   const date = new Date(timestamp)
   if (Number.isNaN(date.getTime())) {
     return 'unknown'
   }
-
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
-
   if (diffMins < 1) return 'just now'
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-
   return date.toLocaleDateString()
 }

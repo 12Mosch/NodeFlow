@@ -23,7 +23,6 @@ Built with a state-of-the-art tech stack, NodeFlow provides a "zero-latency" exp
 - **Editor**: [Tiptap](https://tiptap.dev/) / ProseMirror (Rich text block-level editing)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) & [Shadcn UI](https://ui.shadcn.com/)
 - **State Management**: [TanStack Query](https://tanstack.com/query) & [Form](https://tanstack.com/form)
-- **Monitoring**: [Sentry](https://sentry.io/) (Error tracking and performance)
 - **Runtime**: [Bun](https://bun.sh/) (Fastest JavaScript all-in-one toolkit)
 - **UI Primitives**: [@base-ui/react](https://base-ui.com/react/overview/quick-start) (Unstyled, accessible component primitives)
 
@@ -49,10 +48,6 @@ VITE_CONVEX_URL=your_convex_url
 VITE_WORKOS_CLIENT_ID=your_workos_client_id
 VITE_WORKOS_API_HOSTNAME=your_workos_api_hostname
 VITE_WORKOS_REDIRECT_URI=http://localhost:3000/callback
-
-# Sentry (Optional)
-VITE_SENTRY_DSN=your_sentry_dsn
-SENTRY_AUTH_TOKEN=your_sentry_auth_token
 ```
 
 > **Note**: For authentication to work in the backend, you must also set `WORKOS_CLIENT_ID` (and optionally `WORKOS_API_HOSTNAME` if you are using a custom one) in your [Convex Dashboard](https://dashboard.convex.dev/) under **Settings > Environment Variables**.
@@ -80,7 +75,7 @@ Open [http://localhost:3000](http://localhost:3000) to see your app.
 - `app/`: TanStack Start application routes and logic.
 - `convex/`: Backend schema and database functions.
 - `src/components/`: UI components (including Tiptap editor).
-- `src/integrations/`: Third-party service configurations (WorkOS, Sentry).
+- `src/integrations/`: Third-party service configurations.
 - `src/extensions/`: Custom Tiptap extensions for block management.
 
 ## 🏗️ Building for Production

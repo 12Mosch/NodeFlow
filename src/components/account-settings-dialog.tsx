@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAction } from 'convex/react'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { DeleteAccountDialog } from './delete-account-dialog'
@@ -27,7 +26,6 @@ interface AccountSettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
-
 export function AccountSettingsDialog({
   user,
   open,
@@ -39,50 +37,38 @@ export function AccountSettingsDialog({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const updateNameInWorkOS = useAction(api.users.updateNameInWorkOS)
   const updateEmailInWorkOS = useAction(api.users.updateEmailInWorkOS)
-
   useEffect(() => {
     if (open) {
       setName(user.name ?? '')
       setEmail(user.email)
     }
   }, [open, user.name, user.email])
-
   const nameChanged = name !== (user.name ?? '')
   const emailChanged = email !== user.email
   const hasChanges = nameChanged || emailChanged
-
   const handleSave = async () => {
     if (!hasChanges) return
-
     setIsSaving(true)
     try {
-      await Sentry.startSpan(
-        { name: 'AccountSettings.save', op: 'user.update' },
-        async () => {
-          // Update name in WorkOS if changed
-          if (nameChanged) {
-            await updateNameInWorkOS({ name: name || undefined })
-          }
-          // Update email in WorkOS if changed
-          if (emailChanged) {
-            await updateEmailInWorkOS({ email })
-          }
-          toast.success('Account updated')
-          onOpenChange(false)
-        },
-      )
+      await (async () => {
+        // Update name in WorkOS if changed
+        if (nameChanged) {
+          await updateNameInWorkOS({ name: name || undefined })
+        }
+        // Update email in WorkOS if changed
+        if (emailChanged) {
+          await updateEmailInWorkOS({ email })
+        }
+        toast.success('Account updated')
+        onOpenChange(false)
+      })()
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'account.update' },
-      })
       toast.error('Failed to update account')
     } finally {
       setIsSaving(false)
     }
   }
-
   const initials = getInitials(user.name, user.email)
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>

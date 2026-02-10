@@ -1,6 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
@@ -29,7 +28,6 @@ interface SpacedRepetitionModeProps {
   setStudyState: (state: StudyState) => void
   onGoHome: () => void
 }
-
 export function SpacedRepetitionMode({
   studyState,
   setStudyState,
@@ -44,22 +42,15 @@ export function SpacedRepetitionMode({
   const { data: leechStats } = useSuspenseQuery(
     convexQuery(api.cardStates.getLeechStats, {}),
   )
-
   if (!stats || !sessionCards || !leechStats) return null
-
   const handleStartLearning = () => {
-    Sentry.startSpan(
-      { name: 'StudyMode.startLearning', op: 'ui.interaction' },
-      () => {
-        setStudyState('studying')
-      },
-    )
+    ;(() => {
+      setStudyState('studying')
+    })()
   }
-
   const handleBack = () => {
     setStudyState('overview')
   }
-
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
   const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
   const totalDue = dueCards.length + newCards.length
@@ -82,7 +73,6 @@ export function SpacedRepetitionMode({
         : stats.dueNow > Math.max(20, stats.newCards * 2)
           ? `Due load is building (${stats.dueNow} due now). Clear reviews before introducing more new cards.`
           : "You're in a healthy range. Keep honest ratings and finish today's due cards to maintain momentum."
-
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
       <header className="sticky top-0 z-50 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
