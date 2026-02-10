@@ -7,7 +7,7 @@ Use these directories to place new code and locate existing modules.
 - `src/routes/` for TanStack Router file-based routes (example: `src/routes/doc.$docId.tsx`).
 - `src/components/` for UI components and editor pieces.
 - `src/extensions/` for custom Tiptap/ProseMirror extensions.
-- `src/integrations/` for service wiring (Convex, WorkOS, Sentry, TanStack Query).
+- `src/integrations/` for service wiring (Convex, WorkOS, TanStack Query).
 - `src/lib/` and `src/hooks/` for shared utilities and hooks.
 - `convex/` for backend schema and functions. Do not edit `convex/_generated/`.
 - `public/` for static assets. Production output is emitted to `.output/`.
@@ -23,14 +23,13 @@ Use this stack when choosing libraries or patterns so changes stay consistent.
 - **UI**: Shadcn UI + Tailwind CSS 4 + Base UI
 - **State**: TanStack Query with `@convex-dev/react-query` for SSR
 - **SRS**: ts-fsrs (FSRS v5 algorithm)
-- **Monitoring**: Sentry
 
 ## Development Commands
 
 Run project scripts with Bun.
 
 - `bun run dev` to start Vite + Convex dev servers on port 3000.
-- `bun run build` to create a production build (Vite + server instrumentation).
+- `bun run build` to create a production build.
 - `bun run preview` to preview the production build.
 - `bun run start` to run the Nitro server from `.output/`.
 - `bun run test` to run Vitest once.

@@ -3,22 +3,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"cross-env NODE_ENV=development NODE_OPTIONS=--import=./instrument.server.mjs vite dev --port 3000\" \"bunx convex dev\"",
-    "build": "vite build && cp instrument.server.mjs .output/server",
+    "dev": "concurrently \"cross-env NODE_ENV=development vite dev --port 3000\" \"bunx convex dev\"",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
     "format": "prettier",
     "typecheck": "tsc --noEmit",
     "check": "prettier --write . && eslint --fix && tsc --noEmit",
-    "start": "node --import ./.output/server/instrument.server.mjs .output/server/index.mjs"
+    "start": "node .output/server/index.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
     "@convex-dev/prosemirror-sync": "^0.2.1",
     "@convex-dev/react-query": "0.1.0",
     "@convex-dev/workos": "^0.0.1",
-    "@sentry/tanstackstart-react": "^10.38.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "^0.9.4",
     "@tanstack/react-form": "^1.28.0",
@@ -77,7 +76,6 @@
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
-    "@sentry/vite-plugin": "^4.8.0",
     "@tanstack/devtools-vite": "^0.4.1",
     "@tanstack/eslint-config": "^0.3.4",
     "@tanstack/eslint-plugin-query": "^5.91.4",

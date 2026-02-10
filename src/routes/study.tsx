@@ -1,7 +1,6 @@
 import { Suspense, startTransition, useEffect, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { convexQuery } from '@convex-dev/react-query'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { Loader2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { StudyState } from '@/components/study/types'
@@ -13,7 +12,6 @@ import { RandomMode } from '@/components/study/RandomMode'
 type StudySearch = {
   mode?: StudyMode
 }
-
 export const Route = createFileRoute('/study')({
   validateSearch: (search: Record<string, unknown>): StudySearch => {
     return {
@@ -26,37 +24,32 @@ export const Route = createFileRoute('/study')({
   loader: async ({ context, location }) => {
     const searchParams = new URLSearchParams(location.search)
     const mode = searchParams.get('mode')
-
-    await Sentry.startSpan(
-      { name: 'study.prefetch', op: 'navigation' },
-      async () => {
-        // Conditionally load data based on selected mode
-        // React Query will cache it, so mode switching within a session is still fast
-        if (mode === 'spaced-repetition') {
-          await Promise.all([
-            context.queryClient.ensureQueryData(
-              convexQuery(api.cardStates.getStats, {}),
-            ),
-            context.queryClient.ensureQueryData(
-              convexQuery(api.cardStates.getLearnSession, {}),
-            ),
-          ])
-        } else if (mode === 'random') {
-          await context.queryClient.ensureQueryData(
-            convexQuery(api.blocks.listAllFlashcards, {}),
-          )
-        } else {
-          // No mode selected - only load stats for potential dialog display
-          await context.queryClient.ensureQueryData(
+    await (async () => {
+      // Conditionally load data based on selected mode
+      // React Query will cache it, so mode switching within a session is still fast
+      if (mode === 'spaced-repetition') {
+        await Promise.all([
+          context.queryClient.ensureQueryData(
             convexQuery(api.cardStates.getStats, {}),
-          )
-        }
-      },
-    )
+          ),
+          context.queryClient.ensureQueryData(
+            convexQuery(api.cardStates.getLearnSession, {}),
+          ),
+        ])
+      } else if (mode === 'random') {
+        await context.queryClient.ensureQueryData(
+          convexQuery(api.blocks.listAllFlashcards, {}),
+        )
+      } else {
+        // No mode selected - only load stats for potential dialog display
+        await context.queryClient.ensureQueryData(
+          convexQuery(api.cardStates.getStats, {}),
+        )
+      }
+    })()
   },
   component: StudyPage,
 })
-
 function StudyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -75,7 +68,6 @@ function StudyPage() {
     </div>
   )
 }
-
 function StudyContent() {
   const navigate = useNavigate()
   const { mode } = Route.useSearch()
@@ -84,7 +76,6 @@ function StudyContent() {
   )
   const [isDialogOpen, setIsDialogOpen] = useState(!mode)
   const prevModeRef = useRef(mode)
-
   // Sync states with mode parameter changes
   // This effect syncs local UI state with URL parameters, which is necessary
   // because studyState can be 'studying' (local state) but needs to reset when mode changes
@@ -92,7 +83,6 @@ function StudyContent() {
     // Only update if mode actually changed
     if (prevModeRef.current !== mode) {
       prevModeRef.current = mode
-
       // Use startTransition to mark these as non-urgent updates
       startTransition(() => {
         if (mode === 'spaced-repetition') {
@@ -104,16 +94,13 @@ function StudyContent() {
       })
     }
   }, [mode])
-
   // Handle mode selection from dialog
   const handleSelectMode = (selectedMode: StudyMode) => {
     navigate({ to: '/study', search: { mode: selectedMode } })
   }
-
   const handleGoHome = () => {
     navigate({ to: '/' })
   }
-
   // If no mode selected, show dialog
   if (!mode) {
     return (
@@ -131,7 +118,6 @@ function StudyContent() {
       </div>
     )
   }
-
   // Render content based on mode
   switch (mode) {
     case 'spaced-repetition':

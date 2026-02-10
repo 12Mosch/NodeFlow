@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useAction } from 'convex/react'
 import { useAuth } from '@workos-inc/authkit-react'
-import * as Sentry from '@sentry/tanstackstart-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import {
@@ -22,7 +21,6 @@ interface DeleteAccountDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
-
 export function DeleteAccountDialog({
   email,
   open,
@@ -32,39 +30,28 @@ export function DeleteAccountDialog({
   const [isDeleting, setIsDeleting] = useState(false)
   const { signOut } = useAuth()
   const deleteAccount = useAction(api.users.deleteAccount)
-
   const isConfirmed =
     confirmEmail.trim().toLowerCase() === email.trim().toLowerCase()
-
   const handleDelete = async () => {
     if (!isConfirmed) return
-
     setIsDeleting(true)
     try {
-      await Sentry.startSpan(
-        { name: 'DeleteAccount.delete', op: 'user.delete' },
-        async () => {
-          await deleteAccount({})
-          await signOut()
-        },
-      )
+      await (async () => {
+        await deleteAccount({})
+        await signOut()
+      })()
     } catch (error) {
-      Sentry.captureException(error, {
-        tags: { operation: 'account.delete' },
-      })
       toast.error('Failed to delete account. Please try again.')
     } finally {
       setIsDeleting(false)
     }
   }
-
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setConfirmEmail('')
     }
     onOpenChange(newOpen)
   }
-
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
