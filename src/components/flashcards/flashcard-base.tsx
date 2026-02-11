@@ -158,7 +158,7 @@ export function FlashcardBase({
   return (
     <Card
       data-ph-mask
-      className="w-full overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5"
+      className="ph-mask ph-no-capture w-full overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5"
     >
       <CardContent className="p-0">
         {/* Header with metadata */}
