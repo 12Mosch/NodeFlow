@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAction } from 'convex/react'
+import { usePostHog } from '@posthog/react'
 import { useAuth } from '@workos-inc/authkit-react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
@@ -29,6 +30,7 @@ export function DeleteAccountDialog({
   const [confirmEmail, setConfirmEmail] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const { signOut } = useAuth()
+  const posthog = usePostHog()
   const deleteAccount = useAction(api.users.deleteAccount)
   const isConfirmed =
     confirmEmail.trim().toLowerCase() === email.trim().toLowerCase()
@@ -38,6 +40,7 @@ export function DeleteAccountDialog({
     try {
       await (async () => {
         await deleteAccount({})
+        posthog.reset()
         await signOut()
       })()
     } catch (error) {

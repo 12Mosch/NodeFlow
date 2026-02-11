@@ -15,6 +15,7 @@ import { api } from '../../convex/_generated/api'
 import WorkOSProvider from '../integrations/workos/provider'
 import ConvexProvider from '../integrations/convex/provider'
 import AppPostHogProvider from '../integrations/posthog/provider'
+import { PostHogAuthSync } from '../integrations/posthog/auth-sync'
 import * as TanStackQuery from '../integrations/tanstack-query/root-provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { Toaster } from '../components/ui/sonner'
@@ -132,6 +133,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <ThemeProvider defaultTheme="system" storageKey="nodeflow-ui-theme">
             <AppPostHogProvider>
               <WorkOSProvider>
+                <PostHogAuthSync />
                 <ConvexProvider>
                   <TanStackQuery.Provider queryClient={queryClient}>
                     <AuthGuard>{children}</AuthGuard>
