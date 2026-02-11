@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAction } from 'convex/react'
+import { usePostHog } from '@posthog/react'
 import { useAuth } from '@workos-inc/authkit-react'
 import { convexQuery } from '@convex-dev/react-query'
 import { ChevronsUpDown, LogOut, Settings } from 'lucide-react'
@@ -19,6 +20,7 @@ import { getInitials } from '@/lib/utils'
 
 export function AccountMenu() {
   const { signOut } = useAuth()
+  const posthog = usePostHog()
   const { data: user } = useQuery(convexQuery(api.users.getCurrentUser, {}))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const syncFromWorkOS = useAction(api.users.syncFromWorkOS)
@@ -53,6 +55,10 @@ export function AccountMenu() {
   }
 
   const initials = getInitials(user.name, user.email)
+  const handleSignOut = () => {
+    posthog.reset()
+    signOut()
+  }
 
   return (
     <>
@@ -90,7 +96,7 @@ export function AccountMenu() {
             Account Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => signOut()}>
+          <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </DropdownMenuItem>
