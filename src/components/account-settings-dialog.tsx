@@ -72,7 +72,10 @@ export function AccountSettingsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent data-ph-mask className="sm:max-w-106.25">
+        <DialogContent
+          data-ph-mask
+          className="ph-mask ph-no-capture sm:max-w-106.25"
+        >
           <DialogHeader>
             <DialogTitle>Account Settings</DialogTitle>
             <DialogDescription>

@@ -340,7 +340,7 @@ export function SearchDialog() {
       showCloseButton={false}
       className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-2xl"
     >
-      <div data-ph-mask>
+      <div data-ph-mask className="ph-mask ph-no-capture">
         <CommandInput
           placeholder="Search documents..."
           value={searchQuery}

@@ -10,11 +10,20 @@ const options = {
   defaults: '2026-01-30',
   capture_pageview: 'history_change',
   capture_pageleave: true,
+  // Keep autocapture off public share routes.
+  autocapture: {
+    url_ignorelist: [/\/share\//],
+  },
+  // Reduce noisy behavioral autocapture volume.
+  rageclick: false,
+  capture_dead_clicks: false,
   // Session Replay is intentionally enabled only for production builds.
   disable_session_recording: !IS_PRODUCTION,
   session_recording: {
-    // Keep balanced defaults and support explicit masking at the component level.
+    // Support both PostHog classes and app-specific data attributes.
+    maskTextClass: 'ph-mask',
     maskTextSelector: '[data-ph-mask]',
+    blockClass: 'ph-no-capture',
     blockSelector: '[data-ph-no-capture]',
   },
 } satisfies Partial<PostHogConfig>

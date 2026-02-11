@@ -54,7 +54,7 @@ export function DeleteAccountDialog({
   }
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent data-ph-no-capture>
+      <AlertDialogContent data-ph-no-capture className="ph-no-capture">
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Account</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
