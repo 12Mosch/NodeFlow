@@ -56,6 +56,8 @@ VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
 > **Note**: For authentication to work in the backend, you must also set `WORKOS_CLIENT_ID` (and optionally `WORKOS_API_HOSTNAME` if you are using a custom one) in your [Convex Dashboard](https://dashboard.convex.dev/) under **Settings > Environment Variables**.
 > **Note**: If PostHog variables are missing, the app continues without analytics and logs a warning in the console.
+> **Note**: Session Replay is enabled only in production builds. Development and local builds keep analytics active (if configured) but disable replay recording.
+> **Note**: For sensitive content, add `data-ph-mask` to mask text and `data-ph-no-capture` to block elements from replay capture.
 
 ### Installation
 

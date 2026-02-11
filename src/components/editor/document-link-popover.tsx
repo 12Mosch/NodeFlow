@@ -98,7 +98,7 @@ export function DocumentLinkPopover({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div data-ph-mask className="flex flex-col gap-2">
       <div className="relative">
         <Search className="absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input

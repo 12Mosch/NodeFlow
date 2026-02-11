@@ -14,7 +14,10 @@ export function DocumentPreview({ blocks }: DocumentPreviewProps) {
   }
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none opacity-70">
+    <div
+      data-ph-mask
+      className="prose prose-sm dark:prose-invert max-w-none opacity-70"
+    >
       {blocks.map((block) => (
         <BlockPreview key={block._id} block={block} />
       ))}
