@@ -156,7 +156,10 @@ export function FlashcardBase({
   const hasAncestorContext = ancestorPath.length > 0
 
   return (
-    <Card className="w-full overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5">
+    <Card
+      data-ph-mask
+      className="w-full overflow-hidden border-border/50 py-0 shadow-lg ring-1 ring-black/5 transition-all duration-300 ease-out dark:ring-white/5"
+    >
       <CardContent className="p-0">
         {/* Header with metadata */}
         <div className="flex items-center justify-between gap-3 border-b border-border/50 px-8 py-4">

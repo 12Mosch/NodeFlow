@@ -340,75 +340,77 @@ export function SearchDialog() {
       showCloseButton={false}
       className="rounded-2xl border border-border/70 bg-card/95 shadow-xl sm:max-w-2xl"
     >
-      <CommandInput
-        placeholder="Search documents..."
-        value={searchQuery}
-        onValueChange={setSearchQueryState}
-        className="text-base"
-      />
-      <CommandList className="max-h-[65vh] p-1.5">
-        {showEmpty && (
-          <CommandEmpty className="rounded-lg border border-dashed border-border/70 bg-muted/25 py-8 text-sm text-muted-foreground">
-            No results found.
-          </CommandEmpty>
-        )}
+      <div data-ph-mask>
+        <CommandInput
+          placeholder="Search documents..."
+          value={searchQuery}
+          onValueChange={setSearchQueryState}
+          className="text-base"
+        />
+        <CommandList className="max-h-[65vh] p-1.5">
+          {showEmpty && (
+            <CommandEmpty className="rounded-lg border border-dashed border-border/70 bg-muted/25 py-8 text-sm text-muted-foreground">
+              No results found.
+            </CommandEmpty>
+          )}
 
-        {isLoading && (
-          <div className="rounded-lg border border-border/70 bg-muted/25 py-6 text-center text-sm text-muted-foreground">
-            {isEmptyQuery ? 'Loading recent documents...' : 'Searching...'}
-          </div>
-        )}
+          {isLoading && (
+            <div className="rounded-lg border border-border/70 bg-muted/25 py-6 text-center text-sm text-muted-foreground">
+              {isEmptyQuery ? 'Loading recent documents...' : 'Searching...'}
+            </div>
+          )}
 
-        {results?.documents && results.documents.length > 0 && (
-          <CommandGroup
-            heading={isEmptyQuery ? 'Recent Documents' : 'Documents'}
-            className="mb-1 rounded-lg border border-border/60 bg-card p-1.5"
-          >
-            {results.documents.map((doc) => (
-              <CommandItem
-                key={doc._id}
-                value={`doc-${doc._id}-${doc.title}`}
-                onSelect={() => handleSelect(doc._id)}
-                className="rounded-md px-2.5 py-2.5"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                <span className="truncate">
-                  {highlightMatch(doc.title || 'Untitled', normalizedQuery)}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
-        {results?.blocks && results.blocks.length > 0 && !isEmptyQuery && (
-          <CommandGroup
-            heading="Content"
-            className="rounded-lg border border-border/60 bg-card p-1.5"
-          >
-            {results.blocks.map((block) => (
-              <CommandItem
-                key={block._id}
-                value={`block-${block._id}-${block.textContent}`}
-                onSelect={() => handleSelect(block.documentId)}
-                className="rounded-md px-2.5 py-2.5"
-              >
-                <Text className="mr-2 h-4 w-4 shrink-0" />
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-xs text-muted-foreground">
-                    {highlightMatch(block.documentTitle, normalizedQuery)}
-                  </span>
+          {results?.documents && results.documents.length > 0 && (
+            <CommandGroup
+              heading={isEmptyQuery ? 'Recent Documents' : 'Documents'}
+              className="mb-1 rounded-lg border border-border/60 bg-card p-1.5"
+            >
+              {results.documents.map((doc) => (
+                <CommandItem
+                  key={doc._id}
+                  value={`doc-${doc._id}-${doc.title}`}
+                  onSelect={() => handleSelect(doc._id)}
+                  className="rounded-md px-2.5 py-2.5"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
                   <span className="truncate">
-                    {highlightMatch(
-                      extractSnippet(block.textContent, normalizedQuery),
-                      normalizedQuery,
-                    )}
+                    {highlightMatch(doc.title || 'Untitled', normalizedQuery)}
                   </span>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-      </CommandList>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {results?.blocks && results.blocks.length > 0 && !isEmptyQuery && (
+            <CommandGroup
+              heading="Content"
+              className="rounded-lg border border-border/60 bg-card p-1.5"
+            >
+              {results.blocks.map((block) => (
+                <CommandItem
+                  key={block._id}
+                  value={`block-${block._id}-${block.textContent}`}
+                  onSelect={() => handleSelect(block.documentId)}
+                  className="rounded-md px-2.5 py-2.5"
+                >
+                  <Text className="mr-2 h-4 w-4 shrink-0" />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-xs text-muted-foreground">
+                      {highlightMatch(block.documentTitle, normalizedQuery)}
+                    </span>
+                    <span className="truncate">
+                      {highlightMatch(
+                        extractSnippet(block.textContent, normalizedQuery),
+                        normalizedQuery,
+                      )}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </div>
     </CommandDialog>
   )
 }
