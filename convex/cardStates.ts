@@ -14,12 +14,16 @@ import {
   buildAncestorPathByNodeId,
   getCachedAncestorPathFromAttrs,
 } from './helpers/flashcardContext'
+import { buildDocumentActiveExamSummaryByDocumentId } from './helpers/examDocuments'
 import { fetchRetentionMap, getLeechReason, isLeech } from './helpers/leech'
+import type { NextActiveExam } from './helpers/examDocuments'
 import type { CardState } from './helpers/fsrs'
 import type { DifficultyBucketLabel } from '../shared/analytics-buckets'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
+import type { QueryCtx } from './_generated/server'
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const EXAM_TARGET_RETRIEVABILITY = 0.9
 type DifficultyBucketLiteralValidator = ReturnType<
   typeof v.literal<DifficultyBucketLabel>
 >
@@ -96,6 +100,164 @@ function getOutlineAncestorNodeIds(attrs: unknown): Array<string> | null {
     nodeIds.push(nodeId)
   }
   return nodeIds
+}
+
+function toRetrievabilityNumber(value: number | string) {
+  if (typeof value === 'number') {
+    return value
+  }
+  const percentMatch = value.match(/^([\d.]+)%$/)
+  if (percentMatch) {
+    const parsedPercent = Number.parseFloat(percentMatch[1])
+    if (Number.isFinite(parsedPercent)) {
+      return parsedPercent / 100
+    }
+  }
+  const parsed = Number.parseFloat(value)
+  if (Number.isFinite(parsed)) {
+    return parsed
+  }
+  console.warn(
+    `Unexpected retrievability format from fsrs: ${JSON.stringify(value)}`,
+  )
+  return 0
+}
+
+type PriorityExam = NextActiveExam
+
+async function getPriorityExamByDocumentId(
+  ctx: QueryCtx,
+  userId: Id<'users'>,
+  documentIds: Array<Id<'documents'>>,
+  now: number,
+) {
+  const summaryByDocumentId = await buildDocumentActiveExamSummaryByDocumentId(
+    ctx,
+    userId,
+    documentIds,
+    now,
+  )
+  const priorityExamByDocumentId = new Map<Id<'documents'>, PriorityExam>()
+  for (const [documentId, summary] of summaryByDocumentId) {
+    if (summary.nextExam) {
+      priorityExamByDocumentId.set(documentId, summary.nextExam)
+    }
+  }
+  return priorityExamByDocumentId
+}
+
+function sortDueCardsByExamPriority<
+  T extends {
+    examPriority: boolean
+    retrievabilityAtExam: number | null
+    retrievability: number
+  },
+>(cards: Array<T>) {
+  // Mutates the provided array in place; callers should pass a copied array if needed.
+  return cards.sort((a, b) => {
+    if (a.examPriority !== b.examPriority) {
+      return a.examPriority ? -1 : 1
+    }
+    if (a.examPriority && b.examPriority) {
+      const aExamRetrievability =
+        a.retrievabilityAtExam ?? Number.POSITIVE_INFINITY
+      const bExamRetrievability =
+        b.retrievabilityAtExam ?? Number.POSITIVE_INFINITY
+      if (aExamRetrievability !== bExamRetrievability) {
+        return aExamRetrievability - bExamRetrievability
+      }
+    }
+    return a.retrievability - b.retrievability
+  })
+}
+
+function sortNewCardsByExamPriority<
+  T extends {
+    examPriority: boolean
+    priorityExam: { examAt: number } | null
+  },
+>(cards: Array<T>) {
+  return cards
+    .map((card, index) => ({ card, index }))
+    .sort((a, b) => {
+      if (a.card.examPriority !== b.card.examPriority) {
+        return a.card.examPriority ? -1 : 1
+      }
+      if (a.card.examPriority && b.card.examPriority) {
+        const aExamAt = a.card.priorityExam?.examAt ?? Number.POSITIVE_INFINITY
+        const bExamAt = b.card.priorityExam?.examAt ?? Number.POSITIVE_INFINITY
+        if (aExamAt !== bExamAt) {
+          return aExamAt - bExamAt
+        }
+      }
+      return a.index - b.index
+    })
+    .map((entry) => entry.card)
+}
+
+function toFsrsCardState(cardState: Doc<'cardStates'>): CardState {
+  return {
+    stability: cardState.stability,
+    difficulty: cardState.difficulty,
+    due: cardState.due,
+    lastReview: cardState.lastReview,
+    reps: cardState.reps,
+    lapses: cardState.lapses,
+    state: cardState.state,
+    scheduledDays: cardState.scheduledDays,
+    elapsedDays: cardState.elapsedDays,
+  }
+}
+
+function buildLearnSessionCard({
+  cardState,
+  block,
+  ancestorPath,
+  document,
+  priorityExam,
+  retention,
+}: {
+  cardState: Doc<'cardStates'>
+  block: Doc<'blocks'>
+  ancestorPath: Array<string> | undefined
+  document: Doc<'documents'> | null
+  priorityExam: PriorityExam | null
+  retention: number | null
+}) {
+  const state = toFsrsCardState(cardState)
+  const retrievability = toRetrievabilityNumber(getRetrievability(state))
+  const intervals = previewIntervals(state)
+  const retrievabilityAtExam = priorityExam
+    ? toRetrievabilityNumber(
+        getRetrievability(state, new Date(priorityExam.examAt)),
+      )
+    : null
+  const examPriority =
+    retrievabilityAtExam !== null &&
+    retrievabilityAtExam < EXAM_TARGET_RETRIEVABILITY
+  const isLeechCard = isLeech(cardState, retention)
+  const leechReason = isLeechCard ? getLeechReason(cardState, retention) : null
+  return {
+    cardState,
+    block: {
+      ...block,
+      ancestorPath,
+    },
+    document: document ? { _id: document._id, title: document.title } : null,
+    retrievability,
+    examPriority,
+    priorityExam,
+    retrievabilityAtExam,
+    intervalPreviews: {
+      again: formatInterval(intervals.again),
+      hard: formatInterval(intervals.hard),
+      good: formatInterval(intervals.good),
+      easy: formatInterval(intervals.easy),
+    },
+    isLeech: isLeechCard,
+    leechReason,
+    retention,
+  }
 }
 /**
  * Get or create card state for a block+direction combination
@@ -360,7 +522,9 @@ export const getDueCards = query({
             scheduledDays: cardState.scheduledDays,
             elapsedDays: cardState.elapsedDays,
           }
-          const retrievability = getRetrievability(state)
+          const retrievability = toRetrievabilityNumber(
+            getRetrievability(state),
+          )
           // Get interval previews
           const intervals = previewIntervals(state)
           return {
@@ -648,9 +812,12 @@ export const getLearnSession = query({
           ),
         ),
       )
-      const documents = await Promise.all(
-        uniqueDocumentIds.map((documentId) => ctx.db.get(documentId)),
-      )
+      const [priorityExamByDocumentId, documents] = await Promise.all([
+        getPriorityExamByDocumentId(ctx, userId, uniqueDocumentIds, now),
+        Promise.all(
+          uniqueDocumentIds.map((documentId) => ctx.db.get(documentId)),
+        ),
+      ])
       const documentById = new Map(
         uniqueDocumentIds.map((documentId, index) => [
           documentId,
@@ -662,59 +829,31 @@ export const getLearnSession = query({
         if (!block) {
           return null
         }
-        // Get document for title
         const document = documentById.get(block.documentId)
         const ancestorPath = ancestorPathByBlockId.get(block._id)
-        // Calculate retrievability and intervals
-        const state: CardState = {
-          stability: cardState.stability,
-          difficulty: cardState.difficulty,
-          due: cardState.due,
-          lastReview: cardState.lastReview,
-          reps: cardState.reps,
-          lapses: cardState.lapses,
-          state: cardState.state,
-          scheduledDays: cardState.scheduledDays,
-          elapsedDays: cardState.elapsedDays,
-        }
-        const retrievability = getRetrievability(state)
-        const intervals = previewIntervals(state)
-        // Calculate leech status
+        const priorityExam =
+          priorityExamByDocumentId.get(block.documentId) ?? null
         const retention = retentionMap.get(cardState._id) ?? null
-        const isLeechCard = isLeech(cardState, retention)
-        const leechReason = isLeechCard
-          ? getLeechReason(cardState, retention)
-          : null
-        return {
+        return buildLearnSessionCard({
           cardState,
-          block: {
-            ...block,
-            ancestorPath,
-          },
-          document: document
-            ? { _id: document._id, title: document.title }
-            : null,
-          retrievability,
-          intervalPreviews: {
-            again: formatInterval(intervals.again),
-            hard: formatInterval(intervals.hard),
-            good: formatInterval(intervals.good),
-            easy: formatInterval(intervals.easy),
-          },
-          isLeech: isLeechCard,
-          leechReason,
+          block,
+          ancestorPath,
+          document: document ?? null,
+          priorityExam,
           retention,
-        }
+        })
       })
       // Filter out nulls and sort: due cards by retrievability, then new cards
       const validCards = cardsWithBlocks.filter(
         (c): c is NonNullable<typeof c> => c !== null,
       )
       // Separate due and new cards
-      const due = validCards
-        .filter((c) => c.cardState.state !== 'new')
-        .sort((a, b) => a.retrievability - b.retrievability)
-      const newOnes = validCards.filter((c) => c.cardState.state === 'new')
+      const due = sortDueCardsByExamPriority(
+        validCards.filter((c) => c.cardState.state !== 'new'),
+      )
+      const newOnes = sortNewCardsByExamPriority(
+        validCards.filter((c) => c.cardState.state === 'new'),
+      )
       // Interleave: show due cards first, then introduce new ones
       return [...due, ...newOnes]
     })()
@@ -848,64 +987,39 @@ export const getDocumentLearnSession = query({
         .slice(0, newLimit)
       // Combine and fetch blocks
       const allCardStates = [...dueCards, ...newCards]
-      // Batch-fetch all retention rates in one query
-      const retentionMap = await fetchRetentionMap(ctx, userId)
+      const [retentionMap, priorityExamByDocumentId] = await Promise.all([
+        fetchRetentionMap(ctx, userId),
+        getPriorityExamByDocumentId(ctx, userId, [args.documentId], now),
+      ])
       const cardsWithBlocks = allCardStates.map((cardState) => {
         const block = enabledBlockById.get(cardState.blockId)
         if (!block) {
           return null
         }
         const ancestorPath = ancestorPathByNodeId.get(block.nodeId)
-        // Calculate retrievability and intervals
-        const state: CardState = {
-          stability: cardState.stability,
-          difficulty: cardState.difficulty,
-          due: cardState.due,
-          lastReview: cardState.lastReview,
-          reps: cardState.reps,
-          lapses: cardState.lapses,
-          state: cardState.state,
-          scheduledDays: cardState.scheduledDays,
-          elapsedDays: cardState.elapsedDays,
-        }
-        const retrievability = getRetrievability(state)
-        const intervals = previewIntervals(state)
-        // Calculate leech status
+        const priorityExam =
+          priorityExamByDocumentId.get(block.documentId) ?? null
         const retention = retentionMap.get(cardState._id) ?? null
-        const isLeechCard = isLeech(cardState, retention)
-        const leechReason = isLeechCard
-          ? getLeechReason(cardState, retention)
-          : null
-        return {
+        return buildLearnSessionCard({
           cardState,
-          block: {
-            ...block,
-            ancestorPath,
-          },
-          document: document
-            ? { _id: document._id, title: document.title }
-            : null,
-          retrievability,
-          intervalPreviews: {
-            again: formatInterval(intervals.again),
-            hard: formatInterval(intervals.hard),
-            good: formatInterval(intervals.good),
-            easy: formatInterval(intervals.easy),
-          },
-          isLeech: isLeechCard,
-          leechReason,
+          block,
+          ancestorPath,
+          document,
+          priorityExam,
           retention,
-        }
+        })
       })
       // Filter out nulls and sort: due cards by retrievability, then new cards
       const validCards = cardsWithBlocks.filter(
         (c): c is NonNullable<typeof c> => c !== null,
       )
       // Separate due and new cards
-      const due = validCards
-        .filter((c) => c.cardState.state !== 'new')
-        .sort((a, b) => a.retrievability - b.retrievability)
-      const newOnes = validCards.filter((c) => c.cardState.state === 'new')
+      const due = sortDueCardsByExamPriority(
+        validCards.filter((c) => c.cardState.state !== 'new'),
+      )
+      const newOnes = sortNewCardsByExamPriority(
+        validCards.filter((c) => c.cardState.state === 'new'),
+      )
       // Interleave: show due cards first, then introduce new ones
       return [...due, ...newOnes]
     })()

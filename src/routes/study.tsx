@@ -35,6 +35,9 @@ export const Route = createFileRoute('/study')({
           context.queryClient.ensureQueryData(
             convexQuery(api.cardStates.getLearnSession, {}),
           ),
+          context.queryClient.ensureQueryData(
+            convexQuery(api.exams.getStudyOverviewTotals, {}),
+          ),
         ])
       } else if (mode === 'random') {
         await context.queryClient.ensureQueryData(

@@ -15,6 +15,7 @@ import type * as crons from "../crons.js";
 import type * as databaseRows from "../databaseRows.js";
 import type * as databaseSchemas from "../databaseSchemas.js";
 import type * as documents from "../documents.js";
+import type * as exams from "../exams.js";
 import type * as files from "../files.js";
 import type * as helpers_documentAccess from "../helpers/documentAccess.js";
 import type * as helpers_flashcardContext from "../helpers/flashcardContext.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   databaseRows: typeof databaseRows;
   databaseSchemas: typeof databaseSchemas;
   documents: typeof documents;
+  exams: typeof exams;
   files: typeof files;
   "helpers/documentAccess": typeof helpers_documentAccess;
   "helpers/flashcardContext": typeof helpers_flashcardContext;

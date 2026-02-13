@@ -11,6 +11,7 @@ import type { Id } from '../../convex/_generated/dataModel'
 import type { FlashcardWithDocument } from '@/components/flashcards'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import type { PresenceUser } from '@/hooks/use-presence'
+import type { DocumentExamIndicator } from '@/lib/exams'
 import { DocumentLearnQuiz } from '@/components/document-learn-quiz'
 import { FlashcardQuiz } from '@/components/flashcards'
 import { ShareDialog } from '@/components/share-dialog'
@@ -18,6 +19,7 @@ import { StudyModeDialog } from '@/components/study-mode-dialog'
 import { TiptapEditor } from '@/components/tiptap-editor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DocumentExamIndicatorView } from '@/components/exams/document-exam-indicator'
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { DocumentSidebar } from '@/components/sidebar'
@@ -109,6 +111,12 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const { data: blocks } = useQuery(
     convexQuery(
       api.blocks.listByDocument,
+      document ? { documentId: docId } : 'skip',
+    ),
+  )
+  const { data: examIndicator } = useQuery(
+    convexQuery(
+      api.exams.getDocumentHeaderIndicator,
       document ? { documentId: docId } : 'skip',
     ),
   )
@@ -255,7 +263,7 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
       <div className="flex flex-1 flex-col pb-10">
         <div className="flex flex-1 flex-col overflow-hidden rounded-b-2xl border-x border-b border-border/70 bg-card/50 shadow-xs">
           <div className="px-4 sm:px-6">
-            <DocumentTitle document={document} />
+            <DocumentTitle document={document} examIndicator={examIndicator} />
           </div>
           <div className="flex flex-1 flex-col">
             <TiptapEditor
@@ -401,11 +409,13 @@ function MinimalHeader({
 }
 function DocumentTitle({
   document,
+  examIndicator,
 }: {
   document: {
     _id: Id<'documents'>
     title: string
   }
+  examIndicator: DocumentExamIndicator | undefined
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(document.title)
@@ -453,7 +463,10 @@ function DocumentTitle({
   }
   return (
     <div className="pt-8 pb-4 sm:pt-10">
-      <p className="nf-meta-label mb-2 text-muted-foreground">Document</p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="nf-meta-label text-muted-foreground">Document</p>
+        <DocumentExamIndicatorView indicator={examIndicator} variant="header" />
+      </div>
       {isEditing ? (
         <input
           ref={inputRefCallback}

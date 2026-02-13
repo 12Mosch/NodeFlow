@@ -1,10 +1,18 @@
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { AlertTriangle, BarChart3, Home, Loader2, Plus } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarDays,
+  Home,
+  Loader2,
+  Plus,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { AccountMenu } from '../account-menu'
 import { DocumentListItem } from './document-list-item'
+import { useDocumentExamIndicators } from '@/hooks/use-document-exam-indicators'
 import { useDocumentList } from '@/hooks/use-document-list'
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import {
@@ -36,8 +44,10 @@ export function DocumentSidebarContent() {
   const topNavButtonClass = 'flex items-center gap-2'
   const isHomeActive = pathname === '/'
   const isAnalyticsActive = pathname.startsWith('/analytics')
+  const isExamsActive = pathname.startsWith('/exams')
   const isLeechCardsActive = pathname.startsWith('/study-leeches')
   const documents = data?.pages.flatMap((p) => p.page) || []
+  const { documentExamIndicatorById } = useDocumentExamIndicators(data?.pages)
   const sentinelRef = useIntersectionObserver({
     onIntersect: () => fetchNextPage(),
     enabled: !isCollapsed && hasNextPage && !isFetchingNextPage,
@@ -84,6 +94,15 @@ export function DocumentSidebarContent() {
             <span>Analytics</span>
           </SidebarMenuButton>
           <SidebarMenuButton
+            onClick={() => navigate({ to: '/exams' })}
+            tooltip="Exams"
+            isActive={isExamsActive}
+            className={topNavButtonClass}
+          >
+            <CalendarDays className="h-4 w-4" />
+            <span>Exams</span>
+          </SidebarMenuButton>
+          <SidebarMenuButton
             onClick={() => navigate({ to: '/study-leeches' })}
             tooltip="Leech Cards"
             isActive={isLeechCardsActive}
@@ -119,6 +138,7 @@ export function DocumentSidebarContent() {
                           key={doc._id}
                           document={doc}
                           isActive={doc._id === currentDocId}
+                          examIndicator={documentExamIndicatorById.get(doc._id)}
                         />
                       ))}
                       {(hasNextPage || isFetchingNextPage) && (

@@ -1,16 +1,20 @@
 import { useNavigate } from '@tanstack/react-router'
 import { FileText } from 'lucide-react'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import type { DocumentExamIndicator } from '@/lib/exams'
+import { DocumentExamIndicatorView } from '@/components/exams/document-exam-indicator'
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 
 interface DocumentListItemProps {
   document: Doc<'documents'>
   isActive: boolean
+  examIndicator?: DocumentExamIndicator
 }
 
 export function DocumentListItem({
   document,
   isActive,
+  examIndicator,
 }: DocumentListItemProps) {
   const navigate = useNavigate({ from: '/doc/$docId' })
 
@@ -29,7 +33,13 @@ export function DocumentListItem({
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sidebar-accent/50 text-sidebar-foreground/70">
           <FileText className="h-3.5 w-3.5 shrink-0" />
         </span>
-        <span className="flex-1 truncate">{document.title || 'Untitled'}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate">{document.title || 'Untitled'}</span>
+          <DocumentExamIndicatorView
+            indicator={examIndicator}
+            variant="sidebar"
+          />
+        </div>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
