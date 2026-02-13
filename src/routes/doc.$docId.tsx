@@ -1,6 +1,11 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsRestoring,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
 import { convexQuery } from '@convex-dev/react-query'
 import { GraduationCap, Redo, Search, Share2, Undo } from 'lucide-react'
@@ -31,11 +36,19 @@ type DocSearch = {
   q?: string
 }
 export const Route = createFileRoute('/doc/$docId')({
-  component: DocumentPage,
   validateSearch: (search: Record<string, unknown>): DocSearch => {
     return {
       q: typeof search.q === 'string' ? search.q : undefined,
     }
+  },
+  component: DocumentPage,
+  loader: async ({ context, params }) => {
+    if (!/^[a-z0-9]+$/i.test(params.docId)) {
+      return
+    }
+    await context.queryClient.ensureQueryData(
+      convexQuery(api.documents.get, { id: params.docId as Id<'documents'> }),
+    )
   },
   errorComponent: () => (
     <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
@@ -98,27 +111,20 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   const isRestoring = useIsRestoring()
   const queryClient = useQueryClient()
   const { q: searchQuery } = Route.useSearch()
-  const { data: document, isPending } = useQuery(
+  const { data: document } = useSuspenseQuery(
     convexQuery(api.documents.get, { id: docId }),
   )
+  // Keep hook order stable while preventing dependent queries for missing docs.
+  const documentQueryArgs = document ? { documentId: docId } : ('skip' as const)
   const { data: flashcards } = useQuery(
-    convexQuery(
-      api.blocks.listFlashcards,
-      document ? { documentId: docId } : 'skip',
-    ),
+    convexQuery(api.blocks.listFlashcards, documentQueryArgs),
   )
   // Query blocks for instant preview while editor loads
   const { data: blocks } = useQuery(
-    convexQuery(
-      api.blocks.listByDocument,
-      document ? { documentId: docId } : 'skip',
-    ),
+    convexQuery(api.blocks.listByDocument, documentQueryArgs),
   )
   const { data: examIndicator } = useQuery(
-    convexQuery(
-      api.exams.getDocumentHeaderIndicator,
-      document ? { documentId: docId } : 'skip',
-    ),
+    convexQuery(api.exams.getDocumentHeaderIndicator, documentQueryArgs),
   )
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isStudying, setIsStudying] = useState(false)
@@ -168,16 +174,6 @@ function DocumentContent({ docId }: { docId: Id<'documents'> }) {
   // This prevents showing loading/not-found states before we check the persisted cache
   if (isRestoring) {
     return null
-  }
-  // Show loading only when there's no cached data and we're fetching
-  if (isPending) {
-    return (
-      <div className="p-8 text-muted-foreground">
-        <div className="inline-flex items-center rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-sm shadow-xs">
-          Loading document...
-        </div>
-      </div>
-    )
   }
   if (!document) {
     return (

@@ -18,6 +18,7 @@ import type * as documents from "../documents.js";
 import type * as exams from "../exams.js";
 import type * as files from "../files.js";
 import type * as helpers_documentAccess from "../helpers/documentAccess.js";
+import type * as helpers_examDocuments from "../helpers/examDocuments.js";
 import type * as helpers_flashcardContext from "../helpers/flashcardContext.js";
 import type * as helpers_fsrs from "../helpers/fsrs.js";
 import type * as helpers_leech from "../helpers/leech.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   exams: typeof exams;
   files: typeof files;
   "helpers/documentAccess": typeof helpers_documentAccess;
+  "helpers/examDocuments": typeof helpers_examDocuments;
   "helpers/flashcardContext": typeof helpers_flashcardContext;
   "helpers/fsrs": typeof helpers_fsrs;
   "helpers/leech": typeof helpers_leech;

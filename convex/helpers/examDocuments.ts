@@ -52,32 +52,27 @@ export async function buildDocumentActiveExamSummaryByDocumentId(
     return summaryByDocumentId
   }
 
-  const exams = await Promise.all(
-    uniqueExamIds.map((examId) => ctx.db.get(examId)),
-  )
-  const activeExamById = new Map(
-    exams
-      .filter(
-        (exam): exam is NonNullable<typeof exam> =>
-          exam !== null &&
-          exam.userId === userId &&
-          exam.archivedAt === undefined &&
-          exam.examAt > now,
-      )
-      .map((exam) => [exam._id, exam]),
-  )
+  // Avoid N+1 lookups via ctx.db.get(examId) by loading active user exams once.
+  const activeExams = await ctx.db
+    .query('exams')
+    .withIndex('by_user_archived_examAt', (q) =>
+      q.eq('userId', userId).eq('archivedAt', undefined).gt('examAt', now),
+    )
+    .collect()
+  const activeExamById = new Map(activeExams.map((exam) => [exam._id, exam]))
 
   for (const [index, documentId] of dedupedDocumentIds.entries()) {
-    const activeExams = Array.from(
+    const activeExamsForDocument = Array.from(
       new Set(linksByDocument[index].map((link) => link.examId)),
     )
       .map((examId) => activeExamById.get(examId))
       .filter((exam): exam is NonNullable<typeof exam> => exam !== undefined)
       .sort((a, b) => a.examAt - b.examAt)
 
-    const nextExam = activeExams.at(0)
+    const nextExam =
+      activeExamsForDocument.length > 0 ? activeExamsForDocument[0] : null
     summaryByDocumentId.set(documentId, {
-      activeExamCount: activeExams.length,
+      activeExamCount: activeExamsForDocument.length,
       nextExam: nextExam
         ? {
             examId: nextExam._id,
