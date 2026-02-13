@@ -36,6 +36,31 @@ export default defineSchema({
       filterFields: ['userId'],
     }),
 
+  // Exams tied to one or more documents
+  exams: defineTable({
+    userId: v.id('users'),
+    title: v.string(),
+    examAt: v.number(), // UTC timestamp in ms
+    notes: v.optional(v.string()),
+    archivedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_user_examAt', ['userId', 'examAt'])
+    .index('by_user_archived_examAt', ['userId', 'archivedAt', 'examAt']),
+
+  // Many-to-many relation between exams and documents
+  examDocuments: defineTable({
+    userId: v.id('users'),
+    examId: v.id('exams'),
+    documentId: v.id('documents'),
+    createdAt: v.number(),
+  })
+    .index('by_exam', ['examId'])
+    .index('by_document', ['documentId'])
+    .index('by_user_document', ['userId', 'documentId'])
+    .index('by_user_exam', ['userId', 'examId']),
+
   // Individual blocks within documents (for block-level tracking)
   blocks: defineTable({
     documentId: v.id('documents'),

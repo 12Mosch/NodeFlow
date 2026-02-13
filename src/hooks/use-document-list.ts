@@ -12,10 +12,12 @@ export type DocumentPage = {
 interface UseDocumentListOptions {
   /** Number of documents to fetch per page. Defaults to 20. */
   numItems?: number
+  /** Whether the query should run. Defaults to true. */
+  enabled?: boolean
 }
 
 export function useDocumentList(options: UseDocumentListOptions = {}) {
-  const { numItems = 20 } = options
+  const { numItems = 20, enabled = true } = options
   const { isAuthenticated } = useConvexAuth()
   const convex = useConvex()
 
@@ -32,6 +34,6 @@ export function useDocumentList(options: UseDocumentListOptions = {}) {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage: DocumentPage) =>
       lastPage.isDone ? null : lastPage.continueCursor,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && enabled,
   })
 }

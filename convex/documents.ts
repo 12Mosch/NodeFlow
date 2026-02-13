@@ -132,6 +132,11 @@ export const deleteDocument = mutation({
       .withIndex('by_document', (q) => q.eq('documentId', args.id))
       .collect()
 
+    const examLinks = await ctx.db
+      .query('examDocuments')
+      .withIndex('by_document', (q) => q.eq('documentId', args.id))
+      .collect()
+
     // Delete all database records first (files, blocks, document)
     // This ensures that if any database operation fails, the transaction
     // rolls back and we never delete storage files, preventing broken references
@@ -141,6 +146,10 @@ export const deleteDocument = mutation({
 
     for (const block of blocks) {
       await ctx.db.delete(block._id)
+    }
+
+    for (const examLink of examLinks) {
+      await ctx.db.delete(examLink._id)
     }
 
     await ctx.db.delete(args.id)

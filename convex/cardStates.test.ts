@@ -191,6 +191,40 @@ async function createTestReviewLog(
   })
 }
 
+async function createTestExam(
+  t: ReturnType<typeof convexTest>,
+  userId: Id<'users'>,
+  options: {
+    title?: string
+    examAt?: number
+    notes?: string
+    archivedAt?: number
+    documentIds?: Array<Id<'documents'>>
+  } = {},
+) {
+  const now = Date.now()
+  return await t.run(async (ctx) => {
+    const examId = await ctx.db.insert('exams', {
+      userId,
+      title: options.title ?? 'Test Exam',
+      examAt: options.examAt ?? now + 3 * 24 * 60 * 60 * 1000,
+      notes: options.notes,
+      archivedAt: options.archivedAt,
+      createdAt: now,
+      updatedAt: now,
+    })
+    for (const documentId of options.documentIds ?? []) {
+      await ctx.db.insert('examDocuments', {
+        userId,
+        examId,
+        documentId,
+        createdAt: now,
+      })
+    }
+    return examId
+  })
+}
+
 describe('cardStates', () => {
   let t: ReturnType<typeof convexTest>
   let userId: Id<'users'>
@@ -780,6 +814,291 @@ describe('cardStates', () => {
       const result = (await asUser.query(api.cardStates.getNewCards, {}))!
 
       expect(result.length).toBe(0)
+    })
+  })
+
+  type LearnSessionCard = {
+    block: { _id: Id<'blocks'> }
+    cardState: {
+      state: 'new' | 'learning' | 'review' | 'relearning'
+    }
+    examPriority: boolean
+    retrievabilityAtExam: number | null
+    priorityExam: {
+      examId: Id<'exams'>
+      title: string
+    } | null
+  }
+
+  type LearnSessionQuery = (
+    sessionDocId: Id<'documents'>,
+  ) => Promise<Array<LearnSessionCard>>
+
+  async function createDueReviewCardForSession(
+    sessionDocId: Id<'documents'>,
+    options: {
+      stability: number
+      lastReviewDaysAgo: number
+    },
+  ) {
+    const now = Date.now()
+    const blockId = await createTestFlashcardBlock(t, userId, sessionDocId)
+    await createTestCardState(t, userId, blockId, {
+      state: 'review',
+      due: now - 1000,
+      stability: options.stability,
+      difficulty: 5,
+      lastReview: now - options.lastReviewDaysAgo * 24 * 60 * 60 * 1000,
+    })
+    return blockId
+  }
+
+  function expectRetrievabilityAtExamAscending(
+    dueCards: Array<LearnSessionCard>,
+  ) {
+    expect(dueCards.length).toBe(2)
+    const firstRetrievability = dueCards[0]?.retrievabilityAtExam
+    const secondRetrievability = dueCards[1]?.retrievabilityAtExam
+    expect(firstRetrievability).not.toBeNull()
+    expect(secondRetrievability).not.toBeNull()
+    if (firstRetrievability === null || secondRetrievability === null) {
+      throw new Error('Expected non-null exam retrievability values')
+    }
+    expect(firstRetrievability <= secondRetrievability).toBe(true)
+  }
+
+  function registerSharedExamPrioritySessionScenarios(options: {
+    runSessionQuery: LearnSessionQuery
+    createSessionDocument: (title: string) => Promise<Id<'documents'>>
+  }) {
+    const { runSessionQuery, createSessionDocument } = options
+
+    it('orders exam-priority due cards by lower retrievabilityAtExam first', async () => {
+      const now = Date.now()
+      const sessionDocId = await createSessionDocument('Ordered Exam Doc')
+      const lowerRetentionBlock = await createDueReviewCardForSession(
+        sessionDocId,
+        {
+          stability: 0.4,
+          lastReviewDaysAgo: 14,
+        },
+      )
+      const higherRetentionBlock = await createDueReviewCardForSession(
+        sessionDocId,
+        {
+          stability: 1.2,
+          lastReviewDaysAgo: 8,
+        },
+      )
+
+      await createTestExam(t, userId, {
+        examAt: now + 21 * 24 * 60 * 60 * 1000,
+        documentIds: [sessionDocId],
+      })
+
+      const result = await runSessionQuery(sessionDocId)
+      const dueCards = result
+        .filter((card) =>
+          [lowerRetentionBlock, higherRetentionBlock].includes(card.block._id),
+        )
+        .filter((card) => card.examPriority)
+
+      expect(dueCards.length).toBe(2)
+      expectRetrievabilityAtExamAscending(dueCards)
+    })
+
+    it('uses the nearest upcoming exam for linked documents', async () => {
+      const now = Date.now()
+      const sessionDocId = await createSessionDocument('Linked Doc')
+      const blockId = await createDueReviewCardForSession(sessionDocId, {
+        stability: 3,
+        lastReviewDaysAgo: 10,
+      })
+
+      const nearExamId = await createTestExam(t, userId, {
+        title: 'Nearest exam',
+        examAt: now + 24 * 60 * 60 * 1000,
+        documentIds: [sessionDocId],
+      })
+      await createTestExam(t, userId, {
+        title: 'Later exam',
+        examAt: now + 7 * 24 * 60 * 60 * 1000,
+        documentIds: [sessionDocId],
+      })
+
+      const result = await runSessionQuery(sessionDocId)
+      const card = result.find((entry) => entry.block._id === blockId)
+
+      expect(card?.priorityExam).not.toBeNull()
+      expect(card?.priorityExam?.examId).toEqual(nearExamId)
+      expect(card?.priorityExam?.title).toBe('Nearest exam')
+    })
+
+    it('ignores archived exams when calculating exam priority', async () => {
+      const now = Date.now()
+      const sessionDocId = await createSessionDocument('Archived Doc')
+      const blockId = await createDueReviewCardForSession(sessionDocId, {
+        stability: 2,
+        lastReviewDaysAgo: 10,
+      })
+
+      await createTestExam(t, userId, {
+        examAt: now + 2 * 24 * 60 * 60 * 1000,
+        archivedAt: now - 5000,
+        documentIds: [sessionDocId],
+      })
+
+      const result = await runSessionQuery(sessionDocId)
+      const card = result.find((entry) => entry.block._id === blockId)
+
+      expect(card?.priorityExam).toBeNull()
+      expect(card?.examPriority).toBe(false)
+      expect(card?.retrievabilityAtExam).toBeNull()
+    })
+
+    it('ignores past exams when calculating exam priority', async () => {
+      const now = Date.now()
+      const sessionDocId = await createSessionDocument('Past Doc')
+      const blockId = await createDueReviewCardForSession(sessionDocId, {
+        stability: 2,
+        lastReviewDaysAgo: 8,
+      })
+
+      await createTestExam(t, userId, {
+        examAt: now - 60 * 60 * 1000,
+        documentIds: [sessionDocId],
+      })
+
+      const result = await runSessionQuery(sessionDocId)
+      const card = result.find((entry) => entry.block._id === blockId)
+
+      expect(card?.priorityExam).toBeNull()
+      expect(card?.examPriority).toBe(false)
+      expect(card?.retrievabilityAtExam).toBeNull()
+    })
+
+    it('keeps non-exam due ordering unchanged (retrievability ascending)', async () => {
+      const sessionDocId = await createSessionDocument('No Exam Doc')
+      const lowRetrievabilityBlock = await createDueReviewCardForSession(
+        sessionDocId,
+        {
+          stability: 1,
+          lastReviewDaysAgo: 20,
+        },
+      )
+      const highRetrievabilityBlock = await createDueReviewCardForSession(
+        sessionDocId,
+        {
+          stability: 20,
+          lastReviewDaysAgo: 2,
+        },
+      )
+
+      const result = await runSessionQuery(sessionDocId)
+      const dueCards = result.filter((card) =>
+        [lowRetrievabilityBlock, highRetrievabilityBlock].includes(
+          card.block._id,
+        ),
+      )
+
+      expect(dueCards[0]?.block._id).toEqual(lowRetrievabilityBlock)
+      expect(dueCards[0]?.examPriority).toBe(false)
+      expect(dueCards[1]?.block._id).toEqual(highRetrievabilityBlock)
+    })
+  }
+
+  describe('exam-aware learn session prioritization', () => {
+    it('prioritizes exam-linked due cards over non-linked due cards', async () => {
+      const now = Date.now()
+      const examDocId = await createTestDocument(t, userId, 'Exam Doc')
+      const regularDocId = await createTestDocument(t, userId, 'Regular Doc')
+
+      const examBlockId = await createTestFlashcardBlock(t, userId, examDocId)
+      await createTestCardState(t, userId, examBlockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 0.7,
+        difficulty: 5,
+        lastReview: now - 20 * 24 * 60 * 60 * 1000,
+      })
+
+      const regularBlockId = await createTestFlashcardBlock(
+        t,
+        userId,
+        regularDocId,
+      )
+      await createTestCardState(t, userId, regularBlockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 1,
+        difficulty: 5,
+        lastReview: now - 30 * 24 * 60 * 60 * 1000,
+      })
+
+      await createTestExam(t, userId, {
+        title: 'Near exam',
+        examAt: now + 20 * 24 * 60 * 60 * 1000,
+        documentIds: [examDocId],
+      })
+
+      const result = (await asUser.query(api.cardStates.getLearnSession, {}))!
+      const dueCards = result.filter((card) => card.cardState.state !== 'new')
+
+      expect(dueCards[0]?.block._id).toEqual(examBlockId)
+      expect(dueCards[0]?.examPriority).toBe(true)
+      expect(
+        dueCards.find((card) => card.block._id === regularBlockId)
+          ?.examPriority,
+      ).toBe(false)
+    })
+
+    registerSharedExamPrioritySessionScenarios({
+      runSessionQuery: async () =>
+        ((await asUser.query(api.cardStates.getLearnSession, {})) ??
+          []) as Array<LearnSessionCard>,
+      createSessionDocument: async (title) =>
+        createTestDocument(t, userId, title),
+    })
+  })
+
+  describe('exam-aware document learn session prioritization', () => {
+    it('marks due cards as exam-priority when linked to an upcoming exam', async () => {
+      const now = Date.now()
+      const sessionDocId = await createTestDocument(t, userId, 'Exam Doc')
+      const blockId = await createTestFlashcardBlock(t, userId, sessionDocId)
+      await createTestCardState(t, userId, blockId, {
+        state: 'review',
+        due: now - 1000,
+        stability: 0.8,
+        difficulty: 5,
+        lastReview: now - 20 * 24 * 60 * 60 * 1000,
+      })
+
+      await createTestExam(t, userId, {
+        examAt: now + 18 * 24 * 60 * 60 * 1000,
+        documentIds: [sessionDocId],
+      })
+
+      const result = (await asUser.query(
+        api.cardStates.getDocumentLearnSession,
+        {
+          documentId: sessionDocId,
+        },
+      ))!
+      const card = result.find((entry) => entry.block._id === blockId)
+
+      expect(card).toBeDefined()
+      expect(card?.examPriority).toBe(true)
+      expect(card?.retrievabilityAtExam).not.toBeNull()
+    })
+
+    registerSharedExamPrioritySessionScenarios({
+      runSessionQuery: async (sessionDocId) =>
+        ((await asUser.query(api.cardStates.getDocumentLearnSession, {
+          documentId: sessionDocId,
+        })) ?? []) as Array<LearnSessionCard>,
+      createSessionDocument: async (title) =>
+        createTestDocument(t, userId, title),
     })
   })
 

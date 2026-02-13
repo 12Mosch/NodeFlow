@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudyLeechesRouteImport } from './routes/study-leeches'
 import { Route as StudyRouteImport } from './routes/study'
+import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
@@ -25,6 +26,11 @@ const StudyLeechesRoute = StudyLeechesRouteImport.update({
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamsRoute = ExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CallbackRoute = CallbackRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
+  '/exams': typeof ExamsRoute
   '/study': typeof StudyRoute
   '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
+  '/exams': typeof ExamsRoute
   '/study': typeof StudyRoute
   '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/callback': typeof CallbackRoute
+  '/exams': typeof ExamsRoute
   '/study': typeof StudyRoute
   '/study-leeches': typeof StudyLeechesRoute
   '/doc/$docId': typeof DocDocIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/callback'
+    | '/exams'
     | '/study'
     | '/study-leeches'
     | '/doc/$docId'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/callback'
+    | '/exams'
     | '/study'
     | '/study-leeches'
     | '/doc/$docId'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/callback'
+    | '/exams'
     | '/study'
     | '/study-leeches'
     | '/doc/$docId'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   CallbackRoute: typeof CallbackRoute
+  ExamsRoute: typeof ExamsRoute
   StudyRoute: typeof StudyRoute
   StudyLeechesRoute: typeof StudyLeechesRoute
   DocDocIdRoute: typeof DocDocIdRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/study'
       fullPath: '/study'
       preLoaderRoute: typeof StudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exams': {
+      id: '/exams'
+      path: '/exams'
+      fullPath: '/exams'
+      preLoaderRoute: typeof ExamsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/callback': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   CallbackRoute: CallbackRoute,
+  ExamsRoute: ExamsRoute,
   StudyRoute: StudyRoute,
   StudyLeechesRoute: StudyLeechesRoute,
   DocDocIdRoute: DocDocIdRoute,

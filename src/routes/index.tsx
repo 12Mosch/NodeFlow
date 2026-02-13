@@ -15,6 +15,8 @@ import type { Id } from '../../convex/_generated/dataModel'
 import type { InfiniteData } from '@tanstack/react-query'
 import type { StudyMode } from '@/components/study-mode-dialog'
 import type { DocumentPage } from '@/hooks/use-document-list'
+import { DocumentExamIndicatorView } from '@/components/exams/document-exam-indicator'
+import { useDocumentExamIndicators } from '@/hooks/use-document-exam-indicators'
 import { useDocumentList } from '@/hooks/use-document-list'
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import { ModeToggle } from '@/components/mode-toggle'
@@ -45,6 +47,7 @@ function DocumentList() {
     error: queryError,
   } = useDocumentList({ numItems: DOCUMENTS_PER_PAGE })
   const documents = data?.pages.flatMap((p: DocumentPage) => p.page) || []
+  const { documentExamIndicatorById } = useDocumentExamIndicators(data?.pages)
   const createDocument = useMutation(api.documents.create)
   const sentinelRef = useIntersectionObserver({
     onIntersect: () => fetchNextPage(),
@@ -185,39 +188,46 @@ function DocumentList() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {documents.map((doc) => (
-              <div
-                key={doc._id}
-                className="group flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs transition-colors hover:bg-accent/50 motion-reduce:transition-none"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                  <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground motion-reduce:transition-none">
-                    <FileText className="h-4 w-4" />
-                  </div>
+            {documents.map((doc) => {
+              const indicator = documentExamIndicatorById.get(doc._id)
+              return (
+                <div
+                  key={doc._id}
+                  className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3.5 shadow-xs motion-reduce:transition-none"
+                >
                   <Link
                     to="/doc/$docId"
                     params={{ docId: doc._id }}
-                    className="min-w-0 flex-1 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                    className="group peer flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-sm transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none"
                   >
-                    <h3 className="truncate font-medium text-foreground">
-                      {doc.title || 'Untitled'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Updated {formatDate(doc.updatedAt)}
-                    </p>
+                    <div className="rounded-md bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground motion-reduce:transition-none">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-medium text-foreground">
+                        {doc.title || 'Untitled'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Updated {formatDate(doc.updatedAt)}
+                      </p>
+                      <DocumentExamIndicatorView
+                        indicator={indicator}
+                        variant="home"
+                      />
+                    </div>
                   </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0 text-destructive opacity-0 transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
+                    onClick={(e) => handleDelete(doc._id, e)}
+                    aria-label="Delete document"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive motion-reduce:transition-none"
-                  onClick={(e) => handleDelete(doc._id, e)}
-                  aria-label="Delete document"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
-            ))}
+              )
+            })}
 
             {hasNextPage && <div ref={sentinelRef} className="h-1" />}
             {isFetchingNextPage && (

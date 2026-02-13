@@ -1,5 +1,6 @@
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import type { FlashcardBlockWithAncestorPath } from '../../../convex/helpers/flashcardContext'
+import type { NextActiveExam } from '../../../convex/helpers/examDocuments'
 
 export type LearnCardState = Doc<'cardStates'>
 export type LearnBlock = FlashcardBlockWithAncestorPath
@@ -12,6 +13,9 @@ export interface LearnCard {
     title: string
   } | null
   retrievability: number
+  examPriority: boolean
+  priorityExam: NextActiveExam | null
+  retrievabilityAtExam: number | null
   intervalPreviews: {
     again: string
     hard: string

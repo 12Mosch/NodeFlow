@@ -13,6 +13,7 @@ import {
 import { api } from '../../../convex/_generated/api'
 import type { StudyState } from './types'
 import { LearnQuiz } from '@/components/learn'
+import { ExamOverviewMetrics } from '@/components/study/ExamOverviewMetrics'
 import {
   ActionSuggestionCard,
   AnalyticsCard,
@@ -56,9 +57,13 @@ export function SpacedRepetitionMode({
   const { data: leechStats } = useSuspenseQuery(
     convexQuery(api.cardStates.getLeechStats, {}),
   )
+  const { data: examTotals } = useSuspenseQuery(
+    convexQuery(api.exams.getStudyOverviewTotals, {}),
+  )
   if (!stats || !sessionCards || !leechStats) return null
   const dueCards = sessionCards.filter((c) => c.cardState.state !== 'new')
   const newCards = sessionCards.filter((c) => c.cardState.state === 'new')
+  const examPriorityCards = sessionCards.filter((c) => c.examPriority).length
   const totalDue = dueCards.length + newCards.length
   const handleStartLearning = () => {
     if (hasCapture(posthog as unknown)) {
@@ -78,6 +83,8 @@ export function SpacedRepetitionMode({
   const leechQueueLabel = pluralize(leechStats.totalLeeches, 'leech card')
   const leechVerb = pluralize(leechStats.totalLeeches, 'is', 'are')
   const reviewLabel = pluralize(dueCards.length, 'review')
+  const examPriorityLabel = pluralize(examPriorityCards, 'card')
+  const examPriorityVerb = pluralize(examPriorityCards, 'needs', 'need')
   const readiness =
     totalDue > 0
       ? Math.min(
@@ -163,6 +170,13 @@ export function SpacedRepetitionMode({
               <ActionSuggestionCard>{sessionSuggestion}</ActionSuggestionCard>
             </AnalyticsSection>
 
+            <ExamOverviewMetrics
+              activeExamCount={examTotals.activeExamCount}
+              nextExamAt={examTotals.nextExamAt}
+              nextExamTitle={examTotals.nextExamTitle}
+              examPriorityCards={examPriorityCards}
+            />
+
             {leechStats.totalLeeches > 0 && (
               <AnalyticsSection
                 title="Leech Alert"
@@ -240,9 +254,11 @@ export function SpacedRepetitionMode({
                         Start Learning
                       </Button>
                       <ActionSuggestionCard tone="success">
-                        {leechStats.totalLeeches > 0
-                          ? 'Run this queue now, then check leech cards at the end of session for a focused 5-minute cleanup.'
-                          : 'Run this queue now to keep your momentum while the queue is clean.'}
+                        {examPriorityCards > 0
+                          ? `${examPriorityCards} exam-priority ${examPriorityLabel} ${examPriorityVerb} reinforcement before their nearest exam.`
+                          : leechStats.totalLeeches > 0
+                            ? 'Run this queue now, then check leech cards at the end of session for a focused 5-minute cleanup.'
+                            : 'Run this queue now to keep your momentum while the queue is clean.'}
                       </ActionSuggestionCard>
                     </>
                   ) : (
