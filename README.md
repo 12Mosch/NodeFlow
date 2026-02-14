@@ -52,10 +52,18 @@ VITE_WORKOS_REDIRECT_URI=http://localhost:3000/callback
 # PostHog
 VITE_PUBLIC_POSTHOG_KEY=your_posthog_project_api_key
 VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+# PostHog source map upload (build-time only)
+POSTHOG_API_KEY=your_posthog_personal_api_key
+POSTHOG_ENV_ID=your_numeric_posthog_environment_id
+# Optional (falls back to VITE_PUBLIC_POSTHOG_HOST, then defaults to https://us.i.posthog.com)
+POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 > **Note**: For authentication to work in the backend, you must also set `WORKOS_CLIENT_ID` (and optionally `WORKOS_API_HOSTNAME` if you are using a custom one) in your [Convex Dashboard](https://dashboard.convex.dev/) under **Settings > Environment Variables**.
 > **Note**: If PostHog variables are missing, the app continues without analytics and logs a warning in the console.
+> **Note**: Source map upload runs during `bun run build` when `POSTHOG_API_KEY` and `POSTHOG_ENV_ID` are set.
+> **Note**: `POSTHOG_ENV_ID` must be numeric (for example `12345`), not your `phc_...` project API key.
 > **Note**: Session Replay is enabled only in production builds. Development and local builds keep analytics active (if configured) but disable replay recording.
 > **Note**: For sensitive content, use `ph-mask`/`data-ph-mask` to mask text in replay and `ph-no-capture`/`data-ph-no-capture` to block replay and autocapture.
 > **Note**: Autocapture is excluded on public share routes (`/share/$slug`).
