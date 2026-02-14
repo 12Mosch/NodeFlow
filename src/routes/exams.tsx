@@ -3,10 +3,13 @@ import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
+import { format } from 'date-fns'
 import {
   Archive,
   ArrowLeft,
   CalendarDays,
+  Calendar as CalendarIcon,
+  Clock3,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -26,6 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -41,6 +45,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDocumentList } from '@/hooks/use-document-list'
@@ -49,12 +58,14 @@ import {
   LIST_DOCUMENT_INDICATORS_QUERY_PREFIX,
 } from '@/lib/exam-query-keys'
 import { formatExamCountdown, formatExamDateTime } from '@/lib/exams'
+import { cn } from '@/lib/utils'
 
 type ExamsTab = 'active' | 'past' | 'archived'
 
 type EditorState = {
   title: string
-  examAtLocal: string
+  examDate: Date | undefined
+  examTime: string
   notes: string
   documentIds: Set<Id<'documents'>>
 }
@@ -72,20 +83,53 @@ const EXAM_EDITOR_DOCUMENTS_PER_PAGE = 50
 function createEmptyEditorState(): EditorState {
   return {
     title: '',
-    examAtLocal: '',
+    examDate: undefined,
+    examTime: '',
     notes: '',
     documentIds: new Set(),
   }
 }
 
-function toDateTimeLocalValue(timestamp: number) {
+function toEditorDateTimeValue(timestamp: number) {
   const date = new Date(timestamp)
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(timestamp - offset).toISOString().slice(0, 16)
+  const examDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  return {
+    examDate,
+    examTime: `${hours}:${minutes}`,
+  }
 }
 
-function fromDateTimeLocalValue(value: string) {
-  const timestamp = new Date(value).getTime()
+function fromEditorDateTimeValue(examDate: Date | undefined, examTime: string) {
+  if (!examDate) return null
+  const match = /^(\d{2}):(\d{2})$/.exec(examTime)
+  if (!match) return null
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null
+  }
+
+  const timestamp = new Date(
+    examDate.getFullYear(),
+    examDate.getMonth(),
+    examDate.getDate(),
+    hours,
+    minutes,
+    0,
+    0,
+  ).getTime()
+
   return Number.isNaN(timestamp) ? null : timestamp
 }
 
@@ -115,6 +159,7 @@ function ExamsPage() {
 
   const [tab, setTab] = useState<ExamsTab>('active')
   const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [isExamDatePopoverOpen, setIsExamDatePopoverOpen] = useState(false)
   const [editingExamId, setEditingExamId] = useState<Id<'exams'> | null>(null)
   const [editorState, setEditorState] = useState<EditorState>(
     createEmptyEditorState(),
@@ -302,17 +347,21 @@ function ExamsPage() {
   const openCreateEditor = () => {
     setEditingExamId(null)
     setEditorState(createEmptyEditorState())
+    setIsExamDatePopoverOpen(false)
     setIsEditorOpen(true)
   }
 
   const openEditEditor = (exam: (typeof exams)[number]) => {
+    const { examDate, examTime } = toEditorDateTimeValue(exam.examAt)
     setEditingExamId(exam._id)
     setEditorState({
       title: exam.title,
-      examAtLocal: toDateTimeLocalValue(exam.examAt),
+      examDate,
+      examTime,
       notes: exam.notes ?? '',
       documentIds: new Set(exam.documentIds),
     })
+    setIsExamDatePopoverOpen(false)
     setIsEditorOpen(true)
   }
 
@@ -344,7 +393,10 @@ function ExamsPage() {
         toast.error('Exam title is required.')
         return
       }
-      const examAt = fromDateTimeLocalValue(editorState.examAtLocal)
+      const examAt = fromEditorDateTimeValue(
+        editorState.examDate,
+        editorState.examTime,
+      )
       if (examAt === null) {
         toast.error('Please select a valid exam date and time.')
         return
@@ -589,20 +641,75 @@ function ExamsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="exam-at" className="text-sm font-medium">
+              <label htmlFor="exam-at-date" className="text-sm font-medium">
                 Exam date and time
               </label>
-              <Input
-                id="exam-at"
-                type="datetime-local"
-                value={editorState.examAtLocal}
-                onChange={(event) =>
-                  setEditorState((prev) => ({
-                    ...prev,
-                    examAtLocal: event.target.value,
-                  }))
-                }
-              />
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px]">
+                <Popover
+                  open={isExamDatePopoverOpen}
+                  onOpenChange={setIsExamDatePopoverOpen}
+                >
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        id="exam-at-date"
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !editorState.examDate && 'text-muted-foreground',
+                        )}
+                      />
+                    }
+                  >
+                    <CalendarIcon className="h-4 w-4" />
+                    {editorState.examDate
+                      ? format(editorState.examDate, 'PPP')
+                      : 'Pick a date'}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      captionLayout="dropdown"
+                      navLayout="around"
+                      selected={editorState.examDate}
+                      onSelect={(selectedDate) => {
+                        setEditorState((prev) => ({
+                          ...prev,
+                          examDate: selectedDate
+                            ? new Date(
+                                selectedDate.getFullYear(),
+                                selectedDate.getMonth(),
+                                selectedDate.getDate(),
+                              )
+                            : undefined,
+                        }))
+                        setIsExamDatePopoverOpen(false)
+                      }}
+                      autoFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="relative">
+                  <label htmlFor="exam-at-time" className="sr-only">
+                    Exam time
+                  </label>
+                  <Input
+                    id="exam-at-time"
+                    type="time"
+                    step="60"
+                    value={editorState.examTime}
+                    onChange={(event) =>
+                      setEditorState((prev) => ({
+                        ...prev,
+                        examTime: event.target.value,
+                      }))
+                    }
+                    className="pr-9"
+                  />
+                  <Clock3 className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
