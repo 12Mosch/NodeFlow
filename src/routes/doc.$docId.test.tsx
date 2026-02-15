@@ -1,6 +1,7 @@
 import { createElement } from 'react'
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 import { Route } from './doc.$docId'
 import type { ReactNode } from 'react'
 import {
@@ -12,6 +13,7 @@ import { renderWithQuery } from '@/test/render-with-query'
 
 const mocks = vi.hoisted(() => {
   const navigateMock = vi.fn()
+  const openSearchMock = vi.fn()
 
   return {
     suspenseQueryMock: vi.fn(),
@@ -19,6 +21,7 @@ const mocks = vi.hoisted(() => {
     isRestoringMock: vi.fn(),
     mutationMock: vi.fn(() => Promise.resolve(undefined)),
     navigateMock,
+    openSearchMock,
   }
 })
 
@@ -148,7 +151,7 @@ vi.mock('@/components/mode-toggle', async () => {
 
 vi.mock('@/components/search-provider', () => ({
   useSearch: () => ({
-    open: vi.fn(),
+    open: mocks.openSearchMock,
   }),
 }))
 
@@ -305,5 +308,94 @@ describe('doc.$docId route smoke', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Spaced mode' }))
 
     expect(mocks.mutationMock).toHaveBeenCalledWith({ documentId: 'doc1' })
+  })
+
+  it('returns null while restoring cache state to avoid not-found flash', () => {
+    mockDocRouteState({
+      docId: 'doc1',
+      document: null,
+      flashcards: [],
+    })
+    mocks.isRestoringMock.mockReturnValue(true)
+
+    const { container } = renderWithQuery(createElement(DocumentRouteComponent))
+
+    expect(screen.queryByText('Document not found')).toBeNull()
+    expect(container.textContent).toBe('')
+  })
+
+  it('continues to learn mode and warns when spaced-repetition init fails', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      // Suppress expected error output from rejected init mutation.
+      .mockImplementation(() => undefined)
+    mockDocRouteState({
+      docId: 'doc1',
+      document: documentFixture,
+      flashcards: flashcardsFixture,
+    })
+    mocks.mutationMock.mockRejectedValueOnce(new Error('init failed'))
+
+    renderWithQuery(createElement(DocumentRouteComponent))
+
+    fireEvent.click(screen.getByRole('button', { name: /Study/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Spaced mode' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('learn-quiz-stub')).toBeTruthy()
+    })
+    expect(toast.warning).toHaveBeenCalledWith(
+      'Could not initialize card states. Cards will be created on first review.',
+    )
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('hides study controls when no flashcards exist', () => {
+    mockDocRouteState({
+      docId: 'doc1',
+      document: documentFixture,
+      flashcards: [],
+    })
+
+    renderWithQuery(createElement(DocumentRouteComponent))
+
+    expect(screen.queryByRole('button', { name: /Study/ })).toBeNull()
+  })
+
+  it('keeps search CTA accessible and wired to open search', () => {
+    mockDocRouteState({
+      docId: 'doc1',
+      document: documentFixture,
+      flashcards: flashcardsFixture,
+    })
+
+    renderWithQuery(createElement(DocumentRouteComponent))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open search' }))
+    expect(mocks.openSearchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves keyboard accessibility for document title edit trigger', () => {
+    mockDocRouteState({
+      docId: 'doc1',
+      document: documentFixture,
+      flashcards: flashcardsFixture,
+    })
+
+    renderWithQuery(createElement(DocumentRouteComponent))
+
+    const titleButton = screen.getByRole('button', { name: 'Biology Notes' })
+
+    fireEvent.keyDown(titleButton, { key: 'Enter' })
+    expect(screen.getByRole('textbox')).toBeTruthy()
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+    expect(screen.queryByRole('textbox')).toBeNull()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Biology Notes' }), {
+      key: ' ',
+    })
+
+    expect(screen.getByRole('textbox')).toBeTruthy()
   })
 })
