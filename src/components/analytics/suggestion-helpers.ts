@@ -84,6 +84,22 @@ export function formatPercent(value: number | null) {
   return `${value.toFixed(1)}%`
 }
 
+export function formatDuration(ms: number) {
+  if (!ms || ms <= 0) return '0m'
+  const totalMinutes = Math.max(1, Math.round(ms / 60000))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours <= 0) return `${minutes}m`
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+}
+
+export function formatDurationShort(ms: number | null) {
+  if (!ms || ms <= 0) return '—'
+  const roundedSeconds = Math.max(1, Math.round(ms / 1000))
+  if (roundedSeconds < 60) return `${roundedSeconds}s`
+  return formatDuration(ms)
+}
+
 export function roundToOne(value: number) {
   return Math.round(value * 10) / 10
 }
